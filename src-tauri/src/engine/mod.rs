@@ -5,6 +5,7 @@ pub mod error;
 pub mod install;
 pub mod java;
 pub mod launch;
+pub mod loader;
 pub mod auth;
 pub mod meta;
 pub mod mirror;

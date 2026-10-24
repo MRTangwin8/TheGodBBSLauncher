@@ -76,6 +76,10 @@ pub enum Stage {
     AssetIndex,
     Files,
     Java,
+    /// 下载加载器和它的库
+    Loader,
+    /// 运行 Forge 安装器 processors（totalFiles = 步骤数）
+    Processor,
 }
 
 pub type ReportFn = Arc<dyn Fn(Stage, Progress) + Send + Sync>;
@@ -200,6 +204,7 @@ pub struct InstalledVersion {
     pub inherits_from: Option<String>,
     pub release_time: Option<String>,
     pub has_jar: bool,
+    pub loader: Option<crate::engine::loader::LoaderKind>,
 }
 
 pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
@@ -221,6 +226,7 @@ pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
             has_jar: tokio::fs::try_exists(game.version_jar(v.jar.as_deref().unwrap_or(&id))).await.unwrap_or(false)
                 || v.inherits_from.is_some(),
             id,
+            loader: crate::engine::loader::detect(&v.libraries),
             kind: v.kind,
             inherits_from: v.inherits_from,
             release_time: v.release_time,

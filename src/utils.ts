@@ -22,3 +22,10 @@ export const kindLabel: Record<string, string> = {
   old_beta: "远古 Beta",
   old_alpha: "远古 Alpha",
 };
+
+export const loaderLabel: Record<string, string> = {
+  fabric: "Fabric",
+  quilt: "Quilt",
+  forge: "Forge",
+  neoforge: "NeoForge",
+};

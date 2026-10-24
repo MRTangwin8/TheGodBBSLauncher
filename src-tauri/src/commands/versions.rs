@@ -59,7 +59,7 @@ async fn do_install(app: &AppHandle, state: &AppState, id: &str) -> Result<Downl
     install::install_vanilla(&downloader, &game, &entry, &Platform::current(), report).await
 }
 
-async fn cached_manifest(state: &AppState) -> Result<VersionManifest> {
+pub async fn cached_manifest(state: &AppState) -> Result<VersionManifest> {
     if let Some(m) = state.manifest.lock().await.clone() {
         return Ok(m);
     }

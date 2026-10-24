@@ -22,6 +22,7 @@ export interface InstalledVersion {
   inheritsFrom?: string;
   releaseTime?: string;
   hasJar: boolean;
+  loader: LoaderKind | null;
 }
 
 export type SourcePref = "auto" | "official" | "bmclapi";
@@ -55,7 +56,7 @@ export interface Progress {
   speed: number;
 }
 
-export type Stage = "versionJson" | "assetIndex" | "files" | "java";
+export type Stage = "versionJson" | "assetIndex" | "files" | "java" | "loader" | "processor";
 
 export interface InstallProgress {
   versionId: string;
@@ -122,4 +123,12 @@ export interface GameExit {
   runId: string;
   versionId: string;
   code: number | null;
+}
+
+export type LoaderKind = "fabric" | "quilt" | "forge" | "neoforge";
+
+export interface LoaderVersion {
+  id: string;
+  version: string;
+  stable: boolean;
 }

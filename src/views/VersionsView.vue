@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { useVersionsStore } from "../stores/versions";
 import { useGameStore } from "../stores/game";
 import { useAccountsStore } from "../stores/accounts";
-import { formatDate, kindLabel } from "../utils";
+import { formatDate, kindLabel, loaderLabel } from "../utils";
 
 const versions = useVersionsStore();
 const game = useGameStore();
@@ -40,7 +40,8 @@ async function launch(id: string) {
       <tbody>
         <tr v-for="v in versions.installed" :key="v.id">
           <td>
-            <span class="tag" :class="v.kind">{{ kindLabel[v.kind ?? ""] ?? v.kind ?? "自定义" }}</span>
+            <span v-if="v.loader" class="tag" :class="'ld-' + v.loader">{{ loaderLabel[v.loader] }}</span>
+            <span v-else class="tag" :class="v.kind">{{ kindLabel[v.kind ?? ""] ?? v.kind ?? "自定义" }}</span>
             <b>{{ v.id }}</b>
             <span v-if="!v.hasJar" class="error-text"> （缺少 client.jar）</span>
             <span v-if="game.running.some((r) => r.versionId === v.id)" class="playing">● 游戏中</span>
@@ -76,4 +77,8 @@ async function launch(id: string) {
 <style scoped>
 .actions { display: flex; gap: 6px; justify-content: flex-end; }
 .playing { color: var(--grass); font-size: 12px; margin-left: 6px; }
+.tag.ld-fabric { background: #b39b72; }
+.tag.ld-quilt { background: #8e5fb4; }
+.tag.ld-forge { background: #3e4b61; }
+.tag.ld-neoforge { background: #d2691e; }
 </style>

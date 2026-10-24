@@ -3,8 +3,10 @@ import { computed, onMounted, ref } from "vue";
 import { useVersionsStore } from "../stores/versions";
 import type { VersionKind } from "../api/types";
 import { formatDate, kindLabel } from "../utils";
+import InstallDialog from "../components/InstallDialog.vue";
 
 const versions = useVersionsStore();
+const dialogFor = ref<string | null>(null);
 const filter = ref<VersionKind | "old">("release");
 const keyword = ref("");
 const PAGE = 50;
@@ -70,14 +72,23 @@ function switchTab(key: VersionKind | "old") {
           </td>
           <td class="num">{{ formatDate(v.releaseTime) }}</td>
           <td class="num">
-            <button
-              class="btn small"
-              :class="{ primary: !versions.installedIds.has(v.id) }"
-              :disabled="versions.jobs[v.id]?.status === 'running'"
-              @click="versions.install(v.id)"
-            >
-              {{ versions.jobs[v.id]?.status === "running" ? "安装中…" : versions.installedIds.has(v.id) ? "补全文件" : "安装" }}
-            </button>
+            <span class="row-actions">
+              <button
+                v-if="versions.installedIds.has(v.id)"
+                class="btn small"
+                :disabled="versions.jobs[v.id]?.status === 'running'"
+                @click="versions.install(v.id)"
+              >
+                补全文件
+              </button>
+              <button
+                class="btn small primary"
+                :disabled="versions.jobs[v.id]?.status === 'running'"
+                @click="dialogFor = v.id"
+              >
+                {{ versions.jobs[v.id]?.status === "running" ? "安装中…" : versions.installedIds.has(v.id) ? "装加载器" : "安装" }}
+              </button>
+            </span>
           </td>
         </tr>
         <tr v-if="!filtered.length"><td colspan="3" class="muted">没有找到相关主题</td></tr>
@@ -87,6 +98,7 @@ function switchTab(key: VersionKind | "old") {
       <button class="btn" @click="limit += PAGE">加载更多（还有 {{ filtered.length - limit }} 帖）</button>
     </div>
   </div>
+  <InstallDialog v-if="dialogFor" :mc="dialogFor" @close="dialogFor = null" />
 </template>
 
 <style scoped>
@@ -97,4 +109,5 @@ function switchTab(key: VersionKind | "old") {
 .tabs a.active { background: var(--bg-box); font-weight: bold; color: var(--brown-dark); border-bottom-color: var(--bg-box); }
 .hot { color: var(--red); font-weight: bold; font-size: 12px; margin-left: 4px; }
 .more { padding: 10px; text-align: center; }
+.row-actions { display: inline-flex; gap: 6px; }
 </style>

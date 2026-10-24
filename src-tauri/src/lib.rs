@@ -36,6 +36,8 @@ pub fn run() {
             commands::accounts::add_yggdrasil_account,
             commands::accounts::remove_account,
             commands::accounts::select_account,
+            commands::loaders::list_loader_versions,
+            commands::loaders::install_loader,
             commands::java::list_java,
             commands::java::memory_info,
             commands::game::launch_game,

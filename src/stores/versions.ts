@@ -1,7 +1,8 @@
 import { defineStore } from "pinia";
 import { computed, reactive, ref } from "vue";
 import { api, onInstallProgress } from "../api";
-import type { DownloadReport, InstalledVersion, Progress, Stage, VersionManifest } from "../api/types";
+import type { DownloadReport, InstalledVersion, LoaderKind, LoaderVersion, Progress, Stage, VersionManifest } from "../api/types";
+import { loaderLabel } from "../utils";
 
 export interface InstallJob {
   versionId: string;
@@ -14,6 +15,8 @@ export interface InstallJob {
   status: "running" | "done" | "failed";
   error?: string;
   report?: DownloadReport;
+  /** 加载器安装成功后的版本 id */
+  resultId?: string;
 }
 
 export const useVersionsStore = defineStore("versions", () => {
@@ -63,6 +66,23 @@ export const useVersionsStore = defineStore("versions", () => {
     await loadInstalled();
   }
 
+  /** 原版 + 加载器；任务名就是显示在楼层里的标题 */
+  async function installLoader(mc: string, kind: LoaderKind, loader: LoaderVersion) {
+    const jobId = `${mc} + ${loaderLabel[kind]} ${loader.version}`;
+    if (jobs[jobId]?.status === "running") return;
+    jobs[jobId] = { versionId: jobId, kind: "install", floor: ++floorCounter, stage: "versionJson", progress: null, status: "running" };
+    const job = jobs[jobId];
+    try {
+      const id = await api.installLoader(jobId, mc, kind, loader.id);
+      job.status = "done";
+      job.resultId = id;
+    } catch (e) {
+      job.status = "failed";
+      job.error = String(e);
+    }
+    await loadInstalled();
+  }
+
   function dismiss(versionId: string) {
     delete jobs[versionId];
   }
@@ -73,5 +93,5 @@ export const useVersionsStore = defineStore("versions", () => {
     return jobs[versionId];
   }
 
-  return { manifest, manifestError, installed, installedIds, jobs, jobList, running, loadManifest, loadInstalled, install, dismiss, trackLaunch };
+  return { manifest, manifestError, installed, installedIds, jobs, jobList, running, loadManifest, loadInstalled, install, installLoader, dismiss, trackLaunch };
 });

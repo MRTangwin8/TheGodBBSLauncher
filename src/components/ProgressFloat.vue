@@ -11,6 +11,8 @@ const stageText: Record<InstallJob["stage"], string> = {
   assetIndex: "获取资源索引",
   files: "下载游戏文件",
   java: "下载 Java",
+  loader: "安装加载器",
+  processor: "运行安装器",
 };
 
 function percent(job: InstallJob): number {
@@ -42,10 +44,16 @@ function percent(job: InstallJob): number {
           <a v-if="job.status !== 'running'" class="close" title="删帖" @click="versions.dismiss(job.versionId)">×</a>
         </div>
         <div class="xp-bar"><div :style="{ width: percent(job) + '%' }" /></div>
-        <div v-if="job.progress && job.status === 'running'" class="floor-meta muted">
+        <div v-if="job.progress && job.status === 'running' && job.stage === 'processor'" class="floor-meta muted">
+          第 {{ job.progress.finishedFiles + 1 > job.progress.totalFiles ? job.progress.totalFiles : job.progress.finishedFiles + 1 }}/{{ job.progress.totalFiles }} 步（Forge 安装器在打补丁，可能要一两分钟）
+        </div>
+        <div v-else-if="job.progress && job.status === 'running'" class="floor-meta muted">
           {{ job.progress.finishedFiles }}/{{ job.progress.totalFiles }} 个文件 ·
           {{ formatBytes(job.progress.downloadedBytes) }}/{{ formatBytes(job.progress.totalBytes) }} ·
           {{ formatBytes(job.progress.speed) }}/s
+        </div>
+        <div v-else-if="job.status === 'done' && job.resultId" class="floor-meta muted">
+          已生成版本 <b>{{ job.resultId }}</b>，去 <RouterLink to="/versions">版本管理</RouterLink> 启动
         </div>
         <div v-else-if="job.status === 'done' && job.report" class="floor-meta muted">
           新下载 {{ job.report.downloaded }} 个，已存在跳过 {{ job.report.skipped }} 个

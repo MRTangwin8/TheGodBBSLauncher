@@ -32,8 +32,8 @@ let settings: Settings = {
   windowHeight: null,
 };
 const installed: InstalledVersion[] = [
-  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true },
-  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true },
+  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null },
+  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null },
 ];
 const accounts: AccountList = {
   accounts: [
@@ -61,6 +61,14 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       { path: "C:\\Program Files\\Eclipse Adoptium\\jdk-21\\bin\\java.exe", major: 21, version: "21.0.4", arch: "x86_64", vendor: "Eclipse Adoptium" },
       { path: "C:\\Program Files\\Java\\jre1.8.0_421\\bin\\java.exe", major: 8, version: "1.8.0_421", arch: "x86_64", vendor: "Oracle Corporation" },
     ],
+    list_loader_versions: () =>
+      args!.kind === "quilt"
+        ? []
+        : [
+            { id: "0.16.9", version: "0.16.9", stable: true },
+            { id: "0.16.8", version: "0.16.8", stable: true },
+            { id: "0.17.0-beta.1", version: "0.17.0-beta.1", stable: false },
+          ],
     memory_info: () => ({ totalMb: 16384, autoMb: 4096 }),
     microsoft_login_start: () => ({ userCode: "GODBBS42", deviceCode: "", verificationUri: "https://www.microsoft.com/link", expiresIn: 900, interval: 5 }),
     microsoft_login_finish: () => new Promise(() => {}),

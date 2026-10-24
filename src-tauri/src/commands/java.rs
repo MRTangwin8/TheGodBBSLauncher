@@ -1,9 +1,14 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use serde::Serialize;
 use tauri::State;
 
 use super::AppState;
 use crate::config::auto_memory_mb;
+use crate::engine::download::{Downloader, Progress};
 use crate::engine::java::{self, JavaInstall};
+use crate::engine::meta::{Platform, VersionJson};
 use crate::engine::Result;
 
 pub async fn cached_javas(state: &AppState, force: bool) -> Vec<JavaInstall> {
@@ -12,6 +17,28 @@ pub async fn cached_javas(state: &AppState, force: bool) -> Vec<JavaInstall> {
         *cache = Some(java::scan(vec![state.runtime_dir()]).await);
     }
     cache.clone().unwrap_or_default()
+}
+
+/// 按版本的 javaVersion 挑本机 Java，没有合适的就下载 Mojang 官方 runtime
+pub async fn ensure_java(
+    state: &AppState,
+    version: &VersionJson,
+    downloader: &Downloader,
+    on_progress: Arc<dyn Fn(Progress) + Send + Sync>,
+) -> Result<PathBuf> {
+    let platform = Platform::current();
+    let major = version.java_version.as_ref().map(|j| j.major_version).unwrap_or(8);
+    if let Some(j) = java::pick(&cached_javas(state, false).await, major, &platform) {
+        return Ok(j.path.clone());
+    }
+    let component = version
+        .java_version
+        .as_ref()
+        .and_then(|j| j.component.clone())
+        .unwrap_or_else(|| "jre-legacy".into());
+    let path = java::install_runtime(downloader, &state.client, &state.runtime_dir(), &component, &platform, on_progress).await?;
+    *state.java_cache.lock().await = None;
+    Ok(path)
 }
 
 #[tauri::command]

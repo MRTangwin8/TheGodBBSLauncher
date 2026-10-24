@@ -58,11 +58,14 @@ pub fn classpath(game: &GameDir, version: &VersionJson, platform: &Platform) -> 
         .libraries
         .iter()
         .filter(|l| l.is_allowed(platform))
-        .filter_map(|l| l.artifact())
-        .map(|f| join_rel(&libs, &f.path))
+        // 用 artifact_path 而不是 artifact：Forge 内嵌/本地生成的库没有下载地址，但同样要进 classpath
+        .filter_map(|l| l.artifact_path())
+        .map(|p| join_rel(&libs, &p))
         .filter(|p| seen.insert(p.clone()))
         .collect();
-    out.push(game.version_jar(version.jar_id()));
+    // Forge/NeoForge 安装时会把原版 jar 复制成 versions/<id>/<id>.jar，有就优先用它
+    let own = game.version_jar(&version.id);
+    out.push(if own.is_file() { own } else { game.version_jar(version.jar_id()) });
     out
 }
 
@@ -87,9 +90,9 @@ fn native_jars(game: &GameDir, version: &VersionJson, platform: &Platform) -> Ve
         .collect()
 }
 
-/// 把 natives jar 里的动态库平铺解压到 `dir`
+/// 把 natives jar 里的动态库平铺解压到 `dir`。
+/// 大小没变的文件不重写：每次启动都重新生成 DLL 会触发杀毒软件扫描，扫描期间 LWJGL 加载会失败。
 fn extract_natives(jars: &[(PathBuf, Vec<String>)], dir: &Path) -> Result<()> {
-    let _ = std::fs::remove_dir_all(dir);
     std::fs::create_dir_all(dir)?;
     for (jar, exclude) in jars {
         let file = std::fs::File::open(jar).map_err(|e| Error::Other(format!("缺少 natives 文件 {}：{e}", jar.display())))?;
@@ -105,7 +108,11 @@ fn extract_natives(jars: &[(PathBuf, Vec<String>)], dir: &Path) -> Result<()> {
             if !is_lib {
                 continue;
             }
-            let mut out = std::fs::File::create(dir.join(file_name))?;
+            let dest = dir.join(file_name);
+            if dest.metadata().is_ok_and(|m| m.len() == entry.size()) {
+                continue;
+            }
+            let mut out = std::fs::File::create(&dest)?;
             std::io::copy(&mut entry, &mut out)?;
         }
     }

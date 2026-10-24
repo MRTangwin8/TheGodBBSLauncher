@@ -14,7 +14,8 @@
 - [x] Java 管理：扫描本机 Java，缺少时自动下载 Mojang 官方 runtime
 - [x] 启动游戏：natives 解压、新旧参数格式、旧版资源映射、版本隔离、实时日志
 - [x] 账号：微软正版（设备码）、离线、外置登录（authlib-injector），令牌 AES-GCM 加密、密钥存系统钥匙串
-- [ ] 模组加载器、崩溃分析……见 PLAN
+- [x] 模组加载器一键安装：Fabric / Quilt（meta profile）、Forge / NeoForge（本地执行安装器 processors，旧版 Forge 走 versionInfo）
+- [ ] 崩溃分析、Modrinth / CurseForge 资源下载、整合包……见 PLAN
 
 ## 开发
 
@@ -31,6 +32,7 @@ cd src-tauri
 cargo test                                             # 单元测试
 cargo run --example install -- 1.20.1 ./.minecraft     # 命令行安装原版（冒烟测试）
 cargo run --example launch -- 1.20.1 ./.minecraft      # 离线启动到主菜单后自动退出
+cargo run --example loader -- forge 1.20.1 ./.minecraft # 安装原版 + 加载器（fabric/quilt/forge/neoforge）
 ```
 
 ## 目录

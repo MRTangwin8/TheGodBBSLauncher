@@ -8,14 +8,13 @@ use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::sync::oneshot;
 
-use super::java::{cached_javas, total_memory_mb};
+use super::java::{ensure_java, total_memory_mb};
 use super::versions::INSTALL_PROGRESS_EVENT;
 use super::{AppState, RunningGame};
 use crate::config::{auto_memory_mb, split_args};
 use crate::engine::auth::{microsoft, yggdrasil, AccountKind, LaunchAuth};
 use crate::engine::download::{DownloadTask, Downloader, Progress};
 use crate::engine::install::{self, GameDir, Stage};
-use crate::engine::java;
 use crate::engine::launch::log4j::Log4jParser;
 use crate::engine::launch::{self, Agent, LaunchOptions};
 use crate::engine::meta::{AssetIndex, Platform, VersionJson};
@@ -149,23 +148,7 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
     // Java
     let java_path = match &settings.java_path {
         Some(p) => p.clone(),
-        None => {
-            let major = version.java_version.as_ref().map(|j| j.major_version).unwrap_or(8);
-            let javas = cached_javas(state, false).await;
-            match java::pick(&javas, major, &platform) {
-                Some(j) => j.path.clone(),
-                None => {
-                    let component = version
-                        .java_version
-                        .as_ref()
-                        .and_then(|j| j.component.clone())
-                        .unwrap_or_else(|| "jre-legacy".into());
-                    let path = java::install_runtime(&downloader, &state.client, &state.runtime_dir(), &component, &platform, reporter(Stage::Java)).await?;
-                    *state.java_cache.lock().await = None;
-                    path
-                }
-            }
-        }
+        None => ensure_java(state, &version, &downloader, reporter(Stage::Java)).await?,
     };
 
     let agent = match ygg_api {

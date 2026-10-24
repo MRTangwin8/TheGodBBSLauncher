@@ -3,6 +3,7 @@
 pub mod accounts;
 pub mod game;
 pub mod java;
+pub mod loaders;
 pub mod settings;
 pub mod versions;
 

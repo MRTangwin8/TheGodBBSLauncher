@@ -10,6 +10,8 @@ import type {
   InstalledVersion,
   InstallProgress,
   JavaInstall,
+  LoaderKind,
+  LoaderVersion,
   LaunchResult,
   MemoryInfo,
   ProbeResult,
@@ -47,6 +49,10 @@ export const api = {
     call<Account>("add_yggdrasil_account", { server, username, password }),
   removeAccount: (id: string) => call<void>("remove_account", { id }),
   selectAccount: (id: string) => call<void>("select_account", { id }),
+
+  listLoaderVersions: (kind: LoaderKind, mcVersion: string) => call<LoaderVersion[]>("list_loader_versions", { kind, mcVersion }),
+  installLoader: (jobId: string, mcVersion: string, kind: LoaderKind, loaderId: string) =>
+    call<string>("install_loader", { jobId, mcVersion, kind, loaderId }),
 
   listJava: (force = false) => call<JavaInstall[]>("list_java", { force }),
   memoryInfo: () => call<MemoryInfo>("memory_info"),

@@ -236,6 +236,9 @@ pub struct Library {
     pub sha1: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub size: Option<u64>,
+    /// 旧版 Forge：false 表示只有服务端需要
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clientreq: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -277,7 +280,17 @@ const MOJANG_LIBRARIES: &str = "https://libraries.minecraft.net/";
 
 impl Library {
     pub fn is_allowed(&self, platform: &Platform) -> bool {
-        rules_allow(&self.rules, platform, &HashMap::new())
+        self.clientreq != Some(false) && rules_allow(&self.rules, platform, &HashMap::new())
+    }
+
+    /// 主 jar 的相对路径，不管有没有下载地址（Forge 安装器内嵌或本地生成的库也算）
+    /// 只有 natives 分类没有主 jar 的库返回 None。
+    pub fn artifact_path(&self) -> Option<String> {
+        match &self.downloads {
+            Some(d) => d.artifact.as_ref().and_then(|a| a.path.clone().or_else(|| maven_path(&self.name))),
+            None if self.natives.is_some() => None,
+            None => maven_path(&self.name),
+        }
     }
 
     pub fn native_classifier(&self, platform: &Platform) -> Option<String> {
@@ -532,6 +545,7 @@ mod tests {
             }}
         }"#).unwrap();
         assert!(lib.artifact().is_none());
+        assert!(lib.artifact_path().is_none(), "natives-only 库不能进 classpath");
         let n = lib.native_artifact(&win()).unwrap();
         assert_eq!(n.sha1.as_deref(), Some("w64"));
         assert!(lib.native_artifact(&mac_arm()).is_none());
@@ -546,6 +560,21 @@ mod tests {
         assert_eq!(maven_path("de.oceanlabs.mcp:mcp_config:1.20.1@zip").unwrap(),
             "de/oceanlabs/mcp/mcp_config/1.20.1/mcp_config-1.20.1.zip");
         assert!(maven_path("bad").is_none());
+    }
+
+    #[test]
+    fn embedded_forge_library_has_path_but_no_download() {
+        // Forge 安装器内嵌的库：url 为空，不下载，但要进 classpath
+        let lib: Library = serde_json::from_str(r#"{
+            "name": "net.minecraftforge:forge:1.12.2-14.23.5.2859",
+            "downloads": {"artifact": {"path": "net/minecraftforge/forge/1.12.2-14.23.5.2859/forge-1.12.2-14.23.5.2859.jar", "url": "", "sha1": "x"}}
+        }"#).unwrap();
+        assert!(lib.artifact().is_none());
+        assert_eq!(lib.artifact_path().unwrap(), "net/minecraftforge/forge/1.12.2-14.23.5.2859/forge-1.12.2-14.23.5.2859.jar");
+        let legacy: Library = serde_json::from_str(r#"{"name": "net.minecraftforge:forge:1.7.10-10.13.4.1614-1.7.10", "clientreq": true}"#).unwrap();
+        assert!(legacy.artifact_path().is_some());
+        let server_only: Library = serde_json::from_str(r#"{"name": "a:b:1", "clientreq": false}"#).unwrap();
+        assert!(!server_only.is_allowed(&win()));
     }
 
     #[test]
