@@ -27,6 +27,8 @@ pub struct Settings {
     pub window_height: Option<u32>,
     /// 崩溃规则库更新地址（留空表示只用内置规则）
     pub crash_rules_url: String,
+    /// CurseForge API Key；留空则通过 MCIM 镜像访问
+    pub curseforge_api_key: String,
 }
 
 impl Default for Settings {
@@ -43,6 +45,7 @@ impl Default for Settings {
             window_width: None,
             window_height: None,
             crash_rules_url: String::new(),
+            curseforge_api_key: String::new(),
         }
     }
 }

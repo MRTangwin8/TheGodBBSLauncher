@@ -26,43 +26,50 @@ pub enum Source {
 }
 
 const BMCLAPI: &str = "https://bmclapi2.bangbang93.com";
+const MCIM: &str = "https://mod.mcimirror.top";
 
-/// 官方前缀 → BMCLAPI 前缀（BMCLAPI 文档：https://bmclapidoc.bangbang93.com/）
-const BMCLAPI_RULES: &[(&str, &str)] = &[
-    ("https://piston-meta.mojang.com", ""),
-    ("https://launchermeta.mojang.com", ""),
-    ("https://piston-data.mojang.com", ""),
-    ("https://launcher.mojang.com", ""),
-    ("https://resources.download.minecraft.net", "/assets"),
-    ("https://libraries.minecraft.net", "/maven"),
-    ("https://maven.minecraftforge.net", "/maven"),
-    ("https://files.minecraftforge.net/maven", "/maven"),
-    ("https://maven.neoforged.net/releases", "/maven"),
-    ("https://meta.fabricmc.net", "/fabric-meta"),
-    ("https://maven.fabricmc.net", "/maven"),
-    ("https://meta.quiltmc.org", "/quilt-meta"),
-    ("https://maven.quiltmc.org/repository/release", "/maven"),
-    ("https://authlib-injector.yushi.moe", "/mirrors/authlib-injector"),
+/// 官方前缀 → (镜像根地址, 镜像路径前缀)。
+/// Minecraft / 加载器走 BMCLAPI（https://bmclapidoc.bangbang93.com/），
+/// Modrinth / CurseForge 走 MCIM 社区镜像（https://mod.mcimirror.top）。
+const MIRROR_RULES: &[(&str, &str, &str)] = &[
+    ("https://piston-meta.mojang.com", BMCLAPI, ""),
+    ("https://launchermeta.mojang.com", BMCLAPI, ""),
+    ("https://piston-data.mojang.com", BMCLAPI, ""),
+    ("https://launcher.mojang.com", BMCLAPI, ""),
+    ("https://resources.download.minecraft.net", BMCLAPI, "/assets"),
+    ("https://libraries.minecraft.net", BMCLAPI, "/maven"),
+    ("https://maven.minecraftforge.net", BMCLAPI, "/maven"),
+    ("https://files.minecraftforge.net/maven", BMCLAPI, "/maven"),
+    ("https://maven.neoforged.net/releases", BMCLAPI, "/maven"),
+    ("https://meta.fabricmc.net", BMCLAPI, "/fabric-meta"),
+    ("https://maven.fabricmc.net", BMCLAPI, "/maven"),
+    ("https://meta.quiltmc.org", BMCLAPI, "/quilt-meta"),
+    ("https://maven.quiltmc.org/repository/release", BMCLAPI, "/maven"),
+    ("https://authlib-injector.yushi.moe", BMCLAPI, "/mirrors/authlib-injector"),
+    ("https://api.modrinth.com", MCIM, "/modrinth"),
+    ("https://cdn.modrinth.com", MCIM, ""),
+    ("https://edge.forgecdn.net", MCIM, ""),
+    ("https://mediafilez.forgecdn.net", MCIM, ""),
 ];
 
-/// 改写成 BMCLAPI 地址；BMCLAPI 不镜像的地址返回 None
-pub fn to_bmclapi(url: &str) -> Option<String> {
+/// 改写成国内镜像地址；没有镜像的地址返回 None
+pub fn to_mirror(url: &str) -> Option<String> {
     // 部分老 json 里还是 http://
     let normalized = match url.strip_prefix("http://") {
         Some(rest) => format!("https://{rest}"),
         None => url.to_string(),
     };
-    BMCLAPI_RULES.iter().find_map(|(official, mirror)| {
+    MIRROR_RULES.iter().find_map(|(official, host, prefix)| {
         normalized
             .strip_prefix(official)
             .filter(|rest| rest.is_empty() || rest.starts_with('/'))
-            .map(|rest| format!("{BMCLAPI}{mirror}{rest}"))
+            .map(|rest| format!("{host}{prefix}{rest}"))
     })
 }
 
 /// 按优先级排好的候选地址，首选源在前，另一个源作为回退
 pub fn candidates(url: &str, primary: Source) -> Vec<String> {
-    match to_bmclapi(url) {
+    match to_mirror(url) {
         None => vec![url.to_string()],
         Some(mirror) => match primary {
             Source::Bmclapi => vec![mirror, url.to_string()],
@@ -84,7 +91,7 @@ pub async fn probe(client: &reqwest::Client) -> Vec<ProbeResult> {
     let timed = |source: Source| async move {
         let url = match source {
             Source::Official => MANIFEST_URL.to_string(),
-            Source::Bmclapi => to_bmclapi(MANIFEST_URL).expect("清单地址一定有镜像"),
+            Source::Bmclapi => to_mirror(MANIFEST_URL).expect("清单地址一定有镜像"),
         };
         let start = Instant::now();
         let ok = async {
@@ -119,20 +126,25 @@ mod tests {
     #[test]
     fn rewrites_known_hosts() {
         assert_eq!(
-            to_bmclapi("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json").unwrap(),
+            to_mirror("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json").unwrap(),
             "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json"
         );
         assert_eq!(
-            to_bmclapi("https://resources.download.minecraft.net/ab/abcdef").unwrap(),
+            to_mirror("https://resources.download.minecraft.net/ab/abcdef").unwrap(),
             "https://bmclapi2.bangbang93.com/assets/ab/abcdef"
         );
         assert_eq!(
-            to_bmclapi("http://libraries.minecraft.net/a/b.jar").unwrap(),
+            to_mirror("http://libraries.minecraft.net/a/b.jar").unwrap(),
             "https://bmclapi2.bangbang93.com/maven/a/b.jar"
         );
-        assert!(to_bmclapi("https://example.com/x").is_none());
+        assert!(to_mirror("https://example.com/x").is_none());
+        assert_eq!(
+            to_mirror("https://cdn.modrinth.com/data/AANobbMI/versions/x/sodium.jar").unwrap(),
+            "https://mod.mcimirror.top/data/AANobbMI/versions/x/sodium.jar"
+        );
+        assert_eq!(to_mirror("https://api.modrinth.com/v2/search").unwrap(), "https://mod.mcimirror.top/modrinth/v2/search");
         // 只匹配完整主机名，不能被 libraries.minecraft.net.evil 之类骗到
-        assert!(to_bmclapi("https://libraries.minecraft.net.evil.com/x").is_none());
+        assert!(to_mirror("https://libraries.minecraft.net.evil.com/x").is_none());
     }
 
     #[test]

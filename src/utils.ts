@@ -23,6 +23,13 @@ export const kindLabel: Record<string, string> = {
   old_alpha: "远古 Alpha",
 };
 
+/** 和后端 default_version_name 保持一致：<MC>-<加载器>-<加载器版本> */
+export function defaultVersionName(mc: string, kind: string, loaderId: string): string {
+  let short = loaderId.startsWith(`${mc}-`) ? loaderId.slice(mc.length + 1) : loaderId;
+  if (short.endsWith(`-${mc}`)) short = short.slice(0, -(mc.length + 1));
+  return `${mc}-${loaderLabel[kind]}-${short}`;
+}
+
 export const loaderLabel: Record<string, string> = {
   fabric: "Fabric",
   quilt: "Quilt",

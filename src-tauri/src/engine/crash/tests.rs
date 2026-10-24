@@ -116,6 +116,16 @@ fn access_violation_by_exit_code_only() {
 }
 
 #[test]
+fn mod_built_for_other_loader_version() {
+    // 真实崩溃：Sodium 0.9.2 在 NeoForge 26.3.0.97 上找不到注入目标
+    let f = rules().analyze(fixture!("neoforge_sodium_mismatch.log"), Some(-1));
+    assert_eq!(f[0].id, "mixin-target-missing");
+    assert_eq!(f[0].title, "模组版本与游戏/加载器不匹配：sodium");
+    assert!(!ids(&f).contains(&"mixin-failed"), "已被更具体的结论取代");
+    assert!(!ids(&f).contains(&"graphics-driver-crash"), "Modules 列表里出现驱动 DLL 不代表崩在驱动里：{:?}", ids(&f));
+}
+
+#[test]
 fn mixin_conflict_names_mod() {
     let f = rules().analyze(fixture!("mixin.log"), Some(1));
     let m = f.iter().find(|x| x.id == "mixin-failed").unwrap();

@@ -27,6 +27,7 @@ hex = "0.4"
 thiserror = "2"
 dirs = "6"
 regex = "1"
+toml = "0.8"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 uuid = { version = "1", features = ["v4"] }
 md-5 = "0.10"

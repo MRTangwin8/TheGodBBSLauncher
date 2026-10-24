@@ -1,0 +1,317 @@
+//! CurseForge API：https://docs.curseforge.com/rest-api/
+//! 填了 API Key 走官方接口；没填走 MCIM 镜像（https://mod.mcimirror.top/curseforge）。
+
+use std::collections::HashMap;
+
+use serde::de::DeserializeOwned;
+use serde::Deserialize;
+use serde_json::{json, Value};
+
+use super::{DepKind, Dependency, Project, ResFile, ResourceApi, ResourceKind, ResourceSource, ResourceVersion, SearchPage, SearchQuery, SortBy};
+use crate::engine::loader::LoaderKind;
+use crate::engine::{Error, Result};
+
+const OFFICIAL: &str = "https://api.curseforge.com/v1";
+const MCIM: &str = "https://mod.mcimirror.top/curseforge/v1";
+const MINECRAFT: u32 = 432;
+
+fn base(api: &ResourceApi) -> &'static str {
+    if api.curseforge_key.is_some() {
+        OFFICIAL
+    } else {
+        MCIM
+    }
+}
+
+async fn send<T: DeserializeOwned>(api: &ResourceApi, path: &str, params: &[(&str, String)], body: Option<&Value>) -> Result<T> {
+    let url = format!("{}{path}", base(api));
+    let mut req = match body {
+        Some(b) => api.client.post(&url).json(b),
+        None => api.client.get(&url).query(params),
+    };
+    if let Some(key) = &api.curseforge_key {
+        req = req.header("x-api-key", key);
+    }
+    let resp = req.send().await?;
+    match resp.status().as_u16() {
+        200..=299 => Ok(resp.json().await?),
+        401 | 403 => Err(Error::Other("CurseForge 拒绝了请求，请检查「设置」里的 API Key".into())),
+        s => Err(Error::BadStatus { url, status: s }),
+    }
+}
+
+#[derive(Deserialize)]
+struct Data<T> {
+    data: T,
+}
+
+fn class_id(kind: ResourceKind) -> u32 {
+    match kind {
+        ResourceKind::Mod => 6,
+        ResourceKind::ResourcePack => 12,
+        ResourceKind::Shader => 6552,
+    }
+}
+
+fn loader_type(l: LoaderKind) -> u32 {
+    match l {
+        LoaderKind::Forge => 1,
+        LoaderKind::Fabric => 4,
+        LoaderKind::Quilt => 5,
+        LoaderKind::NeoForge => 6,
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CfMod {
+    id: u64,
+    slug: String,
+    name: String,
+    #[serde(default)]
+    summary: String,
+    #[serde(default)]
+    authors: Vec<Named>,
+    logo: Option<Logo>,
+    #[serde(default)]
+    download_count: f64,
+    #[serde(default)]
+    categories: Vec<Named>,
+    #[serde(default)]
+    date_modified: String,
+    links: Option<Links>,
+}
+
+#[derive(Deserialize)]
+struct Named {
+    name: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Logo {
+    thumbnail_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Links {
+    website_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SearchResp {
+    data: Vec<CfMod>,
+    pagination: Pagination,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Pagination {
+    total_count: u64,
+}
+
+pub async fn search(api: &ResourceApi, q: &SearchQuery) -> Result<SearchPage> {
+    let sort = match q.sort {
+        SortBy::Relevance => 2,
+        SortBy::Downloads => 6,
+        SortBy::Updated => 3,
+    };
+    let mut params = vec![
+        ("gameId", MINECRAFT.to_string()),
+        ("classId", class_id(q.kind).to_string()),
+        ("searchFilter", q.query.clone()),
+        ("sortField", sort.to_string()),
+        ("sortOrder", "desc".into()),
+        ("index", q.offset.to_string()),
+        ("pageSize", q.limit.min(50).to_string()),
+    ];
+    if let Some(v) = &q.game_version {
+        params.push(("gameVersion", v.clone()));
+    }
+    if let (ResourceKind::Mod, Some(l)) = (q.kind, q.loader) {
+        params.push(("modLoaderType", loader_type(l).to_string()));
+    }
+    let resp: SearchResp = send(api, "/mods/search", &params, None).await?;
+    Ok(SearchPage {
+        // CurseForge 最多只能翻到第 10000 条
+        total: resp.pagination.total_count.min(10_000),
+        hits: resp
+            .data
+            .into_iter()
+            .map(|m| Project {
+                source: ResourceSource::CurseForge,
+                id: m.id.to_string(),
+                page_url: m.links.and_then(|l| l.website_url).unwrap_or_else(|| format!("https://www.curseforge.com/minecraft/mc-mods/{}", m.slug)),
+                slug: m.slug,
+                title: m.name,
+                description: m.summary,
+                author: m.authors.first().map(|a| a.name.clone()).unwrap_or_default(),
+                icon_url: m.logo.and_then(|l| l.thumbnail_url),
+                downloads: m.download_count as u64,
+                categories: m.categories.into_iter().map(|c| c.name).collect(),
+                updated: m.date_modified,
+            })
+            .collect(),
+    })
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CfFile {
+    id: u64,
+    mod_id: u64,
+    display_name: String,
+    file_name: String,
+    download_url: Option<String>,
+    #[serde(default)]
+    hashes: Vec<CfHash>,
+    #[serde(default)]
+    file_length: u64,
+    #[serde(default)]
+    game_versions: Vec<String>,
+    #[serde(default)]
+    file_date: String,
+    #[serde(default)]
+    release_type: u32,
+    #[serde(default)]
+    dependencies: Vec<CfDep>,
+}
+
+#[derive(Deserialize)]
+struct CfHash {
+    value: String,
+    algo: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CfDep {
+    mod_id: u64,
+    relation_type: u32,
+}
+
+/// 作者禁止第三方分发时 downloadUrl 为空，按 CDN 规则拼出地址
+fn cdn_url(id: u64, file_name: &str) -> String {
+    let mut url = reqwest::Url::parse("https://edge.forgecdn.net/").expect("固定地址");
+    url.path_segments_mut()
+        .expect("https 地址")
+        .push("files")
+        .push(&(id / 1000).to_string())
+        .push(&(id % 1000).to_string())
+        .push(file_name);
+    url.to_string()
+}
+
+impl From<CfFile> for ResourceVersion {
+    fn from(f: CfFile) -> Self {
+        let loaders = f
+            .game_versions
+            .iter()
+            .filter(|v| ["Forge", "Fabric", "Quilt", "NeoForge"].contains(&v.as_str()))
+            .map(|v| v.to_lowercase())
+            .collect();
+        let game_versions = f.game_versions.iter().filter(|v| v.starts_with(|c: char| c.is_ascii_digit())).cloned().collect();
+        ResourceVersion {
+            source: ResourceSource::CurseForge,
+            id: f.id.to_string(),
+            project_id: f.mod_id.to_string(),
+            name: f.display_name.clone(),
+            version_number: f.display_name,
+            game_versions,
+            loaders,
+            published: f.file_date,
+            release_type: match f.release_type {
+                1 => "release",
+                2 => "beta",
+                _ => "alpha",
+            }
+            .into(),
+            file: Some(ResFile {
+                url: f.download_url.filter(|u| !u.is_empty()).unwrap_or_else(|| cdn_url(f.id, &f.file_name)),
+                sha1: f.hashes.iter().find(|h| h.algo == 1).map(|h| h.value.clone()),
+                filename: f.file_name,
+                size: f.file_length,
+            }),
+            dependencies: f
+                .dependencies
+                .into_iter()
+                .filter_map(|d| {
+                    let kind = match d.relation_type {
+                        3 => DepKind::Required,
+                        2 => DepKind::Optional,
+                        5 => DepKind::Incompatible,
+                        1 | 6 => DepKind::Embedded,
+                        _ => return None, // 4 = Tool
+                    };
+                    Some(Dependency { project_id: d.mod_id.to_string(), version_id: None, kind })
+                })
+                .collect(),
+        }
+    }
+}
+
+pub async fn versions(
+    api: &ResourceApi,
+    project_id: &str,
+    kind: ResourceKind,
+    game_version: Option<&str>,
+    loader: Option<LoaderKind>,
+) -> Result<Vec<ResourceVersion>> {
+    let fetch = |lt: Option<u32>| async move {
+        let mut params = vec![("pageSize", "50".to_string())];
+        if let Some(v) = game_version {
+            params.push(("gameVersion", v.to_string()));
+        }
+        if let Some(lt) = lt {
+            params.push(("modLoaderType", lt.to_string()));
+        }
+        let resp: Data<Vec<CfFile>> = send(api, &format!("/mods/{project_id}/files"), &params, None).await?;
+        Ok::<_, Error>(resp.data)
+    };
+    let lt = if kind == ResourceKind::Mod { loader.map(loader_type) } else { None };
+    let mut files = fetch(lt).await?;
+    // Quilt 上可以用 Fabric 模组
+    if files.is_empty() && loader == Some(LoaderKind::Quilt) && kind == ResourceKind::Mod {
+        files = fetch(Some(loader_type(LoaderKind::Fabric))).await?;
+    }
+    files.sort_by(|a, b| b.file_date.cmp(&a.file_date));
+    Ok(files.into_iter().map(Into::into).collect())
+}
+
+pub async fn file(api: &ResourceApi, project_id: &str, file_id: &str) -> Result<ResourceVersion> {
+    let resp: Data<CfFile> = send(api, &format!("/mods/{project_id}/files/{file_id}"), &[], None).await?;
+    Ok(resp.data.into())
+}
+
+pub async fn titles(api: &ResourceApi, ids: &[String]) -> Result<HashMap<String, String>> {
+    let ids: Vec<u64> = ids.iter().filter_map(|i| i.parse().ok()).collect();
+    let resp: Data<Vec<CfMod>> = send(api, "/mods", &[], Some(&json!({"modIds": ids}))).await?;
+    Ok(resp.data.into_iter().map(|m| (m.id.to_string(), m.name)).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn converts_file_and_builds_cdn_url() {
+        let f: CfFile = serde_json::from_str(r#"{
+            "id": 9298209, "modId": 238222, "displayName": "15.74.0.229 for Forge 1.20.1",
+            "fileName": "jei 1.20.1+forge.jar", "downloadUrl": null, "fileLength": 6892564,
+            "gameVersions": ["Client", "1.20.1", "Forge", "Server"], "releaseType": 2, "fileDate": "2026-10-23T14:03:50Z",
+            "hashes": [{"value": "f3ef", "algo": 1}, {"value": "md5", "algo": 2}],
+            "dependencies": [{"modId": 1, "relationType": 2}, {"modId": 2, "relationType": 3}, {"modId": 3, "relationType": 4}]
+        }"#).unwrap();
+        let v: ResourceVersion = f.into();
+        let file = v.file.unwrap();
+        assert_eq!(file.url, "https://edge.forgecdn.net/files/9298/209/jei%201.20.1+forge.jar");
+        assert_eq!(file.sha1.as_deref(), Some("f3ef"));
+        assert_eq!(v.loaders, ["forge"]);
+        assert_eq!(v.game_versions, ["1.20.1"]);
+        assert_eq!(v.release_type, "beta");
+        assert_eq!(v.dependencies.len(), 2, "Tool 类依赖忽略");
+        assert_eq!(v.dependencies[1].kind, DepKind::Required);
+    }
+}

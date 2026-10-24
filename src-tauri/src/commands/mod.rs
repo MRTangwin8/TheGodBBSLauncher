@@ -5,6 +5,7 @@ pub mod crash;
 pub mod game;
 pub mod java;
 pub mod loaders;
+pub mod resources;
 pub mod settings;
 pub mod versions;
 

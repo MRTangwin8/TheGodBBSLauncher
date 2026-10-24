@@ -195,6 +195,57 @@ pub fn join_rel(base: &Path, rel: &str) -> PathBuf {
     rel.split('/').filter(|s| !s.is_empty() && *s != "..").fold(base.to_path_buf(), |p, seg| p.join(seg))
 }
 
+/// 版本名会成为文件夹名，不能有路径分隔符和 Windows 不允许的字符
+pub fn validate_version_name(name: &str) -> Result<()> {
+    let bad = name.is_empty()
+        || name != name.trim()
+        || name == "."
+        || name == ".."
+        || name.ends_with('.')
+        || name.chars().any(|c| "/\\:*?\"<>|".contains(c) || c.is_control());
+    if bad {
+        return Err(Error::Other(format!("版本名「{name}」不合法：不能为空，不能包含 / \\ : * ? \" < > |")));
+    }
+    Ok(())
+}
+
+/// 重命名版本：整个文件夹一起改名（版本隔离下的存档、模组跟着走），再改 json 里的 id 和 jar 文件名
+pub fn rename_version(game: &GameDir, old: &str, new: &str) -> Result<()> {
+    if old == new {
+        return Ok(());
+    }
+    validate_version_name(new)?;
+    if game.versions().join(new).exists() {
+        return Err(Error::Other(format!("已经有名为「{new}」的版本了")));
+    }
+    // 被别的版本继承时改名会把它们弄坏
+    if let Ok(entries) = std::fs::read_dir(game.versions()) {
+        for e in entries.flatten() {
+            let id = e.file_name().to_string_lossy().to_string();
+            if id == old {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(game.version_json(&id)) else { continue };
+            let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) else { continue };
+            if v["inheritsFrom"].as_str() == Some(old) {
+                return Err(Error::Other(format!("版本「{id}」依赖「{old}」，不能改名")));
+            }
+        }
+    }
+    let old_json = game.version_json(old);
+    let mut v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&old_json).map_err(|_| Error::VersionNotFound(old.into()))?)?;
+    std::fs::rename(game.versions().join(old), game.versions().join(new))?;
+    let dir = game.versions().join(new);
+    v["id"] = serde_json::Value::String(new.to_string());
+    std::fs::write(game.version_json(new), serde_json::to_string_pretty(&v)?)?;
+    let _ = std::fs::remove_file(dir.join(format!("{old}.json")));
+    let old_jar = dir.join(format!("{old}.jar"));
+    if old_jar.is_file() {
+        std::fs::rename(old_jar, game.version_jar(new))?;
+    }
+    Ok(())
+}
+
 /// 已安装版本（扫描 versions 目录）
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -205,6 +256,8 @@ pub struct InstalledVersion {
     pub release_time: Option<String>,
     pub has_jar: bool,
     pub loader: Option<crate::engine::loader::LoaderKind>,
+    /// 实际的 Minecraft 版本（沿 inheritsFrom 找到底）
+    pub mc_version: Option<String>,
 }
 
 pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
@@ -225,8 +278,9 @@ pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
         out.push(InstalledVersion {
             has_jar: tokio::fs::try_exists(game.version_jar(v.jar.as_deref().unwrap_or(&id))).await.unwrap_or(false)
                 || v.inherits_from.is_some(),
+            mc_version: crate::engine::meta::version::base_minecraft_version(&game.versions(), &id).await.ok(),
             id,
-            loader: crate::engine::loader::detect(&v.libraries),
+            loader: crate::engine::loader::detect(&v),
             kind: v.kind,
             inherits_from: v.inherits_from,
             release_time: v.release_time,
@@ -266,6 +320,41 @@ mod tests {
         let asset = &tasks[3];
         assert_eq!(asset.url, "https://resources.download.minecraft.net/bd/bdf48ef6b5d0d23bbb02e17d04865216179f510a");
         assert_eq!(asset.sha1.as_deref(), Some("bdf48ef6b5d0d23bbb02e17d04865216179f510a"));
+    }
+
+    #[test]
+    fn renames_version_folder_json_and_jar() {
+        let dir = tempfile::tempdir().unwrap();
+        let game = GameDir::new(dir.path());
+        let old = game.versions().join("neoforge-21.11.48");
+        std::fs::create_dir_all(old.join("saves").join("world")).unwrap();
+        std::fs::write(old.join("neoforge-21.11.48.json"), r#"{"id":"neoforge-21.11.48","inheritsFrom":"1.21.11"}"#).unwrap();
+        std::fs::write(old.join("neoforge-21.11.48.jar"), b"jar").unwrap();
+
+        rename_version(&game, "neoforge-21.11.48", "1.21.11-NeoForge-21.11.48").unwrap();
+        let new = game.versions().join("1.21.11-NeoForge-21.11.48");
+        assert!(!old.exists());
+        assert!(new.join("saves").join("world").is_dir(), "隔离目录里的存档要跟着走");
+        assert!(game.version_jar("1.21.11-NeoForge-21.11.48").is_file());
+        let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(game.version_json("1.21.11-NeoForge-21.11.48")).unwrap()).unwrap();
+        assert_eq!(v["id"], "1.21.11-NeoForge-21.11.48");
+        assert_eq!(v["inheritsFrom"], "1.21.11");
+        assert!(!new.join("neoforge-21.11.48.json").exists());
+    }
+
+    #[test]
+    fn rename_rejects_conflicts_and_bad_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let game = GameDir::new(dir.path());
+        for (id, body) in [("1.21.11", r#"{"id":"1.21.11"}"#), ("child", r#"{"id":"child","inheritsFrom":"1.21.11"}"#), ("other", r#"{"id":"other"}"#)] {
+            std::fs::create_dir_all(game.versions().join(id)).unwrap();
+            std::fs::write(game.version_json(id), body).unwrap();
+        }
+        assert!(rename_version(&game, "1.21.11", "x").is_err(), "被继承的版本不能改名");
+        assert!(rename_version(&game, "other", "child").is_err(), "不能和已有版本重名");
+        assert!(rename_version(&game, "other", "a/b").is_err());
+        assert!(rename_version(&game, "other", "con?").is_err());
+        assert!(rename_version(&game, "other", " other2").is_err());
     }
 
     #[test]

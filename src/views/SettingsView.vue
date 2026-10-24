@@ -130,6 +130,16 @@ const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
           <span class="muted hint">默认 64，网络差可以调低</span>
         </div>
       </div>
+      <div class="row">
+        <label>CurseForge Key</label>
+        <div class="field">
+          <input v-model="form.curseforgeApiKey" type="password" class="input wide mono" placeholder="留空则通过 MCIM 社区镜像访问 CurseForge" autocomplete="off" />
+          <div class="muted hint">
+            可在 console.curseforge.com 免费申请。填写后直连官方接口；Modrinth 不需要 Key。
+          </div>
+        </div>
+      </div>
+
       <h3 class="section">游戏与 Java <span class="muted">—— 完全神权，参数你说了算</span></h3>
       <div class="row">
         <label>Java</label>
@@ -218,7 +228,7 @@ const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
     <div class="box-body about">
       <p><b>神权论坛启动器</b> v0.1.0 —— 献给 MCBBS（我的世界中文论坛）的一封情书。</p>
       <p>本程序是<b>非官方粉丝纪念作品</b>，与 MCBBS、Mojang Studios、Microsoft 均无关联；界面元素全部为原创绘制，未使用任何官方 Logo 或图片素材。</p>
-      <p>本程序不分发 Minecraft 游戏文件，所有文件均从 Mojang 官方服务器或 BMCLAPI 镜像下载。感谢 bangbang93 提供 BMCLAPI。</p>
+      <p>本程序不分发 Minecraft 游戏文件，所有文件均从 Mojang 官方服务器或 BMCLAPI 镜像下载。感谢 bangbang93 提供 BMCLAPI，感谢 MCIM 提供 Modrinth / CurseForge 镜像。</p>
     </div>
   </div>
 </template>

@@ -23,6 +23,7 @@ export interface InstalledVersion {
   releaseTime?: string;
   hasJar: boolean;
   loader: LoaderKind | null;
+  mcVersion: string | null;
 }
 
 export type SourcePref = "auto" | "official" | "bmclapi";
@@ -40,6 +41,7 @@ export interface Settings {
   windowWidth: number | null;
   windowHeight: number | null;
   crashRulesUrl: string;
+  curseforgeApiKey: string;
 }
 
 export interface ProbeResult {
@@ -157,4 +159,107 @@ export interface LoaderVersion {
   id: string;
   version: string;
   stable: boolean;
+}
+
+export type ResourceSource = "modrinth" | "curseforge";
+export type ResourceKind = "mod" | "resourcepack" | "shader";
+export type SortBy = "relevance" | "downloads" | "updated";
+
+export interface SearchQuery {
+  query: string;
+  kind: ResourceKind;
+  gameVersion: string | null;
+  loader: LoaderKind | null;
+  sort: SortBy;
+  offset: number;
+  limit: number;
+}
+
+export interface Project {
+  source: ResourceSource;
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  author: string;
+  iconUrl: string | null;
+  downloads: number;
+  categories: string[];
+  updated: string;
+  pageUrl: string;
+}
+
+export interface SearchPage {
+  hits: Project[];
+  total: number;
+}
+
+export interface ResFile {
+  url: string;
+  filename: string;
+  sha1: string | null;
+  size: number;
+}
+
+export interface ResourceVersion {
+  source: ResourceSource;
+  id: string;
+  projectId: string;
+  name: string;
+  versionNumber: string;
+  gameVersions: string[];
+  loaders: string[];
+  published: string;
+  releaseType: string;
+  file: ResFile | null;
+  dependencies: { projectId: string; versionId: string | null; kind: string }[];
+}
+
+export interface PlanItem {
+  source: ResourceSource;
+  projectId: string;
+  title: string;
+  versionId: string;
+  versionNumber: string;
+  file: ResFile;
+  requiredBy: string | null;
+  replaces: string[];
+  compat: CompatReport | null;
+  note: string | null;
+  alternative: ResourceVersion | null;
+}
+
+export interface CompatReport {
+  status: "ok" | "problem" | "unknown";
+  problems: string[];
+  notes: string[];
+}
+
+export interface LocalCompat {
+  filename: string;
+  report: CompatReport;
+}
+
+export interface InstallPlan {
+  items: PlanItem[];
+  alreadyInstalled: string[];
+  unresolved: string[];
+  optional: string[];
+  incompatible: string[];
+}
+
+export interface TargetInfo {
+  mcVersion: string | null;
+  loader: LoaderKind | null;
+  dir: string;
+  curseforgeViaMirror: boolean;
+}
+
+export interface LocalResource {
+  filename: string;
+  enabled: boolean;
+  size: number;
+  projectId: string | null;
+  title: string | null;
+  version: string | null;
 }

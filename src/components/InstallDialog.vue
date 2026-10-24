@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue";
 import { api } from "../api";
 import type { LoaderKind, LoaderVersion } from "../api/types";
 import { useVersionsStore } from "../stores/versions";
-import { loaderLabel } from "../utils";
+import { defaultVersionName, loaderLabel } from "../utils";
 
 const props = defineProps<{ mc: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -55,14 +55,29 @@ const shown = computed(() => {
   return l.length ? l : list.value;
 });
 
-const canInstall = computed(() => !kind.value || !!selected.value);
+// 版本名：默认带 MC 版本，用户改过就不再跟着变
+const name = ref("");
+const nameTouched = ref(false);
+watch([kind, selected], () => {
+  if (!nameTouched.value) name.value = kind.value && selected.value ? defaultVersionName(props.mc, kind.value, selected.value) : "";
+});
+const nameError = computed(() => {
+  const n = name.value.trim();
+  if (!kind.value) return null;
+  if (!n) return "版本名不能为空";
+  if (/[\\/:*?"<>|]/.test(n)) return '不能包含 \\ / : * ? " < > |';
+  if (versions.installed.some((v) => v.id === n)) return "已经有同名版本了";
+  return null;
+});
+
+const canInstall = computed(() => !kind.value || (!!selected.value && !nameError.value));
 
 function confirm() {
   if (!kind.value) {
     versions.install(props.mc);
   } else {
     const v = list.value.find((x) => x.id === selected.value);
-    if (v) versions.installLoader(props.mc, kind.value, v);
+    if (v) versions.installLoader(props.mc, kind.value, v, name.value.trim());
   }
   emit("close");
 }
@@ -97,6 +112,13 @@ function confirm() {
           </template>
         </div>
 
+        <div v-if="kind && selected" class="name-row">
+          <label>版本名称</label>
+          <input v-model="name" class="input" @input="nameTouched = true" />
+          <span v-if="nameError" class="error-text">{{ nameError }}</span>
+          <span v-else class="muted">也是 versions 下的文件夹名，以后可以在「版本管理」里改</span>
+        </div>
+
         <div class="actions">
           <button class="btn" @click="emit('close')">取消</button>
           <button class="btn primary" :disabled="!canInstall" @click="confirm">
@@ -121,4 +143,8 @@ function confirm() {
 .pick select { min-width: 220px; }
 .check { display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.name-row label { color: var(--text-muted); }
+.name-row .input { flex: 1; min-width: 240px; font-family: var(--font-pixel); }
+.name-row span { width: 100%; padding-left: 64px; font-size: 12px; }
 </style>

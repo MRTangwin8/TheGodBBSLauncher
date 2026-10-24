@@ -1,0 +1,10 @@
+---- Minecraft Crash Report ----
+Description: Initializing game
+org.spongepowered.asm.mixin.transformer.throwables.MixinTransformerError: An unexpected critical error was encountered
+Caused by: org.spongepowered.asm.mixin.throwables.MixinApplyError: Mixin [sodium-neoforge.mixins.json:platform.neoforge.LevelExtractorMixin from mod sodium] from phase [DEFAULT] in config [sodium-neoforge.mixins.json] FAILED during APPLY
+Caused by: org.spongepowered.asm.mixin.injection.throwables.InvalidInjectionException: Critical injection failure: @Inject annotation on extractVisibleBlockEntities$neoForge could not find any targets matching 'extractVisibleBlockEntities(Lnet/minecraft/client/Camera;FLnet/minecraft/client/renderer/state/level/LevelRenderState;Lnet/minecraft/client/renderer/culling/Frustum;)V' in net/minecraft/client/renderer/extract/LevelExtractor. No refMap loaded. [INJECT_PREPARE Applicator Phase -> sodium-neoforge.mixins.json:platform.neoforge.LevelExtractorMixin from mod sodium -> Prepare Injections -> handler$zdf000$sodium$extractVisibleBlockEntities$neoForge(Lnet/minecraft/client/Camera;FLnet/minecraft/client/renderer/state/level/LevelRenderState;Lnet/minecraft/client/renderer/culling/Frustum;Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfo;)V -> Parse ->  -> Validate Targets]
+-- System Details --
+	Modules: 
+		OPENGL32.DLL:OpenGL Client DLL:10.0.26100.9278 (WinBuild.160101.0800):Microsoft Corporation
+		nvoglv64.dll:NVIDIA Compatible OpenGL ICD:32.0.16.1088:NVIDIA Corporation
+	Graphics card #0 name: NVIDIA GeForce RTX 3080

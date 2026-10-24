@@ -10,6 +10,7 @@ pub mod auth;
 pub mod crash;
 pub mod meta;
 pub mod mirror;
+pub mod resources;
 
 pub use error::{Error, Result};
 

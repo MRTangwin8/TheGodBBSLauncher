@@ -54,6 +54,9 @@ pub struct RuleDef {
     /// 兜底规则：已经有更具体的结论时不显示
     #[serde(default)]
     pub generic: bool,
+    /// 本规则命中时，这些规则的结论不再显示（更具体的解释取代笼统的）
+    #[serde(default)]
+    pub supersedes: Vec<String>,
 }
 
 struct CompiledRule {
@@ -192,7 +195,12 @@ impl RuleSet {
         }
 
         let has_specific = hits.iter().any(|(r, _)| !r.def.generic);
-        let mut out: Vec<(&CompiledRule, Finding)> = hits.into_iter().filter(|(r, _)| !(has_specific && r.def.generic)).collect();
+        let superseded: HashSet<&str> = hits.iter().flat_map(|(r, _)| r.def.supersedes.iter().map(String::as_str)).collect();
+        let mut out: Vec<(&CompiledRule, Finding)> = hits
+            .iter()
+            .filter(|(r, _)| !(has_specific && r.def.generic) && !superseded.contains(r.def.id.as_str()))
+            .map(|(r, f)| (*r, f.clone()))
+            .collect();
         out.sort_by(|(ra, a), (rb, b)| a.severity.cmp(&b.severity).then(rb.def.priority.cmp(&ra.def.priority)));
         let mut seen = HashSet::new();
         out.into_iter().map(|(_, f)| f).filter(|f| seen.insert(f.id.clone())).collect()

@@ -453,6 +453,21 @@ impl VersionJson {
     }
 }
 
+/// 沿 inheritsFrom 找到最底层的版本 id，即实际的 Minecraft 版本（如 fabric-loader-x-1.21.1 → 1.21.1）
+pub async fn base_minecraft_version(versions_dir: &Path, id: &str) -> Result<String> {
+    let mut cur = id.to_string();
+    for _ in 0..8 {
+        let path = versions_dir.join(&cur).join(format!("{cur}.json"));
+        let text = tokio::fs::read_to_string(&path).await.map_err(|_| Error::VersionNotFound(cur.clone()))?;
+        let v: VersionJson = serde_json::from_str(&text)?;
+        match v.inherits_from {
+            Some(parent) => cur = parent,
+            None => return Ok(cur),
+        }
+    }
+    Err(Error::Other(format!("版本 {id} 的继承层级太深")))
+}
+
 /// assets/indexes/<id>.json
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetIndex {

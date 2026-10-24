@@ -60,7 +60,7 @@ async fn main() {
     };
 
     let ctx = LoaderContext { downloader: &downloader, client: &client, game: &game, platform: &platform, java: Some(java_path), report: quiet };
-    match loader::install(&ctx, kind, &mc, &chosen.id).await {
+    match loader::install(&ctx, kind, &mc, &chosen.id, None).await {
         Ok(id) => {
             println!("安装完成，用时 {:.1}s", start.elapsed().as_secs_f64());
             println!("VERSION_ID {id}");

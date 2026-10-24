@@ -34,17 +34,19 @@ pub async fn install_loader(
     mc_version: String,
     kind: LoaderKind,
     loader_id: String,
+    name: Option<String>,
 ) -> Result<String> {
     let state: &AppState = &state;
     if !state.installing.lock().await.insert(job_id.clone()) {
         return Err(Error::Other("这个加载器已经在安装了，别急".into()));
     }
-    let result = do_install(&app, state, &job_id, &mc_version, kind, &loader_id).await;
+    let name = name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());
+    let result = do_install(&app, state, &job_id, &mc_version, kind, &loader_id, name.as_deref()).await;
     state.installing.lock().await.remove(&job_id);
     result
 }
 
-async fn do_install(app: &AppHandle, state: &AppState, job_id: &str, mc: &str, kind: LoaderKind, loader_id: &str) -> Result<String> {
+async fn do_install(app: &AppHandle, state: &AppState, job_id: &str, mc: &str, kind: LoaderKind, loader_id: &str, name: Option<&str>) -> Result<String> {
     let report: Arc<dyn Fn(Stage, Progress) + Send + Sync> = {
         let (app, job_id) = (app.clone(), job_id.to_string());
         Arc::new(move |stage, progress| {
@@ -79,5 +81,5 @@ async fn do_install(app: &AppHandle, state: &AppState, job_id: &str, mc: &str, k
     };
 
     let ctx = LoaderContext { downloader: &downloader, client: &state.client, game: &game, platform: &platform, java, report };
-    loader::install(&ctx, kind, mc, loader_id).await
+    loader::install(&ctx, kind, mc, loader_id, name).await
 }

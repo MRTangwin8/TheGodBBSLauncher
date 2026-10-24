@@ -59,6 +59,13 @@ async fn do_install(app: &AppHandle, state: &AppState, id: &str) -> Result<Downl
     install::install_vanilla(&downloader, &game, &entry, &Platform::current(), report).await
 }
 
+/// 重命名已安装的版本（整个文件夹一起改名）
+#[tauri::command]
+pub async fn rename_version(state: State<'_, AppState>, id: String, new_name: String) -> Result<()> {
+    let game = GameDir::new(state.settings.read().await.game_dir.clone());
+    install::rename_version(&game, &id, new_name.trim())
+}
+
 pub async fn cached_manifest(state: &AppState) -> Result<VersionManifest> {
     if let Some(m) = state.manifest.lock().await.clone() {
         return Ok(m);

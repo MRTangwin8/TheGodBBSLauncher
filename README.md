@@ -16,7 +16,9 @@
 - [x] 账号：微软正版（设备码）、离线、外置登录（authlib-injector），令牌 AES-GCM 加密、密钥存系统钥匙串
 - [x] 模组加载器一键安装：Fabric / Quilt（meta profile）、Forge / NeoForge（本地执行安装器 processors，旧版 Forge 走 versionInfo）
 - [x] 崩溃分析：JSON 规则库（中英文日志）+ 中文诊断，崩溃后自动分析，也可分析外部日志文件，规则可在线热更新
-- [ ] Modrinth / CurseForge 资源下载、整合包、插件系统……见 PLAN
+- [x] 资源中心：Modrinth / CurseForge 搜索模组、资源包、光影，自动解析前置，已装识别（哈希），启用/禁用/删除
+- [x] 下载时兼容性检查：平台、依赖版本范围、Mixin 注入点是否存在于当前游戏 jar（含 Jar-in-Jar），不兼容的前置自动换成兼容版本
+- [ ] 整合包导入导出、插件系统、自动更新……见 PLAN
 
 ## 开发
 
@@ -34,6 +36,9 @@ cargo test                                             # 单元测试
 cargo run --example install -- 1.20.1 ./.minecraft     # 命令行安装原版（冒烟测试）
 cargo run --example launch -- 1.20.1 ./.minecraft      # 离线启动到主菜单后自动退出
 cargo run --example loader -- forge 1.20.1 ./.minecraft # 安装原版 + 加载器（fabric/quilt/forge/neoforge）
+cargo run --example resources -- modrinth "sodium extra" <版本id> ./.minecraft # 搜索并安装模组（含前置）
+cargo run --example compat -- ./.minecraft <版本id> mods/*.jar   # 检查模组兼容性
+cargo run --example analyze -- crash-reports/crash-xxx.txt      # 分析崩溃报告
 ```
 
 ## 目录

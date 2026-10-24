@@ -9,6 +9,15 @@ import type {
   GameExit,
   GameLog,
   InstalledVersion,
+  InstallPlan,
+  LocalCompat,
+  LocalResource,
+  ResourceKind,
+  ResourceSource,
+  ResourceVersion,
+  SearchPage,
+  SearchQuery,
+  TargetInfo,
   InstallProgress,
   JavaInstall,
   LoaderKind,
@@ -53,11 +62,27 @@ export const api = {
   selectAccount: (id: string) => call<void>("select_account", { id }),
 
   listLoaderVersions: (kind: LoaderKind, mcVersion: string) => call<LoaderVersion[]>("list_loader_versions", { kind, mcVersion }),
-  installLoader: (jobId: string, mcVersion: string, kind: LoaderKind, loaderId: string) =>
-    call<string>("install_loader", { jobId, mcVersion, kind, loaderId }),
+  installLoader: (jobId: string, mcVersion: string, kind: LoaderKind, loaderId: string, name: string | null) =>
+    call<string>("install_loader", { jobId, mcVersion, kind, loaderId, name }),
+  renameVersion: (id: string, newName: string) => call<void>("rename_version", { id, newName }),
 
   listJava: (force = false) => call<JavaInstall[]>("list_java", { force }),
   memoryInfo: () => call<MemoryInfo>("memory_info"),
+
+  resourceTarget: (versionId: string, kind: ResourceKind) => call<TargetInfo>("resource_target", { versionId, kind }),
+  resourceSearch: (source: ResourceSource, query: SearchQuery) => call<SearchPage>("resource_search", { source, query }),
+  resourceVersions: (source: ResourceSource, projectId: string, kind: ResourceKind, versionId: string) =>
+    call<ResourceVersion[]>("resource_versions", { source, projectId, kind, versionId }),
+  resourcePlan: (kind: ResourceKind, versionId: string, resource: ResourceVersion) =>
+    call<InstallPlan>("resource_plan", { kind, versionId, resource }),
+  resourceInstall: (jobId: string, kind: ResourceKind, versionId: string, plan: InstallPlan) =>
+    call<DownloadReport>("resource_install", { jobId, kind, versionId, plan }),
+  localResources: (versionId: string, kind: ResourceKind) => call<LocalResource[]>("local_resources", { versionId, kind }),
+  localResourceToggle: (versionId: string, kind: ResourceKind, filename: string, enabled: boolean) =>
+    call<string>("local_resource_toggle", { versionId, kind, filename, enabled }),
+  localResourceDelete: (versionId: string, kind: ResourceKind, filename: string) =>
+    call<void>("local_resource_delete", { versionId, kind, filename }),
+  localCompat: (versionId: string) => call<LocalCompat[]>("local_compat", { versionId }),
 
   analyzeLogText: (text: string) => call<CrashAnalysis>("analyze_log_text", { text }),
   crashRulesInfo: () => call<RulesInfo>("crash_rules_info"),

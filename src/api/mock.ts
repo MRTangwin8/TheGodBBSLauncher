@@ -31,10 +31,12 @@ let settings: Settings = {
   windowWidth: null,
   windowHeight: null,
   crashRulesUrl: "",
+  curseforgeApiKey: "",
 };
 const installed: InstalledVersion[] = [
-  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null },
-  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null },
+  { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1" },
+  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null },
+  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null },
 ];
 const accounts: AccountList = {
   accounts: [
@@ -70,6 +72,36 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
             { id: "0.16.8", version: "0.16.8", stable: true },
             { id: "0.17.0-beta.1", version: "0.17.0-beta.1", stable: false },
           ],
+    resource_target: () => ({ mcVersion: "1.21.1", loader: "fabric", dir: "C:/mc/versions/fabric-loader-0.16.9-1.21.1/mods", curseforgeViaMirror: true }),
+    resource_search: () => ({
+      total: 2,
+      hits: [
+        { source: "modrinth", id: "PtjYWJkn", slug: "sodium-extra", title: "Sodium Extra", description: "A Sodium addon that adds features that shouldn't be in Sodium.", author: "FlashyReese", iconUrl: null, downloads: 29000000, categories: ["optimization", "utility"], updated: "2026-09-01T00:00:00Z", pageUrl: "https://modrinth.com/mod/sodium-extra" },
+        { source: "modrinth", id: "AANobbMI", slug: "sodium", title: "Sodium", description: "The fastest rendering optimization mod for Minecraft.", author: "jellysquid3", iconUrl: null, downloads: 80000000, categories: ["optimization"], updated: "2026-10-01T00:00:00Z", pageUrl: "https://modrinth.com/mod/sodium" },
+      ],
+    }),
+    resource_versions: () => [
+      { source: "modrinth", id: "v1", projectId: "PtjYWJkn", name: "0.9.4", versionNumber: "mc1.21.1-0.9.4+fabric", gameVersions: ["1.21.1"], loaders: ["fabric"], published: "2026-09-01T00:00:00Z", releaseType: "release", file: { url: "", filename: "sodium-extra-0.9.4.jar", sha1: null, size: 1024000 }, dependencies: [] },
+      { source: "modrinth", id: "v0", projectId: "PtjYWJkn", name: "0.9.3", versionNumber: "mc1.21.1-0.9.3+fabric", gameVersions: ["1.21.1"], loaders: ["fabric"], published: "2026-08-01T00:00:00Z", releaseType: "beta", file: { url: "", filename: "sodium-extra-0.9.3.jar", sha1: null, size: 1000000 }, dependencies: [] },
+    ],
+    resource_plan: () => ({
+      items: [
+        { source: "modrinth", projectId: "PtjYWJkn", title: "Sodium Extra", versionId: "v1", versionNumber: "mc1.21.1-0.9.4+fabric", file: { url: "", filename: "sodium-extra-0.9.4.jar", sha1: null, size: 1024000 }, requiredBy: null, replaces: [], compat: { status: "ok", problems: [], notes: ["已核对 76 个必需的 Mixin 注入点"] }, note: null, alternative: null },
+        { source: "modrinth", projectId: "AANobbMI", title: "Sodium", versionId: "s1", versionNumber: "mc1.21.1-0.8.13-fabric", file: { url: "", filename: "sodium-fabric-0.8.13.jar", sha1: null, size: 2048000 }, requiredBy: "Sodium Extra", replaces: [], compat: { status: "ok", problems: [], notes: ["已核对 75 个必需的 Mixin 注入点"] }, note: "原定的 mc1.21.1-0.8.12 不兼容（CameraMixin 要修改的 Camera.setup 在当前游戏里不存在），已自动换成 mc1.21.1-0.8.13", alternative: null },
+      ],
+      alreadyInstalled: [],
+      unresolved: [],
+      optional: ["Iris Shaders", "Reese's Sodium Options"],
+      incompatible: [],
+    }),
+    local_resources: () => [
+      { filename: "sodium-fabric-0.8.13.jar", enabled: true, size: 2048000, projectId: "AANobbMI", title: "Sodium", version: "0.8.13" },
+      { filename: "old-mod.jar.disabled", enabled: false, size: 51200, projectId: null, title: null, version: null },
+    ],
+    local_compat: () => [
+      { filename: "sodium-fabric-0.8.13.jar", report: { status: "ok", problems: [], notes: ["已核对 75 个必需的 Mixin 注入点"] } },
+      { filename: "old-mod.jar.disabled", report: { status: "problem", problems: ["需要 Minecraft [1.20,1.21)，当前是 1.21.1"], notes: [] } },
+    ],
     crash_rules_info: () => ({ version: 1, count: 25, custom: false }),
     analyze_log_text: () => ({
       exitCode: null,

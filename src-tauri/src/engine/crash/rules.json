@@ -178,6 +178,23 @@
       "solutions": ["打开 mods 文件夹，删掉重复的那个（保留较新的版本）"]
     },
     {
+      "id": "mixin-target-missing",
+      "title": "模组版本与游戏/加载器不匹配：{mod}",
+      "severity": "error",
+      "priority": 62,
+      "supersedes": ["mixin-failed"],
+      "patterns": [
+        "could not find any targets matching[^\\r\\n]*?from mod (?P<mod>[\\w.-]+)",
+        "No refMap loaded[^\\r\\n]*?from mod (?P<mod>[\\w.-]+)"
+      ],
+      "description": "模组「{mod}」要修改的游戏代码在当前版本里找不到——这个模组版本是照着别的游戏或加载器版本做的。即使都标着同一个 Minecraft 版本，加载器（NeoForge / Forge）小版本更新后也可能改掉模组依赖的代码。",
+      "solutions": [
+        "在「资源中心 → 找资源」里重新安装「{mod}」，选择更新的版本（必要时包括测试版），会自动替换旧文件",
+        "或者把加载器换成这个模组适配的版本（看模组页面的说明）",
+        "如果是别的模组把它作为前置拉进来的，前置版本可能被固定得太旧，同样手动换成新版本即可"
+      ]
+    },
+    {
       "id": "mixin-failed",
       "title": "模组冲突（Mixin 注入失败）",
       "severity": "error",
@@ -266,7 +283,7 @@
       "severity": "error",
       "priority": 48,
       "patterns": [
-        "(?i)(?P<dll>ig\\d+icd(?:32|64)\\.dll|ig75icd64\\.dll|atio6axx\\.dll|atioglxx\\.dll|nvoglv(?:32|64)\\.dll|amdxc64\\.dll)"
+        "(?i)\\bC\\s+\\[(?P<dll>ig\\d+icd(?:32|64)\\.dll|ig75icd64\\.dll|atio6axx\\.dll|atioglxx\\.dll|nvoglv(?:32|64)\\.dll|amdxc64\\.dll)\\+0x"
       ],
       "description": "游戏在显卡驱动 {dll} 里崩溃了，基本是驱动的问题。",
       "solutions": [
