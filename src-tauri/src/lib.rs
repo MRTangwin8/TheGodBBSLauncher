@@ -43,6 +43,10 @@ pub fn run() {
             commands::game::launch_game,
             commands::game::kill_game,
             commands::game::list_running,
+            commands::crash::analyze_log_text,
+            commands::crash::crash_rules_info,
+            commands::crash::update_crash_rules,
+            commands::crash::reset_crash_rules,
         ])
         .run(tauri::generate_context!())
         .expect("神权论坛启动器启动失败");

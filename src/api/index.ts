@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   Account,
   AccountList,
+  CrashAnalysis,
   DeviceCode,
   DownloadReport,
   GameExit,
@@ -15,6 +16,7 @@ import type {
   LaunchResult,
   MemoryInfo,
   ProbeResult,
+  RulesInfo,
   Settings,
   VersionManifest,
 } from "./types";
@@ -56,6 +58,11 @@ export const api = {
 
   listJava: (force = false) => call<JavaInstall[]>("list_java", { force }),
   memoryInfo: () => call<MemoryInfo>("memory_info"),
+
+  analyzeLogText: (text: string) => call<CrashAnalysis>("analyze_log_text", { text }),
+  crashRulesInfo: () => call<RulesInfo>("crash_rules_info"),
+  updateCrashRules: (url: string) => call<RulesInfo>("update_crash_rules", { url }),
+  resetCrashRules: () => call<RulesInfo>("reset_crash_rules"),
 
   launchGame: (versionId: string) => call<LaunchResult>("launch_game", { versionId }),
   killGame: (runId: string) => call<void>("kill_game", { runId }),

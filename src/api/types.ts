@@ -39,6 +39,7 @@ export interface Settings {
   isolateVersions: boolean;
   windowWidth: number | null;
   windowHeight: number | null;
+  crashRulesUrl: string;
 }
 
 export interface ProbeResult {
@@ -123,6 +124,31 @@ export interface GameExit {
   runId: string;
   versionId: string;
   code: number | null;
+  killed: boolean;
+  analysis: CrashAnalysis | null;
+}
+
+export type Severity = "error" | "warning" | "info";
+
+export interface Finding {
+  id: string;
+  title: string;
+  severity: Severity;
+  description: string;
+  solutions: string[];
+  evidence: string | null;
+}
+
+export interface CrashAnalysis {
+  exitCode: number | null;
+  findings: Finding[];
+  files: string[];
+}
+
+export interface RulesInfo {
+  version: number;
+  count: number;
+  custom: boolean;
 }
 
 export type LoaderKind = "fabric" | "quilt" | "forge" | "neoforge";

@@ -1,0 +1,342 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "java-too-old",
+      "title": "Java 版本太低",
+      "severity": "error",
+      "priority": 90,
+      "patterns": [
+        "UnsupportedClassVersionError.*?class file version (?P<classver>\\d+)",
+        "has been compiled by a more recent version of the Java Runtime \\(class file version (?P<classver>\\d+)"
+      ],
+      "description": "游戏或某个模组需要更高版本的 Java（至少 Java {java}），当前使用的 Java 太旧了。",
+      "solutions": [
+        "在「设置 → Java」里选择「自动选择」，启动器会按版本要求挑选或下载合适的 Java",
+        "或者手动安装 Java {java} 及以上版本后重新扫描"
+      ]
+    },
+    {
+      "id": "java-too-new-legacy",
+      "title": "Java 版本太高（旧版本只支持 Java 8）",
+      "severity": "error",
+      "priority": 90,
+      "patterns": [
+        "ClassLoaders\\$AppClassLoader cannot be cast to (?:class )?java\\.net\\.URLClassLoader",
+        "Unsupported class file major version (?P<classver>\\d+)",
+        "java\\.lang\\.NoSuchFieldException: ucp",
+        "sun\\.misc\\.Unsafe\\.defineClass"
+      ],
+      "description": "1.16.5 及以前的版本（尤其是装了 Forge 的）只能用 Java 8 运行，当前的 Java 太新了。",
+      "solutions": [
+        "在「设置 → Java」里选择「自动选择」，启动器会自动下载 Mojang 官方的 Java 8",
+        "如果手动指定过 Java，请换成 Java 8（1.8.0_xxx）"
+      ]
+    },
+    {
+      "id": "out-of-memory",
+      "title": "内存不足",
+      "severity": "error",
+      "priority": 85,
+      "patterns": [
+        "java\\.lang\\.OutOfMemoryError(?:: (?P<kind>[^\\r\\n]+))?",
+        "There is insufficient memory for the Java Runtime Environment to continue",
+        "Out of memory: (?:Java heap space|GC overhead limit exceeded)"
+      ],
+      "description": "分配给游戏的内存不够用了（{kind}）。模组多、光影、高视距都会大量占用内存。",
+      "solutions": [
+        "在「设置 → 最大内存」里调高分配，装大量模组时建议 6~8 GB",
+        "关掉其它占内存的程序后再试",
+        "如果电脑总内存很小，尝试降低视距、关闭光影或减少模组"
+      ]
+    },
+    {
+      "id": "heap-reserve-failed",
+      "title": "无法分配设定的内存",
+      "severity": "error",
+      "priority": 86,
+      "patterns": [
+        "Could not reserve enough space for (?:object heap|\\d+KB object heap)",
+        "Invalid maximum heap size: (?P<size>\\S+)",
+        "Initial heap size set to a larger value than the maximum heap size"
+      ],
+      "description": "Java 没法按设置分配内存。常见原因：最大内存超过了可用内存，或者用的是 32 位 Java（最多只能用约 1.5 GB）。",
+      "solutions": [
+        "在「设置 → 最大内存」里调小数值，或留空让启动器自动分配",
+        "确认使用的是 64 位 Java（设置页的 Java 列表会显示 x86_64）"
+      ]
+    },
+    {
+      "id": "jvm-bad-argument",
+      "title": "JVM 参数有误",
+      "severity": "error",
+      "priority": 95,
+      "patterns": [
+        "Unrecognized VM option '(?P<opt>[^']+)'",
+        "Unrecognized option: (?P<opt2>\\S+)",
+        "Error: Could not create the Java Virtual Machine"
+      ],
+      "description": "Java 虚拟机没能启动，通常是「设置 → JVM 参数」里写了当前 Java 不认识的参数（{opt}{opt2}）。",
+      "solutions": [
+        "检查「设置 → JVM 参数」，删掉有问题的参数后再试",
+        "有些参数只在特定 Java 版本可用（如 -XX:+UseZGC 需要 Java 15+），换 Java 或删除该参数"
+      ]
+    },
+    {
+      "id": "natives-load-failed",
+      "title": "本地库（natives）加载失败",
+      "severity": "error",
+      "priority": 80,
+      "patterns": [
+        "Failed to locate library: (?P<lib>\\S+)",
+        "UnsatisfiedLinkError:? (?:Can't load library: )?(?P<lib2>[^\\r\\n]*\\.(?:dll|so|dylib))",
+        "no lwjgl in java\\.library\\.path"
+      ],
+      "description": "LWJGL 没能加载 {lib}{lib2}。最常见的原因是杀毒软件正在扫描或拦截刚解压出来的 DLL，其次是文件缺失或 Java 位数与系统不符。",
+      "solutions": [
+        "直接再启动一次，大多数情况下扫描完成后就正常了",
+        "把游戏目录和启动器目录加入杀毒软件（如 360、火绒）的信任区",
+        "在「版本管理」里点「补全文件」",
+        "确认使用 64 位 Java"
+      ]
+    },
+    {
+      "id": "corrupted-file",
+      "title": "游戏文件损坏",
+      "severity": "error",
+      "priority": 75,
+      "patterns": [
+        "java\\.util\\.zip\\.ZipException: (?P<msg>[^\\r\\n]+)",
+        "invalid CEN header",
+        "zip END header not found",
+        "error in opening zip file"
+      ],
+      "description": "有 jar 文件损坏了（{msg}），可能是下载中断或磁盘问题。",
+      "solutions": [
+        "在「版本管理」里点「补全文件」，启动器会重新校验并下载损坏的文件",
+        "如果是 mods 文件夹里的模组损坏，请重新下载该模组"
+      ]
+    },
+    {
+      "id": "fabric-missing-dependency",
+      "title": "模组缺少前置：{dep}",
+      "severity": "error",
+      "priority": 70,
+      "patterns": [
+        "Mod '(?P<mod>[^']+)' \\([^)]+\\) \\S+ requires (?:any version|version \\S+|\\S+)(?: or later)? of '?(?P<dep>[^',!(]+?)'?(?: \\([^)]*\\))?, which is missing",
+        "模组 '(?P<mod>[^']+)' \\([^)]+\\) \\S+ 需要 '?(?P<dep>[^'，(]+?)'?(?: \\([^)]*\\))? 的 [^，]+，但没有安装它",
+        "HARD_DEP_NO_CANDIDATE (?P<mod>[\\w.-]+) \\S+ \\{depends (?P<dep>[\\w.-]+) @ \\[\\*\\]\\}"
+      ],
+      "description": "模组「{mod}」需要前置模组「{dep}」，但没有安装。",
+      "solutions": [
+        "去 Modrinth 或 CurseForge 下载「{dep}」，放进这个版本的 mods 文件夹",
+        "注意下载和游戏版本、加载器都对应的版本"
+      ]
+    },
+    {
+      "id": "fabric-wrong-dependency-version",
+      "title": "模组版本不匹配：{mod}",
+      "severity": "error",
+      "priority": 70,
+      "patterns": [
+        "Mod '(?P<mod>[^']+)' \\([^)]+\\) \\S+ requires (?:version )?(?P<need>[^ ]+(?: or later)?) of '?(?P<dep>[^',!(]+?)'?(?: \\([^)]*\\))?, but only the wrong versions? (?:is|are) present: (?P<have>[^!\\r\\n]+)",
+        "模组 '(?P<mod>[^']+)' \\([^)]+\\) \\S+ 需要 '?(?P<dep>[^'，(]+?)'?(?: \\([^)]*\\))? 的 (?P<need>[^，]+)，但已经安装了的版本 (?P<have>.+?) 不对"
+      ],
+      "description": "模组「{mod}」需要「{dep}」的 {need} 版本，但现在装的是 {have}。",
+      "solutions": [
+        "如果「{dep}」是 Minecraft：这个模组不支持当前游戏版本，换对应版本的模组或换游戏版本",
+        "否则更新或降级「{dep}」到兼容的版本"
+      ]
+    },
+    {
+      "id": "forge-missing-dependency",
+      "title": "模组缺少前置：{dep}",
+      "severity": "error",
+      "priority": 70,
+      "patterns": [
+        "Mod ID: '(?P<dep>[^']+)', Requested by: '(?P<mod>[^']+)', Expected range: '(?P<range>[^']*)', Actual version: '\\[MISSING\\]'",
+        "Missing or unsupported mandatory dependencies:\\s+Mod ID: '(?P<dep2>[^']+)', Requested by: '(?P<mod2>[^']+)'"
+      ],
+      "description": "模组「{mod}{mod2}」需要前置模组「{dep}{dep2}」（版本范围 {range}），但没有安装或版本不对。",
+      "solutions": [
+        "下载「{dep}{dep2}」对应游戏版本的 Forge/NeoForge 版本，放进 mods 文件夹",
+        "如果已经装了，检查版本是否在要求的范围内"
+      ]
+    },
+    {
+      "id": "duplicate-mods",
+      "title": "重复的模组",
+      "severity": "error",
+      "priority": 68,
+      "patterns": [
+        "Duplicate mods? (?:found|detected)?:?\\s*(?P<id>[\\w-]+)?",
+        "DuplicateModsFoundException",
+        "Found a duplicate mod (?P<id2>[\\w-]+)",
+        "found more than once"
+      ],
+      "description": "同一个模组被装了多次（{id}{id2}），通常是新旧两个版本同时放在了 mods 文件夹里。",
+      "solutions": ["打开 mods 文件夹，删掉重复的那个（保留较新的版本）"]
+    },
+    {
+      "id": "mixin-failed",
+      "title": "模组冲突（Mixin 注入失败）",
+      "severity": "error",
+      "priority": 60,
+      "patterns": [
+        "Mixin apply (?:for mod (?P<mod>[\\w-]+) )?failed",
+        "MixinApplyError",
+        "InvalidInjectionException",
+        "Critical injection failure"
+      ],
+      "description": "有模组在修改游戏代码时失败了（{mod}），一般是两个模组改了同一处代码，或者模组和游戏/加载器版本不匹配。",
+      "solutions": [
+        "根据日志里提到的模组名，暂时移除它或与它冲突的模组再试",
+        "把相关模组更新到最新版本",
+        "确认所有模组都是对应当前游戏版本的"
+      ]
+    },
+    {
+      "id": "forge-mod-on-fabric",
+      "title": "在 Fabric/Quilt 里装了 Forge 模组",
+      "severity": "error",
+      "priority": 65,
+      "patterns": ["NoClassDefFoundError: net/minecraftforge/", "ClassNotFoundException: net\\.minecraftforge\\."],
+      "description": "日志里出现了 Forge 的类找不到的错误，说明 mods 文件夹里有只能在 Forge 上运行的模组。",
+      "solutions": ["把 Forge 模组移出 mods 文件夹，或者换用 Forge 版本运行它们", "下载模组时注意选择 Fabric 版本"]
+    },
+    {
+      "id": "fabric-mod-on-forge",
+      "title": "在 Forge 里装了 Fabric 模组",
+      "severity": "error",
+      "priority": 65,
+      "patterns": ["NoClassDefFoundError: net/fabricmc/", "ClassNotFoundException: net\\.fabricmc\\."],
+      "description": "日志里出现了 Fabric 的类找不到的错误，说明 mods 文件夹里有只能在 Fabric 上运行的模组。",
+      "solutions": ["把 Fabric 模组移出 mods 文件夹，或者换用 Fabric 版本运行它们", "下载模组时注意选择 Forge/NeoForge 版本"]
+    },
+    {
+      "id": "mod-init-failed",
+      "title": "模组初始化失败：{mod}",
+      "severity": "error",
+      "priority": 55,
+      "patterns": [
+        "Could not execute entrypoint stage '(?P<stage>\\w+)' due to errors, provided by '(?P<mod>[\\w-]+)'",
+        "Failed to create mod instance\\. ModID: (?P<mod2>[\\w-]+)",
+        "Caught exception from (?P<mod3>[^\\r\\n(]+?) \\("
+      ],
+      "description": "模组「{mod}{mod2}{mod3}」在加载时出错了。",
+      "solutions": [
+        "更新该模组到最新版本，或者暂时移除它",
+        "检查它的前置模组是否齐全、版本是否匹配"
+      ]
+    },
+    {
+      "id": "optifine-incompatible",
+      "title": "OptiFine 不兼容",
+      "severity": "error",
+      "priority": 58,
+      "patterns": ["(?i)optifine[^\\r\\n]*(?:NoSuchMethodError|NoSuchFieldError|ClassNotFoundException|Mixin)", "(?i)(?:NoSuchMethodError|NoSuchFieldError)[^\\r\\n]*optifine"],
+      "description": "OptiFine 与当前的 Forge 版本或其它模组不兼容。",
+      "solutions": [
+        "去 OptiFine 官网确认它支持的 Forge 版本，安装对应的 Forge",
+        "或者移除 OptiFine，改用 Embeddium / Sodium + Iris 等替代模组"
+      ]
+    },
+    {
+      "id": "graphics-driver-opengl",
+      "title": "显卡驱动不支持 OpenGL",
+      "severity": "error",
+      "priority": 50,
+      "patterns": [
+        "Pixel format not accelerated",
+        "GLFW error 65542",
+        "WGL: The driver does not appear to support OpenGL",
+        "Couldn't set pixel format",
+        "OpenGL (?:2\\.0|3\\.2)(?: core)? (?:is )?not (?:available|supported)"
+      ],
+      "description": "显卡驱动太旧、没装好，或者游戏跑在了不支持 OpenGL 的显卡上（常见于双显卡笔记本用了核显、远程桌面环境）。",
+      "solutions": [
+        "去显卡官网（NVIDIA / AMD / Intel）下载安装最新驱动",
+        "双显卡笔记本：在显卡控制面板里把 javaw.exe / java.exe 设为使用独立显卡",
+        "不要通过远程桌面启动游戏"
+      ]
+    },
+    {
+      "id": "graphics-driver-crash",
+      "title": "显卡驱动崩溃",
+      "severity": "error",
+      "priority": 48,
+      "patterns": [
+        "(?i)(?P<dll>ig\\d+icd(?:32|64)\\.dll|ig75icd64\\.dll|atio6axx\\.dll|atioglxx\\.dll|nvoglv(?:32|64)\\.dll|amdxc64\\.dll)"
+      ],
+      "description": "游戏在显卡驱动 {dll} 里崩溃了，基本是驱动的问题。",
+      "solutions": [
+        "更新显卡驱动到最新版本；如果最新版反而出问题，尝试回退到上一个稳定版",
+        "关闭光影模组或降低图形设置后再试"
+      ]
+    },
+    {
+      "id": "ticking-entity",
+      "title": "存档里的实体/方块出错",
+      "severity": "error",
+      "priority": 45,
+      "patterns": ["Ticking (?P<what>entity|block entity|tile entity|player)", "Entity being ticked"],
+      "description": "游戏在更新存档里的某个{what}时崩溃了。通常是模组的实体或方块数据损坏，进入这个存档就会崩。",
+      "solutions": [
+        "查看崩溃报告里的「Entity Type / Block type」和坐标，确认是哪个模组的东西",
+        "更新或移除相关模组；必要时用 NBT 编辑器删除出错的实体",
+        "先备份存档再做任何修改"
+      ]
+    },
+    {
+      "id": "file-access-denied",
+      "title": "文件被占用或没有权限",
+      "severity": "error",
+      "priority": 40,
+      "patterns": ["java\\.nio\\.file\\.AccessDeniedException: (?P<path>[^\\r\\n]+)", "(?:being used by another process|另一个程序正在使用此文件)"],
+      "description": "游戏没法读写文件 {path}，可能被其它程序（另一个游戏实例、杀毒软件、同步盘）占用，或者目录没有写入权限。",
+      "solutions": [
+        "关掉其它正在运行的 Minecraft 后再试",
+        "不要把游戏目录放在 OneDrive、桌面等受保护/同步的位置",
+        "把游戏目录加入杀毒软件信任区"
+      ]
+    },
+    {
+      "id": "path-special-chars",
+      "title": "游戏路径包含特殊字符",
+      "severity": "error",
+      "priority": 42,
+      "patterns": ["java\\.net\\.URISyntaxException", "Illegal character in path at index"],
+      "description": "游戏目录的路径里有 Java 处理不了的字符（如 !、#、% 或某些特殊符号），导致加载失败。",
+      "solutions": ["在「设置 → 游戏目录」里换一个只包含英文、数字的路径"]
+    },
+    {
+      "id": "manual-crash",
+      "title": "手动触发的调试崩溃",
+      "severity": "info",
+      "priority": 100,
+      "patterns": ["Manually triggered debug crash"],
+      "description": "这是按住 F3 + C 手动触发的崩溃，不是真正的问题。",
+      "solutions": ["不用处理，直接重新启动即可"]
+    },
+    {
+      "id": "class-not-found",
+      "title": "缺少游戏文件",
+      "severity": "warning",
+      "priority": 10,
+      "generic": true,
+      "patterns": ["(?:ClassNotFoundException|NoClassDefFoundError):? (?P<cls>[\\w.$/]+)", "Could not find or load main class (?P<main>\\S+)"],
+      "description": "Java 找不到类 {cls}{main}，可能是库文件缺失、模组缺少前置，或者模组和游戏版本不匹配。",
+      "solutions": ["在「版本管理」里点「补全文件」", "如果类名属于某个模组，检查该模组的前置和版本"]
+    },
+    {
+      "id": "access-violation",
+      "title": "程序内存访问错误",
+      "severity": "warning",
+      "priority": 5,
+      "generic": true,
+      "exitCodes": [-1073741819, -1073740940, -805306369],
+      "description": "游戏进程因为原生代码出错而直接退出（Windows 错误码 {exit}），常见原因是显卡驱动、本地库或系统组件问题。",
+      "solutions": ["更新显卡驱动", "关闭可能注入游戏的程序（录屏、加速器、覆盖层）后再试", "在「版本管理」里点「补全文件」"]
+    }
+  ]
+}

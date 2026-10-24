@@ -7,6 +7,7 @@ pub mod java;
 pub mod launch;
 pub mod loader;
 pub mod auth;
+pub mod crash;
 pub mod meta;
 pub mod mirror;
 

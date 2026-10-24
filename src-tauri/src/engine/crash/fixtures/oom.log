@@ -1,0 +1,3 @@
+[Render thread/ERROR]: Unreported exception thrown!
+java.lang.OutOfMemoryError: Java heap space
+	at java.base/java.util.Arrays.copyOf(Arrays.java:3537)

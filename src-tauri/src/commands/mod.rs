@@ -1,6 +1,7 @@
 //! 前端 IPC。请求/响应走 command，下载进度和游戏日志走 event。
 
 pub mod accounts;
+pub mod crash;
 pub mod game;
 pub mod java;
 pub mod loaders;
@@ -17,6 +18,7 @@ use tokio::sync::{oneshot, Mutex, RwLock};
 use crate::config::Settings;
 use crate::engine::auth::microsoft::DeviceCode;
 use crate::engine::auth::store::AccountStore;
+use crate::engine::crash::RuleSet;
 use crate::engine::java::JavaInstall;
 use crate::engine::meta::VersionManifest;
 use crate::engine::mirror::{self, Source, SourcePref};
@@ -41,10 +43,12 @@ pub struct AppState {
     pub login_cancel: Arc<AtomicBool>,
     pub java_cache: Mutex<Option<Vec<JavaInstall>>>,
     pub games: Mutex<HashMap<String, RunningGame>>,
+    pub crash_rules: RwLock<Arc<RuleSet>>,
 }
 
 impl AppState {
     pub fn new(settings: Settings, config_path: PathBuf, data_dir: PathBuf, accounts: AccountStore) -> Self {
+        let crash_rules = RwLock::new(Arc::new(crash::load_rules(&data_dir)));
         Self {
             settings: RwLock::new(settings),
             config_path,
@@ -58,6 +62,7 @@ impl AppState {
             login_cancel: Arc::new(AtomicBool::new(false)),
             java_cache: Mutex::new(None),
             games: Mutex::new(HashMap::new()),
+            crash_rules,
         }
     }
 

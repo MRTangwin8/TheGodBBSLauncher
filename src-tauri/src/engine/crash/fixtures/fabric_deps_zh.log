@@ -1,0 +1,6 @@
+[main/INFO]: Immediate reason: [HARD_DEP_NO_CANDIDATE godbbs_test 1.0.0 {depends fabric-api @ [*]}, ROOT_FORCELOAD_SINGLE godbbs_test 1.0.0]
+[main/ERROR]: Incompatible mods found!
+net.fabricmc.loader.impl.FormattedException: Some of your mods are incompatible with the game or each other!
+	 - 安装 fabric-api，任意版本。
+	 - 模组 'GodBBS Crash Test' (godbbs_test) 1.0.0 需要 fabric-api 的 任意版本，但没有安装它！
+	 - 模组 'Mod Menu' (modmenu) 9.0.0 需要 'Minecraft' (minecraft) 的 版本 1.20.4，但已经安装了的版本 1.20.1 不对！

@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, reactive, ref } from "vue";
 import { api, onGameExit, onGameLog } from "../api";
 import { useVersionsStore } from "./versions";
+import type { CrashAnalysis } from "../api/types";
 
 export interface GameRun {
   runId: string;
@@ -11,6 +12,8 @@ export interface GameRun {
   lines: string[];
   status: "running" | "exited";
   code: number | null;
+  killed: boolean;
+  analysis: CrashAnalysis | null;
 }
 
 /** 每个进程最多保留的日志行数 */
@@ -38,11 +41,13 @@ export const useGameStore = defineStore("game", () => {
     if (run.lines.length > MAX_LINES) run.lines.splice(0, run.lines.length - MAX_LINES);
   });
 
-  onGameExit(({ runId, code }) => {
+  onGameExit(({ runId, code, killed, analysis }) => {
     const run = runs[runId];
     if (run) {
       run.status = "exited";
       run.code = code;
+      run.killed = killed;
+      run.analysis = analysis;
     }
   });
 
@@ -60,6 +65,8 @@ export const useGameStore = defineStore("game", () => {
         lines: early[r.runId] ?? [],
         status: "running",
         code: null,
+        killed: false,
+        analysis: null,
       };
       delete early[r.runId];
       current.value = r.runId;

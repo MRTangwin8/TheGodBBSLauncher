@@ -30,6 +30,7 @@ let settings: Settings = {
   isolateVersions: true,
   windowWidth: null,
   windowHeight: null,
+  crashRulesUrl: "",
 };
 const installed: InstalledVersion[] = [
   { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null },
@@ -69,6 +70,29 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
             { id: "0.16.8", version: "0.16.8", stable: true },
             { id: "0.17.0-beta.1", version: "0.17.0-beta.1", stable: false },
           ],
+    crash_rules_info: () => ({ version: 1, count: 25, custom: false }),
+    analyze_log_text: () => ({
+      exitCode: null,
+      files: [],
+      findings: [
+        {
+          id: "fabric-missing-dependency",
+          title: "模组缺少前置：fabric-api",
+          severity: "error",
+          description: "模组「Sodium Extra」需要前置模组「fabric-api」，但没有安装。",
+          solutions: ["去 Modrinth 或 CurseForge 下载「fabric-api」，放进这个版本的 mods 文件夹", "注意下载和游戏版本、加载器都对应的版本"],
+          evidence: "- Mod 'Sodium Extra' (sodium-extra) 0.5.1 requires any version of fabric-api, which is missing!",
+        },
+        {
+          id: "out-of-memory",
+          title: "内存不足",
+          severity: "error",
+          description: "分配给游戏的内存不够用了（Java heap space）。",
+          solutions: ["在「设置 → 最大内存」里调高分配"],
+          evidence: "java.lang.OutOfMemoryError: Java heap space",
+        },
+      ],
+    }),
     memory_info: () => ({ totalMb: 16384, autoMb: 4096 }),
     microsoft_login_start: () => ({ userCode: "GODBBS42", deviceCode: "", verificationUri: "https://www.microsoft.com/link", expiresIn: 900, interval: 5 }),
     microsoft_login_finish: () => new Promise(() => {}),

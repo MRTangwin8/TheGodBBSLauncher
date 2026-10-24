@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { api } from "../api";
-import type { JavaInstall, MemoryInfo, ProbeResult, Settings } from "../api/types";
+import type { JavaInstall, MemoryInfo, ProbeResult, RulesInfo, Settings } from "../api/types";
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
 
@@ -18,10 +18,34 @@ const memory = ref<MemoryInfo | null>(null);
 
 watch(() => store.settings, (s) => (form.value = s ? { ...s } : null), { immediate: true });
 
+const rules = ref<RulesInfo | null>(null);
+const rulesBusy = ref(false);
+const rulesMsg = ref<{ ok: boolean; text: string } | null>(null);
+
 onMounted(async () => {
   memory.value = await api.memoryInfo();
+  rules.value = await api.crashRulesInfo();
   await scanJava(false);
 });
+
+async function updateRules() {
+  if (!form.value?.crashRulesUrl) return;
+  rulesBusy.value = true;
+  rulesMsg.value = null;
+  try {
+    rules.value = await api.updateCrashRules(form.value.crashRulesUrl);
+    rulesMsg.value = { ok: true, text: `更新成功，现在共 ${rules.value.count} 条规则` };
+  } catch (e) {
+    rulesMsg.value = { ok: false, text: String(e) };
+  } finally {
+    rulesBusy.value = false;
+  }
+}
+
+async function resetRules() {
+  rules.value = await api.resetCrashRules();
+  rulesMsg.value = { ok: true, text: "已恢复内置规则库" };
+}
 
 async function scanJava(force: boolean) {
   scanning.value = true;
@@ -170,6 +194,25 @@ const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
     </div>
   </div>
 
+  <div v-if="form" class="box">
+    <div class="box-title">崩溃分析规则库</div>
+    <div class="box-body">
+      <p v-if="rules" class="rules-info">
+        当前 <b>{{ rules.count }}</b> 条规则（版本 {{ rules.version }}，{{ rules.custom ? "已加载自定义/在线规则" : "内置规则" }}）
+      </p>
+      <div class="row">
+        <label>更新地址</label>
+        <div class="field">
+          <input v-model="form.crashRulesUrl" class="input wide mono" placeholder="https://…/crash-rules.json（留空只用内置规则）" />
+          <button class="btn" :disabled="!form.crashRulesUrl || rulesBusy" @click="updateRules">{{ rulesBusy ? "更新中…" : "立即更新" }}</button>
+          <button v-if="rules?.custom" class="btn" :disabled="rulesBusy" @click="resetRules">恢复内置</button>
+          <div class="muted hint">规则是 JSON 格式，和内置规则同 id 的会覆盖、新 id 会追加。改完记得点上面的「保存」记住地址。</div>
+        </div>
+      </div>
+      <p v-if="rulesMsg" :class="rulesMsg.ok ? 'ok' : 'error-text'">{{ rulesMsg.text }}</p>
+    </div>
+  </div>
+
   <div class="box">
     <div class="box-title">关于</div>
     <div class="box-body about">
@@ -195,5 +238,6 @@ const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
 .section .muted { font-size: 12px; font-weight: normal; }
 .check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .mono { font-family: var(--font-pixel); }
+.rules-info { margin: 0 0 6px; }
 .field label.check { width: auto; text-align: left; padding-top: 0; color: var(--text); }
 </style>

@@ -25,6 +25,8 @@ pub struct Settings {
     pub isolate_versions: bool,
     pub window_width: Option<u32>,
     pub window_height: Option<u32>,
+    /// 崩溃规则库更新地址（留空表示只用内置规则）
+    pub crash_rules_url: String,
 }
 
 impl Default for Settings {
@@ -40,6 +42,7 @@ impl Default for Settings {
             isolate_versions: true,
             window_width: None,
             window_height: None,
+            crash_rules_url: String::new(),
         }
     }
 }

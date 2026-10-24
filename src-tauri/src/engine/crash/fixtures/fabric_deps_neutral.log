@@ -1,0 +1,2 @@
+[main/INFO]: Immediate reason: [HARD_DEP_NO_CANDIDATE sodium-extra 0.5.1 {depends fabric-api @ [*]}]
+[main/ERROR]: Incompatible mods found!

@@ -15,7 +15,8 @@
 - [x] 启动游戏：natives 解压、新旧参数格式、旧版资源映射、版本隔离、实时日志
 - [x] 账号：微软正版（设备码）、离线、外置登录（authlib-injector），令牌 AES-GCM 加密、密钥存系统钥匙串
 - [x] 模组加载器一键安装：Fabric / Quilt（meta profile）、Forge / NeoForge（本地执行安装器 processors，旧版 Forge 走 versionInfo）
-- [ ] 崩溃分析、Modrinth / CurseForge 资源下载、整合包……见 PLAN
+- [x] 崩溃分析：JSON 规则库（中英文日志）+ 中文诊断，崩溃后自动分析，也可分析外部日志文件，规则可在线热更新
+- [ ] Modrinth / CurseForge 资源下载、整合包、插件系统……见 PLAN
 
 ## 开发
 

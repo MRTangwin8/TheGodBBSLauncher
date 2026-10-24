@@ -1,18 +1,23 @@
 //! 启动游戏：刷新登录 → 补全文件 → 选/下载 Java → 拼参数 → 起进程 → 日志推给前端。
 
+use std::collections::VecDeque;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::sync::oneshot;
+use tokio::task::JoinHandle;
 
 use super::java::{ensure_java, total_memory_mb};
 use super::versions::INSTALL_PROGRESS_EVENT;
 use super::{AppState, RunningGame};
 use crate::config::{auto_memory_mb, split_args};
 use crate::engine::auth::{microsoft, yggdrasil, AccountKind, LaunchAuth};
+use crate::engine::crash::{self, CrashAnalysis};
 use crate::engine::download::{DownloadTask, Downloader, Progress};
 use crate::engine::install::{self, GameDir, Stage};
 use crate::engine::launch::log4j::Log4jParser;
@@ -36,6 +41,8 @@ struct GameExit {
     run_id: String,
     version_id: String,
     code: Option<i32>,
+    killed: bool,
+    analysis: Option<CrashAnalysis>,
 }
 
 #[derive(Clone, Serialize)]
@@ -191,13 +198,24 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         GameLog { run_id: run_id.clone(), line: format!("[神权] {} {}", prepared.java.display(), shown.join(" ")) },
     );
 
-    for stream in [child.stdout.take().map(boxed), child.stderr.take().map(boxed)].into_iter().flatten() {
-        tokio::spawn(pump_lines(app.clone(), run_id.clone(), stream));
-    }
+    let log: LogBuffer = Arc::new(std::sync::Mutex::new(VecDeque::new()));
+    let pumps: Vec<JoinHandle<()>> = [child.stdout.take().map(boxed), child.stderr.take().map(boxed)]
+        .into_iter()
+        .flatten()
+        .map(|stream| tokio::spawn(pump_lines(app.clone(), run_id.clone(), stream, log.clone())))
+        .collect();
 
     let (kill_tx, kill_rx) = oneshot::channel();
     state.games.lock().await.insert(run_id.clone(), RunningGame { version_id: version_id.clone(), kill: Some(kill_tx) });
-    tokio::spawn(wait_exit(app.clone(), run_id.clone(), version_id.clone(), child, kill_rx));
+    let exit = ExitContext {
+        run_id: run_id.clone(),
+        version_id: version_id.clone(),
+        game_dir: prepared.cwd.clone(),
+        started: SystemTime::now() - Duration::from_secs(2),
+        log,
+        pumps,
+    };
+    tokio::spawn(wait_exit(app.clone(), exit, child, kill_rx));
 
     Ok(LaunchResult { run_id, version_id, player: auth.name })
 }
@@ -206,7 +224,11 @@ fn boxed<R: AsyncRead + Send + Unpin + 'static>(r: R) -> Box<dyn AsyncRead + Sen
     Box::new(r)
 }
 
-async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + Send + Unpin>) {
+/// 每个进程保留最近的日志行，用于崩溃分析
+type LogBuffer = Arc<std::sync::Mutex<VecDeque<String>>>;
+const LOG_KEEP: usize = 20_000;
+
+async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + Send + Unpin>, log: LogBuffer) {
     let mut reader = BufReader::new(stream);
     let mut parser = Log4jParser::default();
     let mut buf = Vec::new();
@@ -215,24 +237,69 @@ async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + 
         let raw = String::from_utf8_lossy(&buf).trim_end().to_string();
         buf.clear();
         for line in parser.feed(&raw) {
+            if let Ok(mut log) = log.lock() {
+                if log.len() >= LOG_KEEP {
+                    log.pop_front();
+                }
+                log.push_back(line.clone());
+            }
             let _ = app.emit(GAME_LOG_EVENT, GameLog { run_id: run_id.clone(), line });
         }
     }
 }
 
-async fn wait_exit(app: AppHandle, run_id: String, version_id: String, mut child: tokio::process::Child, kill_rx: oneshot::Receiver<()>) {
-    let status = tokio::select! {
-        s = child.wait() => s.ok(),
+struct ExitContext {
+    run_id: String,
+    version_id: String,
+    game_dir: PathBuf,
+    started: SystemTime,
+    log: LogBuffer,
+    pumps: Vec<JoinHandle<()>>,
+}
+
+async fn wait_exit(app: AppHandle, ctx: ExitContext, mut child: tokio::process::Child, kill_rx: oneshot::Receiver<()>) {
+    let (status, killed) = tokio::select! {
+        s = child.wait() => (s.ok(), false),
         _ = kill_rx => {
             let _ = child.kill().await;
-            child.wait().await.ok()
+            (child.wait().await.ok(), true)
         }
     };
-    use tauri::Manager;
-    if let Some(state) = app.try_state::<AppState>() {
-        state.games.lock().await.remove(&run_id);
+    let code = status.and_then(|s| s.code());
+    // 等日志读完再分析；游戏派生的子进程可能一直占着管道，所以设个上限
+    for pump in ctx.pumps {
+        let _ = tokio::time::timeout(Duration::from_secs(3), pump).await;
     }
-    let _ = app.emit(GAME_EXIT_EVENT, GameExit { run_id, version_id, code: status.and_then(|s| s.code()) });
+
+    use tauri::Manager;
+    let state = app.try_state::<AppState>();
+    if let Some(state) = &state {
+        state.games.lock().await.remove(&ctx.run_id);
+    }
+
+    // 用户手动结束的不分析。退出码 0 也要看：Forge 的模组加载错误界面关掉后是正常退出的
+    let files = crash::collect_crash_files(&ctx.game_dir, ctx.started);
+    let clean_exit = code == Some(0) && files.is_empty();
+    let analysis = match (&state, killed) {
+        (Some(state), false) => {
+            let rules = state.crash_rules.read().await.clone();
+            let text = ctx.log.lock().map(|l| l.iter().cloned().collect::<Vec<_>>().join("\n")).unwrap_or_default();
+            tokio::task::spawn_blocking(move || crash::analyze_run(&rules, &text, &files, code))
+                .await
+                .ok()
+                .and_then(|mut a| {
+                    if clean_exit {
+                        crash::keep_for_clean_exit(&mut a);
+                        if a.findings.is_empty() {
+                            return None;
+                        }
+                    }
+                    Some(a)
+                })
+        }
+        _ => None,
+    };
+    let _ = app.emit(GAME_EXIT_EVENT, GameExit { run_id: ctx.run_id, version_id: ctx.version_id, code, killed, analysis });
 }
 
 #[tauri::command]

@@ -1,0 +1,5 @@
+---- Minecraft Crash Report ----
+// Who set us up the TNT?
+Description: Manually triggered debug crash
+java.lang.Throwable: Manually triggered debug crash
+[main/DEBUG]: java.lang.ClassNotFoundException: optional.Thing

@@ -1,0 +1,2 @@
+Caused by: java.lang.ExceptionInInitializerError: Exception java.lang.UnsatisfiedLinkError: Failed to locate library: lwjgl.dll [in thread "Render thread"]
+	at knot//org.lwjgl.system.Library.loadSystem(Library.java:174)

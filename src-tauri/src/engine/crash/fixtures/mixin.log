@@ -1,0 +1,1 @@
+[main/ERROR]: Mixin apply for mod create failed create.mixins.json:accessor.LevelRendererAccessor from mod create -> net.minecraft.client.renderer.LevelRenderer: org.spongepowered.asm.mixin.transformer.throwables.InvalidMixinException
