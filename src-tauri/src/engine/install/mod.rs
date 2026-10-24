@@ -277,6 +277,10 @@ pub struct InstalledVersion {
     pub loader: Option<crate::engine::loader::LoaderKind>,
     /// 实际的 Minecraft 版本（沿 inheritsFrom 找到底）
     pub mc_version: Option<String>,
+    pub play_time_secs: u64,
+    pub last_played: Option<u64>,
+    /// 来自哪个整合包（名字）
+    pub modpack: Option<String>,
 }
 
 pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
@@ -294,10 +298,14 @@ pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
         let Ok(v) = serde_json::from_str::<VersionJson>(&text) else {
             continue;
         };
+        let inst = crate::engine::instance::load(game, &id);
         out.push(InstalledVersion {
             has_jar: tokio::fs::try_exists(game.version_jar(v.jar.as_deref().unwrap_or(&id))).await.unwrap_or(false)
                 || v.inherits_from.is_some(),
             mc_version: crate::engine::meta::version::base_minecraft_version(&game.versions(), &id).await.ok(),
+            play_time_secs: inst.play_time_secs,
+            last_played: inst.last_played,
+            modpack: inst.modpack.map(|m| m.name),
             id,
             loader: crate::engine::loader::detect(&v),
             kind: v.kind,

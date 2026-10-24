@@ -2,12 +2,14 @@
 import { computed } from "vue";
 import { useVersionsStore } from "../stores/versions";
 import { kindLabel, useAccountsStore } from "../stores/accounts";
-import PixelHead from "./PixelHead.vue";
+import AccountAvatar from "./AccountAvatar.vue";
+import { formatDuration } from "../utils";
 
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
-// 积分暂时按本地已安装版本数计算，以后换成游戏时长
-const points = computed(() => versions.installed.length * 10);
+const totalPlay = computed(() => versions.installed.reduce((s, v) => s + v.playTimeSecs, 0));
+// 积分：每小时 10 分 + 每个版本 5 分（和首页一致）
+const points = computed(() => Math.floor(totalPlay.value / 360) + versions.installed.length * 5);
 const acc = computed(() => accounts.selected);
 </script>
 
@@ -15,14 +17,14 @@ const acc = computed(() => accounts.selected);
   <div class="box">
     <div class="box-title">个人信息</div>
     <div class="box-body user">
-      <div class="avatar"><PixelHead :seed="acc?.uuid ?? 'guest'" /></div>
+      <div class="avatar"><AccountAvatar :account="acc" mode="body" :size="128" /></div>
       <div class="name">{{ acc?.name ?? "游客" }}</div>
       <div class="group" title="在本启动器里，你拥有一切权限">神权</div>
       <dl>
         <dt>账号类型</dt><dd>{{ acc ? kindLabel[acc.kind] : "未登录" }}</dd>
         <dt>积分</dt><dd>{{ points }}</dd>
         <dt>已装版本</dt><dd>{{ versions.installed.length }}</dd>
-        <dt>游戏时长</dt><dd>0 小时</dd>
+        <dt>游戏时长</dt><dd>{{ formatDuration(totalPlay) }}</dd>
       </dl>
       <RouterLink to="/account">{{ acc ? "管理账号 »" : "登录 / 添加账号 »" }}</RouterLink>
     </div>

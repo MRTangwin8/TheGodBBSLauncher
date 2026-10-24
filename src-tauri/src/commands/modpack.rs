@@ -82,6 +82,7 @@ pub async fn modpack_import(app: AppHandle, state: State<'_, AppState>, job_id: 
             jvm_args: info.jvm_args.clone(),
             game_args: info.game_args.clone(),
             modpack: Some(ModpackOrigin { format: info.format.label().into(), name: info.name.clone(), version: info.version.clone() }),
+            ..Default::default()
         },
     )?;
     let dir = game.versions().join(&id);

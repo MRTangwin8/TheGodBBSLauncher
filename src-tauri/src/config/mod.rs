@@ -29,6 +29,16 @@ pub struct Settings {
     pub crash_rules_url: String,
     /// CurseForge API Key；留空则通过 MCIM 镜像访问
     pub curseforge_api_key: String,
+    /// 界面布局：classic（第一版论坛风）/ sidebar（侧边栏）/ modern（现代）
+    pub layout: String,
+    /// 配色方案：mcbbs / grass / nether / end / ocean / cherry / stone
+    pub palette: String,
+    /// light / dark / system
+    pub theme: String,
+    /// 自定义背景图；None 用内置像素风景
+    pub background_image: Option<PathBuf>,
+    /// 首页默认选中的版本（上次启动的）
+    pub last_version: Option<String>,
 }
 
 impl Default for Settings {
@@ -46,6 +56,11 @@ impl Default for Settings {
             window_height: None,
             crash_rules_url: String::new(),
             curseforge_api_key: String::new(),
+            layout: "classic".into(),
+            palette: "mcbbs".into(),
+            theme: "light".into(),
+            background_image: None,
+            last_version: None,
         }
     }
 }

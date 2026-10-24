@@ -1,0 +1,283 @@
+/*
+ * 配色方案。MCBBS 经典是默认值（写在 mcbbs-classic.css 的 :root 里），其余每套覆盖同一组变量：
+ * 表面（羊皮纸）、文字、强调色（--grass*）、"木头"边框色（--wood*）、标题色（--brown-dark）、天空和地面。
+ * 现代布局只取强调色，表面由 layout-modern.css 换成中性色。
+ */
+
+/* ---------- 草方块：清爽的绿 ---------- */
+:root[data-palette="grass"] {
+  --bg-box: rgba(242, 249, 234, 0.9);
+  --bg-box-solid: #f2f9ea;
+  --bg-box-alt: rgba(222, 238, 205, 0.75);
+  --bg-title: rgba(205, 230, 180, 0.9);
+  --bg-input: #fbfef7;
+  --border: rgba(94, 140, 60, 0.4);
+  --border-strong: #7aa356;
+  --text: #24331a;
+  --text-muted: #6c8257;
+  --link: #2f6e9e;
+  --brown: #4d7a2c;
+  --brown-dark: #2f5418;
+  --wood: #3f6e22;
+  --wood-dark: #2a4d15;
+  --wood-light: #5a8f35;
+  --grass: #4fa52f;
+  --grass-light: #72c94a;
+  --grass-dark: #2f6e1a;
+  --page-bg: #c9dfb0;
+  --page-dot: #bed6a2;
+}
+:root[data-palette="grass"][data-theme="dark"] {
+  --bg-box: rgba(26, 36, 22, 0.88);
+  --bg-box-solid: #1f2b1a;
+  --bg-box-alt: rgba(38, 52, 32, 0.75);
+  --bg-title: rgba(44, 62, 36, 0.92);
+  --bg-input: #18221a;
+  --border: rgba(90, 130, 66, 0.45);
+  --border-strong: #4d7034;
+  --text: #e2efd6;
+  --text-muted: #9bb386;
+  --link: #8cc4f2;
+  --brown-dark: #b9e09a;
+  --wood: #22381a;
+  --wood-dark: #152410;
+  --wood-light: #345526;
+  --page-bg: #151e12;
+  --page-dot: #1c2818;
+}
+
+/* ---------- 下界：岩浆红、深色天空、下界岩地面 ---------- */
+:root[data-palette="nether"] {
+  --sky-top: #3b0b0b;
+  --sky-bottom: #8a2a17;
+  --grass-top: #7b2a2a;
+  --ground-filter: hue-rotate(-28deg) saturate(1.7) brightness(0.72);
+  --bg-box: rgba(252, 238, 232, 0.92);
+  --bg-box-solid: #fceee8;
+  --bg-box-alt: rgba(245, 214, 202, 0.75);
+  --bg-title: rgba(238, 190, 172, 0.92);
+  --bg-input: #fff8f5;
+  --border: rgba(150, 60, 40, 0.4);
+  --border-strong: #b0553a;
+  --text: #3a1610;
+  --text-muted: #8f5446;
+  --link: #a03a1c;
+  --link-hover: #e0662a;
+  --brown: #8a2b18;
+  --brown-dark: #6b1a0e;
+  --wood: #5a1515;
+  --wood-dark: #380a0a;
+  --wood-light: #7a2420;
+  --grass: #d4502a;
+  --grass-light: #f07a3a;
+  --grass-dark: #8a2a14;
+  --gold: #f2a33a;
+  --page-bg: #4a1a14;
+  --page-dot: #561f17;
+}
+:root[data-palette="nether"][data-theme="dark"] {
+  --sky-top: #1a0505;
+  --sky-bottom: #4a1209;
+  --ground-filter: hue-rotate(-28deg) saturate(1.7) brightness(0.45);
+  --bg-box: rgba(40, 16, 14, 0.9);
+  --bg-box-solid: #2b1210;
+  --bg-box-alt: rgba(60, 24, 20, 0.75);
+  --bg-title: rgba(72, 28, 22, 0.92);
+  --bg-input: #22100e;
+  --border: rgba(140, 56, 40, 0.5);
+  --border-strong: #7a3020;
+  --text: #f6ddd4;
+  --text-muted: #c08f80;
+  --link: #ff9a6a;
+  --brown-dark: #ffb08a;
+  --page-bg: #1c0a08;
+  --page-dot: #260e0b;
+}
+
+/* ---------- 末地：紫色、末地石的淡黄 ---------- */
+:root[data-palette="end"] {
+  --sky-top: #160d26;
+  --sky-bottom: #3b2b5a;
+  --grass-top: #d8d39a;
+  --ground-filter: grayscale(0.7) sepia(0.55) brightness(1.55) hue-rotate(12deg);
+  --bg-box: rgba(249, 247, 232, 0.92);
+  --bg-box-solid: #f9f7e8;
+  --bg-box-alt: rgba(236, 230, 205, 0.75);
+  --bg-title: rgba(222, 210, 236, 0.92);
+  --bg-input: #fffef6;
+  --border: rgba(110, 80, 150, 0.35);
+  --border-strong: #8a6fae;
+  --text: #2a2038;
+  --text-muted: #7a6e8c;
+  --link: #6a3fa8;
+  --link-hover: #b04ac2;
+  --brown: #5e3f86;
+  --brown-dark: #43296a;
+  --wood: #2e2244;
+  --wood-dark: #1c1430;
+  --wood-light: #45345f;
+  --grass: #8e5fc0;
+  --grass-light: #b58ae0;
+  --grass-dark: #5a3a86;
+  --gold: #e6d36a;
+  --page-bg: #e3dfc3;
+  --page-dot: #d9d4b4;
+}
+:root[data-palette="end"][data-theme="dark"] {
+  --sky-top: #07040e;
+  --sky-bottom: #1d1430;
+  --ground-filter: grayscale(0.7) sepia(0.55) brightness(0.8) hue-rotate(12deg);
+  --bg-box: rgba(30, 24, 42, 0.9);
+  --bg-box-solid: #211a2e;
+  --bg-box-alt: rgba(44, 36, 60, 0.75);
+  --bg-title: rgba(52, 40, 74, 0.92);
+  --bg-input: #1a1424;
+  --border: rgba(120, 94, 160, 0.45);
+  --border-strong: #5e4884;
+  --text: #ece6f6;
+  --text-muted: #a99cbc;
+  --link: #c6a6f2;
+  --brown-dark: #d7c2f5;
+  --page-bg: #120d1a;
+  --page-dot: #191223;
+}
+
+/* ---------- 深海：海晶石青、沙子地面 ---------- */
+:root[data-palette="ocean"] {
+  --sky-top: #3f9fd8;
+  --sky-bottom: #cfeefa;
+  --grass-top: #3fb3c4;
+  --ground-filter: sepia(0.9) saturate(0.7) brightness(1.55);
+  --bg-box: rgba(238, 249, 249, 0.9);
+  --bg-box-solid: #eef9f9;
+  --bg-box-alt: rgba(210, 236, 236, 0.75);
+  --bg-title: rgba(186, 225, 226, 0.92);
+  --bg-input: #f8fefe;
+  --border: rgba(40, 120, 130, 0.35);
+  --border-strong: #4a9aa3;
+  --text: #11303a;
+  --text-muted: #557a84;
+  --link: #1d6fa8;
+  --brown: #1f6670;
+  --brown-dark: #134a54;
+  --wood: #154050;
+  --wood-dark: #0b2834;
+  --wood-light: #1f5a6e;
+  --grass: #23a093;
+  --grass-light: #45c6b8;
+  --grass-dark: #157066;
+  --page-bg: #bfe1e3;
+  --page-dot: #b2d8db;
+}
+:root[data-palette="ocean"][data-theme="dark"] {
+  --sky-top: #04131f;
+  --sky-bottom: #0f3247;
+  --ground-filter: sepia(0.9) saturate(0.7) brightness(0.7);
+  --bg-box: rgba(14, 32, 38, 0.9);
+  --bg-box-solid: #10252c;
+  --bg-box-alt: rgba(22, 46, 54, 0.75);
+  --bg-title: rgba(26, 56, 66, 0.92);
+  --bg-input: #0c1d22;
+  --border: rgba(60, 130, 140, 0.45);
+  --border-strong: #2f6f78;
+  --text: #d6f0f2;
+  --text-muted: #86b3b8;
+  --link: #79c8f2;
+  --brown-dark: #8fe0d6;
+  --page-bg: #0a181c;
+  --page-dot: #0f2026;
+}
+
+/* ---------- 樱花：粉色天空、樱花树叶 ---------- */
+:root[data-palette="cherry"] {
+  --sky-top: #f4bfd2;
+  --sky-bottom: #fdeef3;
+  --grass-top: #f0a2c0;
+  --ground-filter: hue-rotate(-12deg) saturate(0.85);
+  --bg-box: rgba(255, 244, 247, 0.9);
+  --bg-box-solid: #fff4f7;
+  --bg-box-alt: rgba(250, 222, 232, 0.75);
+  --bg-title: rgba(246, 200, 216, 0.92);
+  --bg-input: #fffafc;
+  --border: rgba(180, 90, 120, 0.35);
+  --border-strong: #c47a96;
+  --text: #3d1f2a;
+  --text-muted: #94687a;
+  --link: #b03a6a;
+  --link-hover: #e0466e;
+  --brown: #8a4460;
+  --brown-dark: #7a2e4e;
+  --wood: #6e3a4c;
+  --wood-dark: #4a2433;
+  --wood-light: #8e5266;
+  --grass: #df6a9c;
+  --grass-light: #f29bc0;
+  --grass-dark: #a3436d;
+  --gold: #f2b84a;
+  --page-bg: #f2d3de;
+  --page-dot: #ecc6d4;
+}
+:root[data-palette="cherry"][data-theme="dark"] {
+  --sky-top: #1d0d16;
+  --sky-bottom: #47223a;
+  --ground-filter: hue-rotate(-12deg) saturate(0.85) brightness(0.45);
+  --bg-box: rgba(40, 22, 30, 0.9);
+  --bg-box-solid: #2b1821;
+  --bg-box-alt: rgba(58, 32, 44, 0.75);
+  --bg-title: rgba(70, 38, 52, 0.92);
+  --bg-input: #221219;
+  --border: rgba(160, 90, 120, 0.45);
+  --border-strong: #7a4458;
+  --text: #f8e4ec;
+  --text-muted: #c49aac;
+  --link: #ff9ec4;
+  --brown-dark: #ffbdd7;
+  --page-bg: #1b0d13;
+  --page-dot: #24111a;
+}
+
+/* ---------- 石头：冷静的灰 ---------- */
+:root[data-palette="stone"] {
+  --sky-top: #8fa0ad;
+  --sky-bottom: #e2e7eb;
+  --grass-top: #8a9399;
+  --ground-filter: grayscale(1) brightness(1.15);
+  --bg-box: rgba(245, 245, 246, 0.92);
+  --bg-box-solid: #f5f5f6;
+  --bg-box-alt: rgba(228, 229, 232, 0.75);
+  --bg-title: rgba(214, 216, 220, 0.92);
+  --bg-input: #ffffff;
+  --border: rgba(90, 96, 104, 0.3);
+  --border-strong: #8a9099;
+  --text: #22262b;
+  --text-muted: #6b7279;
+  --link: #2f5f9e;
+  --brown: #4a5058;
+  --brown-dark: #2e3338;
+  --wood: #3a3d42;
+  --wood-dark: #24262a;
+  --wood-light: #52565c;
+  --grass: #5b7083;
+  --grass-light: #7f93a6;
+  --grass-dark: #3c4c5b;
+  --page-bg: #d7d9dc;
+  --page-dot: #cdd0d3;
+}
+:root[data-palette="stone"][data-theme="dark"] {
+  --sky-top: #0c0e10;
+  --sky-bottom: #262a2f;
+  --ground-filter: grayscale(1) brightness(0.55);
+  --bg-box: rgba(30, 32, 35, 0.9);
+  --bg-box-solid: #1f2124;
+  --bg-box-alt: rgba(44, 46, 50, 0.75);
+  --bg-title: rgba(52, 55, 60, 0.92);
+  --bg-input: #18191b;
+  --border: rgba(110, 116, 124, 0.4);
+  --border-strong: #50555c;
+  --text: #e6e8ea;
+  --text-muted: #9aa0a6;
+  --link: #8ebdf2;
+  --brown-dark: #d2d6da;
+  --page-bg: #141516;
+  --page-dot: #1b1c1e;
+}

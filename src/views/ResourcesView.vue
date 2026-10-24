@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api, inTauri } from "../api";
 import type { CompatReport, LocalResource, Project, ResourceKind, ResourceSource, SearchPage, SortBy, TargetInfo } from "../api/types";
@@ -8,6 +9,7 @@ import { formatBytes, formatDate, loaderLabel } from "../utils";
 import ResourceDialog from "../components/ResourceDialog.vue";
 
 const versions = useVersionsStore();
+const route = useRoute();
 
 const versionId = ref<string>("");
 const kind = ref<ResourceKind>("mod");
@@ -50,8 +52,9 @@ const kinds: { key: ResourceKind; label: string }[] = [
 
 onMounted(async () => {
   if (!versions.installed.length) await versions.loadInstalled();
-  // 默认选第一个装了加载器的版本，没有就选第一个
-  versionId.value = (versions.installed.find((v) => v.loader) ?? versions.installed[0])?.id ?? "";
+  // 从首页「管理模组」进来时带着版本；否则选第一个装了加载器的版本
+  const wanted = route.query.version as string | undefined;
+  versionId.value = (versions.installed.find((v) => v.id === wanted) ?? versions.installed.find((v) => v.loader) ?? versions.installed[0])?.id ?? "";
 });
 
 const isVanillaMod = computed(() => kind.value === "mod" && target.value && !target.value.loader);

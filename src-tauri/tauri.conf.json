@@ -16,7 +16,10 @@
         "width": 1180,
         "height": 760,
         "minWidth": 960,
-        "minHeight": 620
+        "minHeight": 620,
+        "decorations": false,
+        "devtools": false,
+        "shadow": true
       }
     ],
     "security": {

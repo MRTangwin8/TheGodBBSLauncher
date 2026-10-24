@@ -36,3 +36,23 @@ export const loaderLabel: Record<string, string> = {
   forge: "Forge",
   neoforge: "NeoForge",
 };
+
+/** 秒 → "3.5 小时" / "25 分钟" */
+export function formatDuration(secs: number): string {
+  if (secs < 60) return secs > 0 ? "不到 1 分钟" : "0 分钟";
+  if (secs < 3600) return `${Math.round(secs / 60)} 分钟`;
+  const h = secs / 3600;
+  return `${h >= 100 ? Math.round(h) : h.toFixed(1)} 小时`;
+}
+
+/** unix 秒 → "3 小时前" / "昨天" / "2026/10/1" */
+export function timeAgo(unix: number | null | undefined): string {
+  if (!unix) return "从没玩过";
+  const diff = Date.now() / 1000 - unix;
+  if (diff < 60) return "刚刚";
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  if (diff < 86400 * 2) return "昨天";
+  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)} 天前`;
+  return new Date(unix * 1000).toLocaleDateString("zh-CN");
+}

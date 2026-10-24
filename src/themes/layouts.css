@@ -1,0 +1,85 @@
+/*
+ * 布局专属的样式覆盖。放在配色方案之后加载：同优先级时布局说了算。
+ * classic = 第一版论坛风（直角、不透明、无模糊）；sidebar 用 mcbbs-classic.css 的默认值；modern = 中性亚克力。
+ */
+
+/* ---------- 经典：还原第一版 ---------- */
+:root[data-layout="classic"] {
+  --bg-box: var(--bg-box-solid);
+  --bg-title: color-mix(in srgb, var(--bg-box-solid) 55%, var(--border-strong) 45%);
+  --bg-box-alt: color-mix(in srgb, var(--bg-box-solid) 85%, var(--border-strong) 15%);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 1px 3px rgba(60, 40, 20, 0.15);
+  --radius: 3px;
+  --radius-sm: 3px;
+  --blur: none;
+}
+:root[data-layout="classic"][data-theme="dark"] { --shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+:root[data-layout="classic"] { background: var(--page-bg); }
+:root[data-layout="classic"] .box { margin-bottom: 12px; }
+
+/* ---------- 现代：中性表面，只保留配色方案的强调色 ---------- */
+:root[data-layout="modern"][data-theme] {
+  --mesh-base: #f3f4f7;
+  --rail-bg: rgba(255, 255, 255, 0.55);
+  --border-soft: rgba(0, 0, 0, 0.07);
+  --bg-box: rgba(255, 255, 255, 0.72);
+  --bg-box-solid: #ffffff;
+  --bg-box-alt: rgba(0, 0, 0, 0.035);
+  --bg-title: transparent;
+  --bg-input: rgba(255, 255, 255, 0.9);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text: #1c1c22;
+  --text-muted: #6b6b78;
+  --brown: var(--text);
+  --brown-dark: var(--text);
+  --wood: #2b2b33;
+  --wood-dark: #1c1c22;
+  --wood-light: #3a3a45;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.18);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --blur: blur(24px) saturate(1.4);
+  --font: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+}
+:root[data-layout="modern"][data-theme="dark"] {
+  --mesh-base: #141418;
+  --rail-bg: rgba(30, 30, 36, 0.6);
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --bg-box: rgba(36, 36, 42, 0.7);
+  --bg-box-solid: #24242a;
+  --bg-box-alt: rgba(255, 255, 255, 0.04);
+  --bg-input: rgba(20, 20, 24, 0.8);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #ececf1;
+  --text-muted: #9a9aa8;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 18px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+:root[data-layout="modern"] { background: var(--mesh-base); }
+:root[data-layout="modern"] .box-title {
+  padding: 14px 18px 4px;
+  border-bottom: none;
+  font-size: 15px;
+  font-weight: 600;
+}
+:root[data-layout="modern"] .box-body { padding: 14px 18px 18px; }
+:root[data-layout="modern"][data-theme] .btn {
+  padding: 6px 16px;
+  background: var(--bg-box-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+:root[data-layout="modern"][data-theme] .btn:hover:not(:disabled) { filter: none; background: color-mix(in srgb, var(--bg-box-solid) 92%, var(--text)); box-shadow: none; }
+:root[data-layout="modern"][data-theme] .btn.primary { color: #fff; background: var(--grass); border-color: transparent; }
+:root[data-layout="modern"][data-theme] .btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--grass) 88%, #000); }
+:root[data-layout="modern"] .tag { border-radius: 999px; padding: 0 8px; }
+:root[data-layout="modern"] .input { border-radius: var(--radius-sm); border-color: var(--border-strong); }
+:root[data-layout="modern"] .input:focus { border-color: var(--grass); box-shadow: 0 0 0 3px color-mix(in srgb, var(--grass) 25%, transparent); }
+:root[data-layout="modern"] .thread-table th { background: transparent; }
+:root[data-layout="modern"] .xp-bar { height: 6px; border: none; border-radius: 3px; background: var(--bg-box-alt); }
+:root[data-layout="modern"] .xp-bar > div { background: var(--grass); }
+:root[data-layout="modern"] .mod-tip { border-style: solid; border-radius: var(--radius-sm); }
+:root[data-layout="modern"] ::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--text) 25%, transparent); }

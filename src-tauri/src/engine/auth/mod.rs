@@ -2,6 +2,7 @@
 
 pub mod microsoft;
 pub mod offline;
+pub mod skin;
 pub mod store;
 pub mod vault;
 pub mod yggdrasil;

@@ -24,6 +24,9 @@ export interface InstalledVersion {
   hasJar: boolean;
   loader: LoaderKind | null;
   mcVersion: string | null;
+  playTimeSecs: number;
+  lastPlayed: number | null;
+  modpack: string | null;
 }
 
 export type SourcePref = "auto" | "official" | "bmclapi";
@@ -42,6 +45,11 @@ export interface Settings {
   windowHeight: number | null;
   crashRulesUrl: string;
   curseforgeApiKey: string;
+  layout: "classic" | "sidebar" | "modern";
+  palette: string;
+  theme: "light" | "dark" | "system";
+  backgroundImage: string | null;
+  lastVersion: string | null;
 }
 
 export interface ProbeResult {
@@ -83,6 +91,11 @@ export interface Account {
   uuid: string;
   server?: string;
   serverName?: string;
+}
+
+export interface Skin {
+  dataUrl: string;
+  slim: boolean;
 }
 
 export interface AccountList {

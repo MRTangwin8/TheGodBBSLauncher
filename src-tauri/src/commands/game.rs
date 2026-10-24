@@ -130,6 +130,14 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
     };
 
     let (auth, ygg_api) = launch_auth(state).await?;
+    // 记住上次启动的版本，首页默认选它
+    {
+        let mut s = state.settings.write().await;
+        if s.last_version.as_deref() != Some(version_id.as_str()) {
+            s.last_version = Some(version_id.clone());
+            let _ = crate::config::save(&state.config_path, &s);
+        }
+    }
     let version = VersionJson::resolve(&game.versions(), &version_id).await?;
 
     // 快速补全：已有文件只比大小，不重算 SHA1
@@ -214,6 +222,7 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
     let exit = ExitContext {
         run_id: run_id.clone(),
         version_id: version_id.clone(),
+        game_root: game.root.clone(),
         game_dir: prepared.cwd.clone(),
         started: SystemTime::now() - Duration::from_secs(2),
         log,
@@ -255,6 +264,8 @@ async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + 
 struct ExitContext {
     run_id: String,
     version_id: String,
+    /// .minecraft 根目录（记游戏时长用）
+    game_root: PathBuf,
     game_dir: PathBuf,
     started: SystemTime,
     log: LogBuffer,
@@ -270,6 +281,10 @@ async fn wait_exit(app: AppHandle, ctx: ExitContext, mut child: tokio::process::
         }
     };
     let code = status.and_then(|s| s.code());
+    if let Ok(played) = ctx.started.elapsed() {
+        let started_at = ctx.started.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let _ = instance::record_session(&GameDir::new(&ctx.game_root), &ctx.version_id, started_at, played.as_secs());
+    }
     // 等日志读完再分析；游戏派生的子进程可能一直占着管道，所以设个上限
     for pump in ctx.pumps {
         let _ = tokio::time::timeout(Duration::from_secs(3), pump).await;

@@ -32,11 +32,16 @@ let settings: Settings = {
   windowHeight: null,
   crashRulesUrl: "",
   curseforgeApiKey: "",
+  layout: "classic",
+  palette: "mcbbs",
+  theme: "light",
+  backgroundImage: null,
+  lastVersion: "fabric-loader-0.16.9-1.21.1",
 };
 const installed: InstalledVersion[] = [
-  { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1" },
-  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null },
-  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null },
+  { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1", playTimeSecs: 45000, lastPlayed: 1792850000, modpack: null },
+  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null },
+  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null },
 ];
 const accounts: AccountList = {
   accounts: [
@@ -55,6 +60,8 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
   const table: Record<string, () => unknown> = {
     get_settings: () => settings,
     save_settings: () => void (settings = args!.settings as Settings),
+    background_image: () => null,
+    account_skin: () => null,
     probe_mirrors: () => [{ source: "official", millis: 812 }, { source: "bmclapi", millis: 96 }],
     get_version_manifest: () => manifest,
     list_installed_versions: () => installed,

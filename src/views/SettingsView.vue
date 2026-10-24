@@ -97,6 +97,13 @@ const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
 
 <template>
   <div class="box">
+    <div class="box-title">外观</div>
+    <div class="box-body">
+      布局、配色、深浅色和背景图都在 <RouterLink to="/theme">主题中心</RouterLink> 里切换。
+    </div>
+  </div>
+
+  <div class="box">
     <div class="box-title">设置</div>
     <div v-if="form" class="box-body">
       <div class="row">

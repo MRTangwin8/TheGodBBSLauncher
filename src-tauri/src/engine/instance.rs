@@ -23,6 +23,10 @@ pub struct InstanceConfig {
     pub game_args: Vec<String>,
     /// 来自哪个整合包
     pub modpack: Option<ModpackOrigin>,
+    /// 累计游戏时长（秒）
+    pub play_time_secs: u64,
+    /// 上次启动时间（unix 秒）
+    pub last_played: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -51,6 +55,17 @@ pub fn save(game: &GameDir, id: &str, config: &InstanceConfig) -> Result<()> {
     Ok(())
 }
 
+/// 记一次游戏会话：累加时长、更新最近游玩时间
+pub fn record_session(game: &GameDir, id: &str, started_at: u64, secs: u64) -> Result<()> {
+    if !game.versions().join(id).is_dir() {
+        return Ok(());
+    }
+    let mut cfg = load(game, id);
+    cfg.play_time_secs += secs;
+    cfg.last_played = Some(started_at);
+    save(game, id, &cfg)
+}
+
 /// 这个版本运行时用的游戏目录
 pub fn game_dir(game: &GameDir, id: &str, global_isolate: bool) -> std::path::PathBuf {
     if global_isolate || load(game, id).isolated {
@@ -75,5 +90,18 @@ mod tests {
         save(&game, "x", &cfg).unwrap();
         assert_eq!(load(&game, "x"), cfg);
         assert_eq!(game_dir(&game, "x", false), game.versions().join("x"), "整合包实例即使全局关了隔离也要隔离");
+    }
+
+    #[test]
+    fn records_play_time() {
+        let dir = tempfile::tempdir().unwrap();
+        let game = GameDir::new(dir.path());
+        std::fs::create_dir_all(game.versions().join("v")).unwrap();
+        record_session(&game, "v", 100, 60).unwrap();
+        record_session(&game, "v", 200, 30).unwrap();
+        let cfg = load(&game, "v");
+        assert_eq!((cfg.play_time_secs, cfg.last_played), (90, Some(200)));
+        record_session(&game, "gone", 1, 1).unwrap();
+        assert!(!game.versions().join("gone").exists(), "版本被删了就不记");
     }
 }

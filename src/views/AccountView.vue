@@ -5,7 +5,7 @@ import { api, inTauri } from "../api";
 import type { DeviceCode } from "../api/types";
 import { kindLabel, useAccountsStore } from "../stores/accounts";
 import UserCard from "../components/UserCard.vue";
-import PixelHead from "../components/PixelHead.vue";
+import AccountAvatar from "../components/AccountAvatar.vue";
 
 const store = useAccountsStore();
 onMounted(() => store.load());
@@ -120,7 +120,7 @@ const tabs: { key: Mode; label: string }[] = [
               :class="{ current: a.id === store.selectedId }"
               @click="store.select(a.id)"
             >
-              <td class="head-cell"><PixelHead :seed="a.uuid" :size="32" /></td>
+              <td class="head-cell"><AccountAvatar :account="a" :size="32" /></td>
               <td>
                 <span class="tag" :class="'acc-' + a.kind">{{ kindLabel[a.kind] }}</span>
                 <b>{{ a.name }}</b>

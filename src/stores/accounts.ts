@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { api } from "../api";
-import type { Account, AccountKind } from "../api/types";
+import type { Account, AccountKind, Skin } from "../api/types";
 
 export const kindLabel: Record<AccountKind, string> = {
   microsoft: "正版",
@@ -13,6 +13,21 @@ export const useAccountsStore = defineStore("accounts", () => {
   const accounts = ref<Account[]>([]);
   const selectedId = ref<string | null>(null);
   const selected = computed(() => accounts.value.find((a) => a.id === selectedId.value) ?? null);
+  /** 账号 id → 皮肤（null 表示没有皮肤或读取失败） */
+  const skins = ref<Record<string, Skin | null>>({});
+  const loading = new Set<string>();
+
+  async function loadSkin(a: Account) {
+    if (a.kind === "offline" || a.id in skins.value || loading.has(a.id)) return;
+    loading.add(a.id);
+    try {
+      skins.value[a.id] = await api.accountSkin(a.id);
+    } catch {
+      skins.value[a.id] = null;
+    } finally {
+      loading.delete(a.id);
+    }
+  }
 
   async function load() {
     const list = await api.listAccounts();
@@ -35,5 +50,5 @@ export const useAccountsStore = defineStore("accounts", () => {
     await load();
   }
 
-  return { accounts, selectedId, selected, load, select, remove, added };
+  return { accounts, selectedId, selected, skins, load, loadSkin, select, remove, added };
 });

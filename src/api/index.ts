@@ -21,6 +21,7 @@ import type {
   ResourceVersion,
   SearchPage,
   SearchQuery,
+  Skin,
   TargetInfo,
   InstallProgress,
   JavaInstall,
@@ -50,6 +51,7 @@ function on<T>(event: string, cb: (payload: T) => void): Promise<UnlistenFn> {
 export const api = {
   getSettings: () => call<Settings>("get_settings"),
   saveSettings: (settings: Settings) => call<void>("save_settings", { settings }),
+  backgroundImage: () => call<string | null>("background_image"),
   probeMirrors: () => call<ProbeResult[]>("probe_mirrors"),
   getVersionManifest: (force = false) => call<VersionManifest>("get_version_manifest", { force }),
   listInstalledVersions: () => call<InstalledVersion[]>("list_installed_versions"),
@@ -62,6 +64,7 @@ export const api = {
   microsoftLoginCancel: () => call<void>("microsoft_login_cancel"),
   addYggdrasilAccount: (server: string, username: string, password: string) =>
     call<Account>("add_yggdrasil_account", { server, username, password }),
+  accountSkin: (id: string) => call<Skin | null>("account_skin", { id }),
   removeAccount: (id: string) => call<void>("remove_account", { id }),
   selectAccount: (id: string) => call<void>("select_account", { id }),
 

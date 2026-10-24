@@ -5,7 +5,7 @@ use tauri::State;
 use super::AppState;
 use crate::engine::auth::microsoft::{self, DeviceCode};
 use crate::engine::auth::store::AccountList;
-use crate::engine::auth::{offline, yggdrasil, Account, AccountKind};
+use crate::engine::auth::{offline, skin, yggdrasil, Account, AccountKind};
 use crate::engine::{Error, Result};
 
 fn new_id() -> String {
@@ -87,6 +87,19 @@ pub async fn add_yggdrasil_account(
         server_name: Some(info.name),
     };
     state.accounts.lock().await.upsert(account, Some(&session.secret))
+}
+
+/// 账号皮肤；离线账号没有皮肤返回 None
+#[tauri::command]
+pub async fn account_skin(state: State<'_, AppState>, id: String) -> Result<Option<skin::Skin>> {
+    let account = state.accounts.lock().await.list().accounts.into_iter().find(|a| a.id == id);
+    let Some(account) = account else { return Ok(None) };
+    let api_root = match account.kind {
+        AccountKind::Offline => return Ok(None),
+        AccountKind::Microsoft => None,
+        AccountKind::Yggdrasil => account.server.clone(),
+    };
+    skin::fetch(&state.client, &state.data_dir.join("cache").join("skins"), api_root.as_deref(), &account.uuid).await
 }
 
 #[tauri::command]
