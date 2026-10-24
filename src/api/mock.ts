@@ -145,7 +145,7 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       ],
     }),
     memory_info: () => ({ totalMb: 16384, autoMb: 4096 }),
-    microsoft_login_start: () => ({ userCode: "GODBBS42", deviceCode: "", verificationUri: "https://www.microsoft.com/link", expiresIn: 900, interval: 5 }),
+    microsoft_login_start: () => ({ userCode: "GODBBS42", verificationUri: "https://www.microsoft.com/link", expiresIn: 900, interval: 5 }),
     microsoft_login_finish: () => new Promise(() => {}),
   };
   return (table[cmd] ?? unsupported)() as T;

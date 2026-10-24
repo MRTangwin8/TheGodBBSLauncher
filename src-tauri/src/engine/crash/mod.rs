@@ -9,6 +9,7 @@ use std::time::SystemTime;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::engine::auth::redact::LogRedactor;
 use crate::engine::{Error, Result};
 
 /// 内置规则库
@@ -93,6 +94,24 @@ pub struct CrashAnalysis {
     pub files: Vec<String>,
 }
 
+impl Finding {
+    fn redact(&mut self, redactor: &LogRedactor) {
+        self.title = redactor.redact(&self.title);
+        self.description = redactor.redact(&self.description);
+        self.solutions.iter_mut().for_each(|s| *s = redactor.redact(s));
+        if let Some(evidence) = &mut self.evidence {
+            *evidence = redactor.redact(evidence);
+        }
+    }
+}
+
+impl CrashAnalysis {
+    pub fn redact(&mut self, redactor: &LogRedactor) {
+        self.findings.iter_mut().for_each(|f| f.redact(redactor));
+        self.files.iter_mut().for_each(|p| *p = redactor.redact(p));
+    }
+}
+
 impl RuleSet {
     /// 解析规则 JSON。单条正则写错会报出是哪条规则，避免一条坏规则拖垮整个库。
     pub fn parse(json: &str) -> Result<Self> {
@@ -141,6 +160,8 @@ impl RuleSet {
     }
 
     pub fn analyze(&self, text: &str, exit_code: Option<i32>) -> Vec<Finding> {
+        let clean_text = LogRedactor::default().redact(text);
+        let text = clean_text.as_str();
         let mut hits: Vec<(&CompiledRule, Finding)> = Vec::new();
         for rule in &self.rules {
             if !rule.def.exit_codes.is_empty() && !exit_code.is_some_and(|c| rule.def.exit_codes.contains(&c)) {
@@ -203,7 +224,14 @@ impl RuleSet {
             .collect();
         out.sort_by(|(ra, a), (rb, b)| a.severity.cmp(&b.severity).then(rb.def.priority.cmp(&ra.def.priority)));
         let mut seen = HashSet::new();
-        out.into_iter().map(|(_, f)| f).filter(|f| seen.insert(f.id.clone())).collect()
+        let redactor = LogRedactor::default();
+        out.into_iter()
+            .map(|(_, mut f)| {
+                f.redact(&redactor);
+                f
+            })
+            .filter(|f| seen.insert(f.id.clone()))
+            .collect()
     }
 }
 
@@ -274,6 +302,16 @@ pub fn keep_for_clean_exit(analysis: &mut CrashAnalysis) {
 
 /// 把日志行和崩溃文件拼起来分析
 pub fn analyze_run(rules: &RuleSet, log: &str, files: &[PathBuf], exit_code: Option<i32>) -> CrashAnalysis {
+    analyze_run_with_redactor(rules, log, files, exit_code, &LogRedactor::default())
+}
+
+pub fn analyze_run_with_redactor(
+    rules: &RuleSet,
+    log: &str,
+    files: &[PathBuf],
+    exit_code: Option<i32>,
+    redactor: &LogRedactor,
+) -> CrashAnalysis {
     let mut text = tail(log, 2 * 1024 * 1024).to_string();
     for f in files {
         if let Ok(bytes) = std::fs::read(f) {
@@ -281,11 +319,15 @@ pub fn analyze_run(rules: &RuleSet, log: &str, files: &[PathBuf], exit_code: Opt
             text.push_str(tail(&String::from_utf8_lossy(&bytes), 512 * 1024));
         }
     }
-    CrashAnalysis {
+    // Redact before matching or shortening evidence, so truncation cannot expose a token prefix.
+    let text = redactor.redact(&text);
+    let mut analysis = CrashAnalysis {
         exit_code,
         findings: rules.analyze(&text, exit_code),
         files: files.iter().map(|p| p.display().to_string()).collect(),
-    }
+    };
+    analysis.redact(redactor);
+    analysis
 }
 
 #[cfg(test)]

@@ -7,3 +7,12 @@ src-tauri/gen/schemas
 .vscode/*
 !.vscode/extensions.json
 .idea
+.minecraft/
+accounts.json
+account.key
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+/artifacts/

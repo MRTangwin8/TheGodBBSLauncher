@@ -14,10 +14,11 @@ pub const CLIENT_ID: &str = "53251486-3a07-436d-935d-43a1d2273bff";
 const AUTHORITY: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPE: &str = "XboxLive.signin offline_access";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all(serialize = "camelCase"))]
 pub struct DeviceCode {
     pub user_code: String,
+    #[serde(skip_serializing)]
     pub device_code: String,
     pub verification_uri: String,
     pub expires_in: u64,
@@ -229,6 +230,9 @@ mod tests {
         let v = serde_json::to_value(&dc).unwrap();
         assert_eq!(v["userCode"], "ABCD1234");
         assert_eq!(v["verificationUri"], "https://www.microsoft.com/link");
+        assert_eq!(dc.device_code, "x", "后端仍需设备码来轮询授权");
+        assert!(v.get("deviceCode").is_none(), "设备码不能传给前端");
+        assert!(v.get("device_code").is_none());
     }
 
     #[test]

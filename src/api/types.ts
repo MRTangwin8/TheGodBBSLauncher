@@ -105,7 +105,6 @@ export interface AccountList {
 
 export interface DeviceCode {
   userCode: string;
-  deviceCode: string;
   verificationUri: string;
   expiresIn: number;
   interval: number;

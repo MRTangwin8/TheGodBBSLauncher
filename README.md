@@ -19,7 +19,7 @@
 - [x] 资源中心：Modrinth / CurseForge 搜索模组、资源包、光影，自动解析前置，已装识别（哈希），启用/禁用/删除
 - [x] 下载时兼容性检查：平台、依赖版本范围、Mixin 注入点是否存在于当前游戏 jar（含 Jar-in-Jar），不兼容的前置自动换成兼容版本
 - [x] 整合包导入导出：Modrinth（.mrpack）/ CurseForge / MCBBS 三种格式，可拖进窗口导入；导出时能在平台上找到的模组只写下载链接
-- [ ] 插件系统、自动更新……见 PLAN
+- [ ] 插件系统、自动更新等后续工作，见 [开发状态与下一步](docs/STATUS.md)
 
 ## 开发
 
@@ -34,6 +34,7 @@ npm run dev            # 仅浏览器预览界面（假数据）
 ```bash
 cd src-tauri
 cargo test                                             # 单元测试
+cargo clippy --locked --all-targets -- -D warnings       # 与 CI 一致的严格检查
 cargo run --example install -- 1.20.1 ./.minecraft     # 命令行安装原版（冒烟测试）
 cargo run --example launch -- 1.20.1 ./.minecraft      # 离线启动到主菜单后自动退出
 cargo run --example loader -- forge 1.20.1 ./.minecraft # 安装原版 + 加载器（fabric/quilt/forge/neoforge）
@@ -42,6 +43,14 @@ cargo run --example compat -- ./.minecraft <版本id> mods/*.jar   # 检查模�
 cargo run --example analyze -- crash-reports/crash-xxx.txt      # 分析崩溃报告
 cargo run --example modpack -- import pack.mrpack ./.minecraft 我的整合包   # 导入整合包
 ```
+
+## GitHub 协作
+
+远程仓库：`MRTangwin8/TheGodBBSLauncher`（私有）。维护者已于 2026-10-25 授权首次提交和推送；后续提交仍需明确授权。不上传本地账号、密钥、游戏目录或构建产物。
+
+推送 `main`、创建 Pull Request 或在 Actions 中手动运行 `build`，会分别构建 Windows、macOS 和 Linux 安装包。成功后从对应运行的 Artifacts 下载；保留 14 天，不会自动发布 Release。
+
+微软登录使用公共客户端 ID，不需要把应用密钥放入启动器。维护者已确认当前 ID 由本人注册，且已具备 Mojang / Minecraft API 权限；授权、续期、取消和错误提示仍需通过桌面实测验收。
 
 ## 目录
 

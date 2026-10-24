@@ -17,6 +17,7 @@ use super::versions::INSTALL_PROGRESS_EVENT;
 use super::{AppState, RunningGame};
 use crate::config::{auto_memory_mb, split_args};
 use crate::engine::auth::{microsoft, yggdrasil, AccountKind, LaunchAuth};
+use crate::engine::auth::redact::LogRedactor;
 use crate::engine::crash::{self, CrashAnalysis};
 use crate::engine::download::{DownloadTask, Downloader, Progress};
 use crate::engine::install::{self, GameDir, Stage};
@@ -204,17 +205,18 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
     let mut child = cmd.spawn().map_err(|e| Error::Other(format!("无法启动 Java（{}）：{e}", prepared.java.display())))?;
 
     // 第一行日志写出启动命令，令牌打码
-    let shown: Vec<String> = prepared.args.iter().map(|a| a.replace(&auth.access_token, "******")).collect();
+    let redactor = Arc::new(LogRedactor::new([auth.access_token.clone()]));
+    let shown = redactor.redact(&prepared.args.join(" "));
     let _ = app.emit(
         GAME_LOG_EVENT,
-        GameLog { run_id: run_id.clone(), line: format!("[神权] {} {}", prepared.java.display(), shown.join(" ")) },
+        GameLog { run_id: run_id.clone(), line: format!("[神权] {} {}", prepared.java.display(), shown) },
     );
 
     let log: LogBuffer = Arc::new(std::sync::Mutex::new(VecDeque::new()));
     let pumps: Vec<JoinHandle<()>> = [child.stdout.take().map(boxed), child.stderr.take().map(boxed)]
         .into_iter()
         .flatten()
-        .map(|stream| tokio::spawn(pump_lines(app.clone(), run_id.clone(), stream, log.clone())))
+        .map(|stream| tokio::spawn(pump_lines(app.clone(), run_id.clone(), stream, log.clone(), redactor.clone())))
         .collect();
 
     let (kill_tx, kill_rx) = oneshot::channel();
@@ -227,6 +229,7 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         started: SystemTime::now() - Duration::from_secs(2),
         log,
         pumps,
+        redactor,
     };
     tokio::spawn(wait_exit(app.clone(), exit, child, kill_rx));
 
@@ -241,7 +244,7 @@ fn boxed<R: AsyncRead + Send + Unpin + 'static>(r: R) -> Box<dyn AsyncRead + Sen
 type LogBuffer = Arc<std::sync::Mutex<VecDeque<String>>>;
 const LOG_KEEP: usize = 20_000;
 
-async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + Send + Unpin>, log: LogBuffer) {
+async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + Send + Unpin>, log: LogBuffer, redactor: Arc<LogRedactor>) {
     let mut reader = BufReader::new(stream);
     let mut parser = Log4jParser::default();
     let mut buf = Vec::new();
@@ -250,6 +253,7 @@ async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + 
         let raw = String::from_utf8_lossy(&buf).trim_end().to_string();
         buf.clear();
         for line in parser.feed(&raw) {
+            let line = redactor.redact(&line);
             if let Ok(mut log) = log.lock() {
                 if log.len() >= LOG_KEEP {
                     log.pop_front();
@@ -270,6 +274,7 @@ struct ExitContext {
     started: SystemTime,
     log: LogBuffer,
     pumps: Vec<JoinHandle<()>>,
+    redactor: Arc<LogRedactor>,
 }
 
 async fn wait_exit(app: AppHandle, ctx: ExitContext, mut child: tokio::process::Child, kill_rx: oneshot::Receiver<()>) {
@@ -286,8 +291,11 @@ async fn wait_exit(app: AppHandle, ctx: ExitContext, mut child: tokio::process::
         let _ = instance::record_session(&GameDir::new(&ctx.game_root), &ctx.version_id, started_at, played.as_secs());
     }
     // 等日志读完再分析；游戏派生的子进程可能一直占着管道，所以设个上限
-    for pump in ctx.pumps {
-        let _ = tokio::time::timeout(Duration::from_secs(3), pump).await;
+    for mut pump in ctx.pumps {
+        if tokio::time::timeout(Duration::from_secs(3), &mut pump).await.is_err() {
+            pump.abort();
+            let _ = pump.await;
+        }
     }
 
     use tauri::Manager;
@@ -303,7 +311,8 @@ async fn wait_exit(app: AppHandle, ctx: ExitContext, mut child: tokio::process::
         (Some(state), false) => {
             let rules = state.crash_rules.read().await.clone();
             let text = ctx.log.lock().map(|l| l.iter().cloned().collect::<Vec<_>>().join("\n")).unwrap_or_default();
-            tokio::task::spawn_blocking(move || crash::analyze_run(&rules, &text, &files, code))
+            let redactor = ctx.redactor.clone();
+            tokio::task::spawn_blocking(move || crash::analyze_run_with_redactor(&rules, &text, &files, code, &redactor))
                 .await
                 .ok()
                 .and_then(|mut a| {

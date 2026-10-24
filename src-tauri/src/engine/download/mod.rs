@@ -78,7 +78,7 @@ pub struct Downloader {
     pub concurrency: usize,
     /// 每个源最多尝试几轮
     pub retries: usize,
-    /// 已存在的文件是否重新算 SHA1。启动前的快速补全只比大小，省掉几秒钟
+    /// 已存在的文件是否重新算 SHA1。快速补全仅在已知大小时跳过哈希
     pub verify_existing: bool,
 }
 
@@ -223,13 +223,26 @@ impl Downloader {
         let resp = req.send().await?;
         let status = resp.status();
 
-        let mut file = if existing > 0 && status == StatusCode::PARTIAL_CONTENT {
+        let response_size = if status == StatusCode::PARTIAL_CONTENT {
+            let total = resp.headers().get(header::CONTENT_RANGE)
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| resume_size(value, existing, task.size));
+            if existing == 0 || total.is_none() {
+                let _ = fs::remove_file(&part).await;
+                return Err(Error::Other("服务器返回的续传范围不正确，已清除临时文件，将重新下载".into()));
+            }
+            total
+        } else {
+            None
+        };
+
+        let mut file = if status == StatusCode::PARTIAL_CONTENT {
             fs::OpenOptions::new().append(true).open(&part).await?
         } else {
             if status == StatusCode::RANGE_NOT_SATISFIABLE {
                 let _ = fs::remove_file(&part).await;
             }
-            if !status.is_success() {
+            if status != StatusCode::OK {
                 return Err(Error::BadStatus { url: url.to_string(), status: status.as_u16() });
             }
             // 服务器不支持续传，从头开始
@@ -261,7 +274,8 @@ impl Downloader {
                     actual,
                 });
             }
-        } else if let Some(size) = task.size {
+        }
+        if let Some(size) = task.size.or(response_size) {
             let actual = fs::metadata(&part).await?.len();
             if actual != size {
                 let _ = fs::remove_file(&part).await;
@@ -271,6 +285,25 @@ impl Downloader {
         fs::rename(&part, &task.path).await?;
         Ok(())
     }
+}
+
+/// A suffix response must start at our offset and reach the end of the same file.
+fn resume_size(content_range: &str, offset: u64, expected_size: Option<u64>) -> Option<u64> {
+    let (unit, value) = content_range.split_once(' ')?;
+    if !unit.eq_ignore_ascii_case("bytes") {
+        return None;
+    }
+    let (range, total) = value.split_once('/')?;
+    let (start, end) = range.split_once('-')?;
+    let number = |s: &str| {
+        (!s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())).then(|| s.parse::<u64>().ok()).flatten()
+    };
+    let (start, end) = (number(start)?, number(end)?);
+    let total = if total == "*" { expected_size? } else { number(total)? };
+    if start != offset || end < start || end.checked_add(1)? != total || expected_size.is_some_and(|size| size != total) {
+        return None;
+    }
+    Some(total)
 }
 
 fn part_path(path: &Path) -> PathBuf {
@@ -302,11 +335,14 @@ async fn is_complete(task: &DownloadTask, verify_hash: bool) -> bool {
     let Ok(meta) = fs::metadata(&task.path).await else {
         return false;
     };
+    if !meta.is_file() {
+        return false;
+    }
     if task.size.is_some_and(|s| s != meta.len()) {
         return false;
     }
     match &task.sha1 {
-        Some(_) if !verify_hash => true,
+        Some(_) if !verify_hash && task.size.is_some() => true,
         Some(expected) => sha1_file(&task.path).await.is_ok_and(|h| h.eq_ignore_ascii_case(expected)),
         None => true,
     }
@@ -337,7 +373,8 @@ mod tests {
         };
         assert!(is_complete(&mk(Some("AAF4C61DDCC5E8A2DABEDE0F3B482CD9AEA9434D"), Some(5)), true).await);
         assert!(!is_complete(&mk(Some("0000000000000000000000000000000000000000"), None), true).await);
-        assert!(is_complete(&mk(Some("0000000000000000000000000000000000000000"), None), false).await);
+        assert!(!is_complete(&mk(Some("0000000000000000000000000000000000000000"), None), false).await);
+        assert!(is_complete(&mk(Some("0000000000000000000000000000000000000000"), Some(5)), false).await);
         assert!(!is_complete(&mk(None, Some(6)), false).await);
         assert!(is_complete(&mk(None, None), true).await);
     }
@@ -347,3 +384,6 @@ mod tests {
         assert_eq!(part_path(Path::new("a/b.jar")), PathBuf::from("a/b.jar.part"));
     }
 }
+
+#[cfg(test)]
+mod http_tests;

@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -42,16 +50,18 @@ jobs:
 
       - name: clippy
         working-directory: src-tauri
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: 单元测试
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --locked
 
       - name: 打包
-        run: npx tauri build
+        run: npx tauri build --ci
 
       - uses: actions/upload-artifact@v4
         with:
           name: godbbs-launcher-${{ matrix.os }}
           path: src-tauri/target/release/bundle/
+          if-no-files-found: error
+          retention-days: 14

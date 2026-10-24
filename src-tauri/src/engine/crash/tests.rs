@@ -217,3 +217,53 @@ fn tail_respects_char_boundaries() {
     assert_eq!(tail(s, 4), "志");
     assert_eq!(tail("abc", 10), "abc");
 }
+
+#[test]
+fn diagnostic_evidence_does_not_expose_credentials() {
+    let text = "java.lang.OutOfMemoryError: Java heap space --accessToken secret-access";
+    let findings = rules().analyze(text, Some(1));
+    let serialized = serde_json::to_string(&findings).unwrap();
+    assert!(serialized.contains("OutOfMemoryError"));
+    assert!(!serialized.contains("secret-access"));
+}
+
+#[test]
+fn known_tokens_are_removed_from_all_diagnostic_fields() {
+    let mut analysis = CrashAnalysis {
+        exit_code: Some(1),
+        findings: vec![Finding {
+            id: "test".into(),
+            title: "secret-value".into(),
+            severity: Severity::Error,
+            description: "secret-value".into(),
+            solutions: vec!["secret-value".into()],
+            evidence: Some("secret-value".into()),
+            generic: false,
+        }],
+        files: vec!["secret-value/report.log".into()],
+    };
+    analysis.redact(&LogRedactor::new(["secret-value".into()]));
+    assert!(!serde_json::to_string(&analysis).unwrap().contains("secret-value"));
+    assert_eq!(analysis.findings[0].id, "test");
+}
+
+#[test]
+fn credentials_in_crash_files_are_redacted_too() {
+    let dir = tempfile::tempdir().unwrap();
+    let report = dir.path().join("crash.txt");
+    std::fs::write(&report, "java.lang.OutOfMemoryError: Java heap space Authorization: Bearer secret-token").unwrap();
+    let analysis = analyze_run(&rules(), "", &[report], Some(1));
+    assert!(!analysis.findings.is_empty());
+    assert!(!serde_json::to_string(&analysis).unwrap().contains("secret-token"));
+}
+
+#[test]
+fn long_tokens_are_redacted_before_evidence_is_truncated() {
+    let dir = tempfile::tempdir().unwrap();
+    let report = dir.path().join("crash.txt");
+    let token = "private-token-fragment".repeat(50);
+    std::fs::write(&report, format!("java.lang.OutOfMemoryError: Java heap space {token}")).unwrap();
+    let analysis = analyze_run_with_redactor(&rules(), "", &[report], Some(1), &LogRedactor::new([token]));
+    assert!(!analysis.findings.is_empty());
+    assert!(!serde_json::to_string(&analysis).unwrap().contains("private-token-fragment"));
+}
