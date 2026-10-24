@@ -1,5 +1,5 @@
-// 浏览器预览用的假数据，只为看界面，不做任何真实下载
-import type { InstalledVersion, Settings, VersionManifest } from "./types";
+// 浏览器预览用的假数据，只为看界面，不做任何真实下载或登录
+import type { AccountList, InstalledVersion, Settings, VersionManifest } from "./types";
 
 const ids: [string, VersionManifest["versions"][number]["type"], string][] = [
   ["24w44a", "snapshot", "2024-10-30"],
@@ -19,23 +19,51 @@ const manifest: VersionManifest = {
   versions: ids.map(([id, type, d]) => ({ id, type, url: "", time: d, releaseTime: `${d}T10:00:00+00:00` })),
 };
 
-let settings: Settings = { gameDir: "C:\Users\Steve\AppData\Roaming\GodBBSLauncher\.minecraft", downloadSource: "auto", concurrency: 64 };
+let settings: Settings = {
+  gameDir: "C:\\Users\\Steve\\AppData\\Roaming\\GodBBSLauncher\\.minecraft",
+  downloadSource: "auto",
+  concurrency: 64,
+  javaPath: null,
+  memoryMb: null,
+  jvmArgs: "",
+  gameArgs: "",
+  isolateVersions: true,
+  windowWidth: null,
+  windowHeight: null,
+};
 const installed: InstalledVersion[] = [
   { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true },
   { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true },
 ];
+const accounts: AccountList = {
+  accounts: [
+    { id: "a1", kind: "microsoft", name: "Notch", uuid: "069a79f444e94726a5befca90e38aaf5" },
+    { id: "a2", kind: "offline", name: "Steve", uuid: "5627dd98e6be3c21b8a8e92344183641" },
+    { id: "a3", kind: "yggdrasil", name: "Alex", uuid: "x", server: "https://littleskin.cn/api/yggdrasil", serverName: "LittleSkin" },
+  ],
+  selected: "a1",
+};
 
 export async function mock<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   await new Promise((r) => setTimeout(r, 200));
+  const unsupported = () => {
+    throw "浏览器预览模式不支持这个操作，请用 npm run tauri dev 启动";
+  };
   const table: Record<string, () => unknown> = {
     get_settings: () => settings,
     save_settings: () => void (settings = args!.settings as Settings),
     probe_mirrors: () => [{ source: "official", millis: 812 }, { source: "bmclapi", millis: 96 }],
     get_version_manifest: () => manifest,
     list_installed_versions: () => installed,
-    install_version: () => {
-      throw "浏览器预览模式不能真的下载，请用 npm run tauri dev 启动";
-    },
+    list_accounts: () => accounts,
+    select_account: () => void (accounts.selected = args!.id as string),
+    list_java: () => [
+      { path: "C:\\Program Files\\Eclipse Adoptium\\jdk-21\\bin\\java.exe", major: 21, version: "21.0.4", arch: "x86_64", vendor: "Eclipse Adoptium" },
+      { path: "C:\\Program Files\\Java\\jre1.8.0_421\\bin\\java.exe", major: 8, version: "1.8.0_421", arch: "x86_64", vendor: "Oracle Corporation" },
+    ],
+    memory_info: () => ({ totalMb: 16384, autoMb: 4096 }),
+    microsoft_login_start: () => ({ userCode: "GODBBS42", deviceCode: "", verificationUri: "https://www.microsoft.com/link", expiresIn: 900, interval: 5 }),
+    microsoft_login_finish: () => new Promise(() => {}),
   };
-  return table[cmd]() as T;
+  return (table[cmd] ?? unsupported)() as T;
 }

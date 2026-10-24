@@ -75,6 +75,7 @@ pub enum Stage {
     VersionJson,
     AssetIndex,
     Files,
+    Java,
 }
 
 pub type ReportFn = Arc<dyn Fn(Stage, Progress) + Send + Sync>;
@@ -186,7 +187,7 @@ pub fn collect_tasks(
 }
 
 /// 把 `a/b/c.jar` 这种正斜杠相对路径拼到目录下（Windows 也能用）
-fn join_rel(base: &Path, rel: &str) -> PathBuf {
+pub fn join_rel(base: &Path, rel: &str) -> PathBuf {
     rel.split('/').filter(|s| !s.is_empty() && *s != "..").fold(base.to_path_buf(), |p, seg| p.join(seg))
 }
 

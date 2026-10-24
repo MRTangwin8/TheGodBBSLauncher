@@ -5,16 +5,21 @@ import { navItems } from "./router";
 import { inTauri } from "./api";
 import { useSettingsStore } from "./stores/settings";
 import { useVersionsStore } from "./stores/versions";
+import { useAccountsStore } from "./stores/accounts";
+import { useGameStore } from "./stores/game";
 import ProgressFloat from "./components/ProgressFloat.vue";
 
 const route = useRoute();
 const settings = useSettingsStore();
 const versions = useVersionsStore();
+const accounts = useAccountsStore();
+const game = useGameStore();
 const title = computed(() => (route.meta.title as string) ?? "");
 
 onMounted(() => {
   settings.load();
   versions.loadInstalled();
+  accounts.load();
 });
 </script>
 
@@ -26,7 +31,8 @@ onMounted(() => {
         <span class="logo-sub">启动器 · MCBBS 纪念版</span>
       </div>
       <div class="banner-user">
-        <span>欢迎回来，<b>Steve</b></span>
+        <span v-if="accounts.selected">欢迎回来，<b>{{ accounts.selected.name }}</b></span>
+        <span v-else>游客，<RouterLink to="/account" class="login-link">登录</RouterLink></span>
         <span class="sep">|</span>
         <span>用户组：<span class="group-god">神权</span></span>
       </div>
@@ -35,6 +41,7 @@ onMounted(() => {
     <nav class="nav">
       <RouterLink v-for="n in navItems" :key="n.path" :to="n.path" class="nav-item">{{ n.name }}</RouterLink>
       <span class="nav-right">
+        <RouterLink v-if="game.running.length" to="/log" class="nav-playing">🎮 {{ game.running.length }} 个游戏运行中</RouterLink>
         <template v-if="versions.running.length">⏳ {{ versions.running.length }} 个任务进行中</template>
       </span>
     </nav>
@@ -88,6 +95,8 @@ onMounted(() => {
 .banner-user { color: #fff; font-size: 12px; text-shadow: 1px 1px 0 var(--brown-dark); padding-bottom: 2px; }
 .banner-user .sep { margin: 0 6px; opacity: 0.6; }
 .group-god { color: var(--gold); font-weight: bold; }
+.login-link { color: var(--gold); font-weight: bold; }
+.nav-playing { color: #c8f59a; margin-right: 10px; }
 
 .nav {
   display: flex;

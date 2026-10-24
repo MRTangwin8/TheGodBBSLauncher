@@ -31,6 +31,13 @@ export interface Settings {
   gameDir: string;
   downloadSource: SourcePref;
   concurrency: number;
+  javaPath: string | null;
+  memoryMb: number | null;
+  jvmArgs: string;
+  gameArgs: string;
+  isolateVersions: boolean;
+  windowWidth: number | null;
+  windowHeight: number | null;
 }
 
 export interface ProbeResult {
@@ -48,7 +55,7 @@ export interface Progress {
   speed: number;
 }
 
-export type Stage = "versionJson" | "assetIndex" | "files";
+export type Stage = "versionJson" | "assetIndex" | "files" | "java";
 
 export interface InstallProgress {
   versionId: string;
@@ -61,4 +68,58 @@ export interface DownloadReport {
   downloaded: number;
   skipped: number;
   failed: { path: string; reason: string }[];
+}
+
+export type AccountKind = "offline" | "microsoft" | "yggdrasil";
+
+export interface Account {
+  id: string;
+  kind: AccountKind;
+  name: string;
+  uuid: string;
+  server?: string;
+  serverName?: string;
+}
+
+export interface AccountList {
+  accounts: Account[];
+  selected: string | null;
+}
+
+export interface DeviceCode {
+  userCode: string;
+  deviceCode: string;
+  verificationUri: string;
+  expiresIn: number;
+  interval: number;
+}
+
+export interface JavaInstall {
+  path: string;
+  major: number;
+  version: string;
+  arch: string;
+  vendor: string | null;
+}
+
+export interface MemoryInfo {
+  totalMb: number;
+  autoMb: number;
+}
+
+export interface LaunchResult {
+  runId: string;
+  versionId: string;
+  player: string;
+}
+
+export interface GameLog {
+  runId: string;
+  line: string;
+}
+
+export interface GameExit {
+  runId: string;
+  versionId: string;
+  code: number | null;
 }

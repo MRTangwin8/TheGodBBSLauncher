@@ -11,7 +11,10 @@
 - [x] version.json 解析：新旧参数格式、规则过滤、inheritsFrom 合并
 - [x] 并发下载器：64 并发、断点续传、SHA1 校验、重试 + 镜像回退
 - [x] 原版安装（client.jar / 库 / natives / 资源 / 日志配置）
-- [ ] Java 管理、启动游戏、账号、模组加载器……见 PLAN
+- [x] Java 管理：扫描本机 Java，缺少时自动下载 Mojang 官方 runtime
+- [x] 启动游戏：natives 解压、新旧参数格式、旧版资源映射、版本隔离、实时日志
+- [x] 账号：微软正版（设备码）、离线、外置登录（authlib-injector），令牌 AES-GCM 加密、密钥存系统钥匙串
+- [ ] 模组加载器、崩溃分析……见 PLAN
 
 ## 开发
 
@@ -27,6 +30,7 @@ npm run dev            # 仅浏览器预览界面（假数据）
 cd src-tauri
 cargo test                                             # 单元测试
 cargo run --example install -- 1.20.1 ./.minecraft     # 命令行安装原版（冒烟测试）
+cargo run --example launch -- 1.20.1 ./.minecraft      # 离线启动到主菜单后自动退出
 ```
 
 ## 目录

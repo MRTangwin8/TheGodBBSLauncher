@@ -1,37 +1,67 @@
-//! 前端 IPC。请求/响应走 command，下载进度走 event。
+//! 前端 IPC。请求/响应走 command，下载进度和游戏日志走 event。
 
+pub mod accounts;
+pub mod game;
+pub mod java;
 pub mod settings;
 pub mod versions;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{oneshot, Mutex, RwLock};
 
 use crate::config::Settings;
+use crate::engine::auth::microsoft::DeviceCode;
+use crate::engine::auth::store::AccountStore;
+use crate::engine::java::JavaInstall;
 use crate::engine::meta::VersionManifest;
 use crate::engine::mirror::{self, Source, SourcePref};
+
+pub struct RunningGame {
+    pub version_id: String,
+    pub kill: Option<oneshot::Sender<()>>,
+}
 
 pub struct AppState {
     pub settings: RwLock<Settings>,
     pub config_path: PathBuf,
+    /// 启动器自己的数据目录（Java runtime、authlib-injector）
+    pub data_dir: PathBuf,
     pub client: reqwest::Client,
     pub manifest: Mutex<Option<VersionManifest>>,
     /// 自动模式下测速选出的源，设置改动后清空重测
     pub auto_source: Mutex<Option<Source>>,
     pub installing: Mutex<HashSet<String>>,
+    pub accounts: Mutex<AccountStore>,
+    pub pending_login: Mutex<Option<DeviceCode>>,
+    pub login_cancel: Arc<AtomicBool>,
+    pub java_cache: Mutex<Option<Vec<JavaInstall>>>,
+    pub games: Mutex<HashMap<String, RunningGame>>,
 }
 
 impl AppState {
-    pub fn new(settings: Settings, config_path: PathBuf) -> Self {
+    pub fn new(settings: Settings, config_path: PathBuf, data_dir: PathBuf, accounts: AccountStore) -> Self {
         Self {
             settings: RwLock::new(settings),
             config_path,
+            data_dir,
             client: crate::engine::http_client(),
             manifest: Mutex::new(None),
             auto_source: Mutex::new(None),
             installing: Mutex::new(HashSet::new()),
+            accounts: Mutex::new(accounts),
+            pending_login: Mutex::new(None),
+            login_cancel: Arc::new(AtomicBool::new(false)),
+            java_cache: Mutex::new(None),
+            games: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub fn runtime_dir(&self) -> PathBuf {
+        self.data_dir.join("runtime")
     }
 
     pub async fn source(&self) -> Source {

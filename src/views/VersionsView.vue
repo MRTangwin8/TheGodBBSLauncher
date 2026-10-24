@@ -1,17 +1,37 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { useVersionsStore } from "../stores/versions";
+import { useGameStore } from "../stores/game";
+import { useAccountsStore } from "../stores/accounts";
 import { formatDate, kindLabel } from "../utils";
 
 const versions = useVersionsStore();
+const game = useGameStore();
+const accounts = useAccountsStore();
+const router = useRouter();
 onMounted(() => versions.loadInstalled());
+
+async function launch(id: string) {
+  if (!accounts.selected) {
+    router.push("/account");
+    return;
+  }
+  if (await game.launch(id)) router.push("/log");
+}
 </script>
 
 <template>
   <div class="box">
     <div class="box-title">
       版本管理
-      <span class="extra"><a @click="versions.loadInstalled()">刷新</a></span>
+      <span class="extra">
+        <template v-if="accounts.selected">当前账号：<b>{{ accounts.selected.name }}</b> · </template>
+        <a @click="versions.loadInstalled()">刷新</a>
+      </span>
+    </div>
+    <div v-if="game.error" class="box-body">
+      <div class="mod-tip">【版主提示】启动失败：{{ game.error }}</div>
     </div>
     <table class="thread-table">
       <thead>
@@ -23,11 +43,19 @@ onMounted(() => versions.loadInstalled());
             <span class="tag" :class="v.kind">{{ kindLabel[v.kind ?? ""] ?? v.kind ?? "自定义" }}</span>
             <b>{{ v.id }}</b>
             <span v-if="!v.hasJar" class="error-text"> （缺少 client.jar）</span>
+            <span v-if="game.running.some((r) => r.versionId === v.id)" class="playing">● 游戏中</span>
           </td>
           <td class="muted">{{ v.inheritsFrom ?? "-" }}</td>
           <td class="num">{{ formatDate(v.releaseTime) }}</td>
           <td class="num actions">
-            <button class="btn small primary" disabled title="启动功能施工中">启动</button>
+            <button
+              class="btn small primary"
+              :disabled="!!game.launching"
+              :title="accounts.selected ? '' : '先添加一个账号'"
+              @click="launch(v.id)"
+            >
+              {{ game.launching === v.id ? "启动中…" : "启动" }}
+            </button>
             <button
               class="btn small"
               :disabled="!!v.inheritsFrom || versions.jobs[v.id]?.status === 'running'"
@@ -47,4 +75,5 @@ onMounted(() => versions.loadInstalled());
 
 <style scoped>
 .actions { display: flex; gap: 6px; justify-content: flex-end; }
+.playing { color: var(--grass); font-size: 12px; margin-left: 6px; }
 </style>

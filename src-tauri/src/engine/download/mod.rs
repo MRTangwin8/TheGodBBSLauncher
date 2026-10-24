@@ -78,6 +78,8 @@ pub struct Downloader {
     pub concurrency: usize,
     /// 每个源最多尝试几轮
     pub retries: usize,
+    /// 已存在的文件是否重新算 SHA1。启动前的快速补全只比大小，省掉几秒钟
+    pub verify_existing: bool,
 }
 
 impl Downloader {
@@ -87,6 +89,7 @@ impl Downloader {
             primary,
             concurrency: concurrency.max(1),
             retries: 3,
+            verify_existing: true,
         }
     }
 
@@ -172,7 +175,7 @@ impl Downloader {
     }
 
     async fn download_one(&self, task: &DownloadTask, counters: &Counters) -> Result<Outcome> {
-        if is_complete(task).await {
+        if is_complete(task, self.verify_existing).await {
             counters.bytes.fetch_add(task.size.unwrap_or(0), Ordering::Relaxed);
             return Ok(Outcome::Skipped);
         }
@@ -295,7 +298,7 @@ pub async fn sha1_file(path: &Path) -> Result<String> {
 }
 
 /// 本地文件已存在且校验通过（有 SHA1 比 SHA1，否则比大小，都没有就只看存在）
-async fn is_complete(task: &DownloadTask) -> bool {
+async fn is_complete(task: &DownloadTask, verify_hash: bool) -> bool {
     let Ok(meta) = fs::metadata(&task.path).await else {
         return false;
     };
@@ -303,6 +306,7 @@ async fn is_complete(task: &DownloadTask) -> bool {
         return false;
     }
     match &task.sha1 {
+        Some(_) if !verify_hash => true,
         Some(expected) => sha1_file(&task.path).await.is_ok_and(|h| h.eq_ignore_ascii_case(expected)),
         None => true,
     }
@@ -331,10 +335,11 @@ mod tests {
             sha1: sha1.map(str::to_string),
             size,
         };
-        assert!(is_complete(&mk(Some("AAF4C61DDCC5E8A2DABEDE0F3B482CD9AEA9434D"), Some(5))).await);
-        assert!(!is_complete(&mk(Some("0000000000000000000000000000000000000000"), None)).await);
-        assert!(!is_complete(&mk(None, Some(6))).await);
-        assert!(is_complete(&mk(None, None)).await);
+        assert!(is_complete(&mk(Some("AAF4C61DDCC5E8A2DABEDE0F3B482CD9AEA9434D"), Some(5)), true).await);
+        assert!(!is_complete(&mk(Some("0000000000000000000000000000000000000000"), None), true).await);
+        assert!(is_complete(&mk(Some("0000000000000000000000000000000000000000"), None), false).await);
+        assert!(!is_complete(&mk(None, Some(6)), false).await);
+        assert!(is_complete(&mk(None, None), true).await);
     }
 
     #[test]

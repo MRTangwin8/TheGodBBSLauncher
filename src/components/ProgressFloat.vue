@@ -10,6 +10,7 @@ const stageText: Record<InstallJob["stage"], string> = {
   versionJson: "获取版本信息",
   assetIndex: "获取资源索引",
   files: "下载游戏文件",
+  java: "下载 Java",
 };
 
 function percent(job: InstallJob): number {
@@ -33,9 +34,11 @@ function percent(job: InstallJob): number {
         <div class="floor-head">
           <span class="floor-no">{{ job.floor }}#</span>
           <b>{{ job.versionId }}</b>
-          <span v-if="job.status === 'running'" class="muted">{{ stageText[job.stage] }}</span>
+          <span v-if="job.status === 'running'" class="muted">
+            {{ job.kind === "launch" ? (job.stage === "java" ? "启动准备 · 下载 Java" : "启动准备 · 补全文件") : stageText[job.stage] }}
+          </span>
           <span v-else-if="job.status === 'done'" class="ok">安装完成</span>
-          <span v-else class="error-text">失败</span>
+          <span v-else class="error-text">{{ job.kind === "launch" ? "启动失败" : "失败" }}</span>
           <a v-if="job.status !== 'running'" class="close" title="删帖" @click="versions.dismiss(job.versionId)">×</a>
         </div>
         <div class="xp-bar"><div :style="{ width: percent(job) + '%' }" /></div>

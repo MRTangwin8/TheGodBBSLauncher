@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
 import { useVersionsStore } from "../stores/versions";
+import { useAccountsStore } from "../stores/accounts";
 import UserCard from "../components/UserCard.vue";
 import { formatDate, kindLabel } from "../utils";
 
 const versions = useVersionsStore();
+const accounts = useAccountsStore();
 onMounted(() => versions.manifest || versions.loadManifest());
 
 const boards = computed(() => [
@@ -24,7 +26,14 @@ const boards = computed(() => [
     stat: `${versions.installed.length} 个已安装`,
     last: versions.installed[0] ? `最近：${versions.installed[0].id}` : "还没有安装任何版本",
   },
-  { to: "/account", icon: "☺", name: "个人空间", desc: "账号、勋章、用户组", stat: "离线", last: "正版登录施工中" },
+  {
+    to: "/account",
+    icon: "☺",
+    name: "个人空间",
+    desc: "微软正版 / 离线 / 外置登录",
+    stat: `${accounts.accounts.length} 个账号`,
+    last: accounts.selected ? `当前：${accounts.selected.name}` : "还没有账号",
+  },
   { to: "/settings", icon: "⚙", name: "设置", desc: "游戏目录、下载源、并发数", stat: "完全神权", last: "所有参数你说了算" },
 ]);
 </script>
@@ -35,8 +44,8 @@ const boards = computed(() => [
       <div class="box">
         <div class="box-title">📢 公告栏</div>
         <div class="box-body notice">
-          <p><span class="tag">置顶</span><b>神权论坛启动器</b> 第一版开张！目前能浏览并下载全部原版版本。</p>
-          <p class="muted">启动游戏、正版登录、模组加载器正在施工，请各位坛友耐心等待版主更新。</p>
+          <p><span class="tag">置顶</span><b>神权论坛启动器</b> 现在可以启动游戏了！支持微软正版、离线和外置登录，Java 缺了会自动下载。</p>
+          <p class="muted">模组加载器（Fabric / Forge）和崩溃分析正在施工，请各位坛友耐心等待版主更新。</p>
         </div>
       </div>
 

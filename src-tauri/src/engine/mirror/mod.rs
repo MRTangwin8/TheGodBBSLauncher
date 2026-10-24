@@ -42,6 +42,7 @@ const BMCLAPI_RULES: &[(&str, &str)] = &[
     ("https://maven.fabricmc.net", "/maven"),
     ("https://meta.quiltmc.org", "/quilt-meta"),
     ("https://maven.quiltmc.org/repository/release", "/maven"),
+    ("https://authlib-injector.yushi.moe", "/mirrors/authlib-injector"),
 ];
 
 /// 改写成 BMCLAPI 地址；BMCLAPI 不镜像的地址返回 None

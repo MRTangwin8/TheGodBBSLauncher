@@ -5,6 +5,8 @@ import type { DownloadReport, InstalledVersion, Progress, Stage, VersionManifest
 
 export interface InstallJob {
   versionId: string;
+  /** 安装，或启动前的补全文件 / 下载 Java */
+  kind: "install" | "launch";
   /** 楼层号，按开始顺序递增 */
   floor: number;
   stage: Stage;
@@ -48,7 +50,7 @@ export const useVersionsStore = defineStore("versions", () => {
 
   async function install(versionId: string) {
     if (jobs[versionId]?.status === "running") return;
-    jobs[versionId] = { versionId, floor: ++floorCounter, stage: "versionJson", progress: null, status: "running" };
+    jobs[versionId] = { versionId, kind: "install", floor: ++floorCounter, stage: "versionJson", progress: null, status: "running" };
     const job = jobs[versionId];
     try {
       job.report = await api.installVersion(versionId);
@@ -65,5 +67,11 @@ export const useVersionsStore = defineStore("versions", () => {
     delete jobs[versionId];
   }
 
-  return { manifest, manifestError, installed, installedIds, jobs, jobList, running, loadManifest, loadInstalled, install, dismiss };
+  /** 启动准备阶段也走 install-progress 事件，借用同一套"楼层"显示 */
+  function trackLaunch(versionId: string): InstallJob {
+    jobs[versionId] = { versionId, kind: "launch", floor: ++floorCounter, stage: "files", progress: null, status: "running" };
+    return jobs[versionId];
+  }
+
+  return { manifest, manifestError, installed, installedIds, jobs, jobList, running, loadManifest, loadInstalled, install, dismiss, trackLaunch };
 });
