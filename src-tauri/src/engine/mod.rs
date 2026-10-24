@@ -1,0 +1,19 @@
+//! 启动器核心：和 Tauri 无关的纯逻辑，方便单元测试和以后复用。
+
+pub mod download;
+pub mod error;
+pub mod install;
+pub mod meta;
+pub mod mirror;
+
+pub use error::{Error, Result};
+
+/// 统一的 HTTP 客户端。BMCLAPI 要求带上能识别启动器的 UA。
+pub fn http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .user_agent(concat!("GodBBSLauncher/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .read_timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("初始化 HTTP 客户端失败")
+}

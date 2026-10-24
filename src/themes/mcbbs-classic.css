@@ -1,0 +1,180 @@
+/*
+ * mcbbs-classic：致敬 MCBBS 经典论坛配色（羊皮纸 + 泥土棕 + 草绿）。
+ * 全部为原创 CSS，不含任何 MCBBS 官方图片素材。
+ */
+:root {
+  --bg-page: #d9c9a3;
+  --bg-page-dot: #cfbd93;
+  --bg-box: #fbf2db;
+  --bg-box-alt: #f5e8c8;
+  --bg-title: #e9d6aa;
+  --bg-input: #fffdf6;
+  --border: #c9b083;
+  --border-strong: #a58757;
+  --text: #3d2f1f;
+  --text-muted: #8a7558;
+  --link: #2f5f9e;
+  --link-hover: #c0392b;
+  --brown: #7a5230;
+  --brown-dark: #5a3a20;
+  --grass: #5e9c35;
+  --grass-light: #79bf4a;
+  --gold: #e0a419;
+  --red: #c0392b;
+  --nav-bg: #8b6a43;
+  --nav-bg-hover: #a17e54;
+  --nav-text: #fff7e6;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 1px 3px rgba(60, 40, 20, 0.15);
+  --radius: 3px;
+  --font: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Hiragino Sans GB", sans-serif;
+  --font-pixel: "Consolas", "Courier New", monospace;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg-page: #1f1a14;
+  --bg-page-dot: #2a231a;
+  --bg-box: #2d261d;
+  --bg-box-alt: #362e23;
+  --bg-title: #3f3528;
+  --bg-input: #241e17;
+  --border: #54452f;
+  --border-strong: #6e5a3c;
+  --text: #eadfc8;
+  --text-muted: #a8977a;
+  --link: #7fb2f0;
+  --link-hover: #ff8a7a;
+  --nav-bg: #4a3824;
+  --nav-bg-hover: #5e4830;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  background-color: var(--bg-page);
+  /* 像素泥土点阵 */
+  background-image:
+    linear-gradient(45deg, var(--bg-page-dot) 25%, transparent 25%, transparent 75%, var(--bg-page-dot) 75%),
+    linear-gradient(45deg, var(--bg-page-dot) 25%, transparent 25%, transparent 75%, var(--bg-page-dot) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
+}
+
+a { color: var(--link); text-decoration: none; cursor: pointer; }
+a:hover { color: var(--link-hover); text-decoration: underline; }
+
+h1, h2, h3 { margin: 0; }
+
+/* ---------- 版块盒子 ---------- */
+.box {
+  background: var(--bg-box);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+.box-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: var(--bg-title);
+  border-bottom: 1px solid var(--border);
+  font-weight: bold;
+  color: var(--brown-dark);
+}
+:root[data-theme="dark"] .box-title { color: var(--text); }
+.box-title .extra { margin-left: auto; font-weight: normal; font-size: 12px; }
+.box-body { padding: 12px; }
+
+/* ---------- 主题帖列表 ---------- */
+.thread-table { width: 100%; border-collapse: collapse; }
+.thread-table th {
+  text-align: left;
+  font-weight: normal;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-box-alt);
+}
+.thread-table td { padding: 8px 10px; border-bottom: 1px dashed var(--border); vertical-align: middle; }
+.thread-table tr:hover td { background: var(--bg-box-alt); }
+.thread-table .num { text-align: right; white-space: nowrap; color: var(--text-muted); }
+
+/* 主题分类前缀，如 [正式版] */
+.tag {
+  display: inline-block;
+  padding: 0 4px;
+  margin-right: 6px;
+  font-size: 12px;
+  border-radius: 2px;
+  color: #fff;
+  background: var(--grass);
+}
+.tag.snapshot { background: #c47d1a; }
+.tag.old_beta { background: #7b6a9e; }
+.tag.old_alpha { background: #8b8b8b; }
+.tag.installed { background: var(--link); margin-left: 6px; }
+
+/* ---------- 按钮 / 输入 ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font: inherit;
+  color: var(--text);
+  background: linear-gradient(#fffaf0, #eadbb8);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+:root[data-theme="dark"] .btn { background: linear-gradient(#4a3e2e, #3a3024); }
+.btn:hover:not(:disabled) { border-color: var(--brown); filter: brightness(1.04); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn.primary { color: #fff; background: linear-gradient(var(--grass-light), var(--grass)); border-color: #3f6e22; }
+.btn.small { padding: 2px 8px; font-size: 12px; }
+
+.input, select.input {
+  padding: 5px 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+.input:focus { outline: 2px solid var(--gold); outline-offset: -1px; }
+
+.muted { color: var(--text-muted); }
+.error-text { color: var(--red); }
+
+/* ---------- 进度条（经验条风格） ---------- */
+.xp-bar {
+  height: 10px;
+  background: #3a2c1c;
+  border: 1px solid #1f160c;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.xp-bar > div {
+  height: 100%;
+  background: linear-gradient(#b6f45a, #6fc21f);
+  transition: width 0.25s;
+}
+
+/* 版主提示（论坛红字公告风） */
+.mod-tip {
+  padding: 8px 12px;
+  border: 1px dashed var(--red);
+  background: rgba(192, 57, 43, 0.06);
+  color: var(--red);
+  border-radius: var(--radius);
+}
