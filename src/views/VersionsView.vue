@@ -3,6 +3,8 @@ import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useVersionsStore } from "../stores/versions";
 import { api } from "../api";
+import { ref } from "vue";
+import ModpackExportDialog from "../components/ModpackExportDialog.vue";
 import { useGameStore } from "../stores/game";
 import { useAccountsStore } from "../stores/accounts";
 import { formatDate, kindLabel, loaderLabel } from "../utils";
@@ -11,6 +13,7 @@ const versions = useVersionsStore();
 const game = useGameStore();
 const accounts = useAccountsStore();
 const router = useRouter();
+const exportFor = ref<string | null>(null);
 onMounted(() => versions.loadInstalled());
 
 async function rename(id: string) {
@@ -77,6 +80,7 @@ async function launch(id: string) {
               补全文件
             </button>
             <button class="btn small" :disabled="game.running.some((r) => r.versionId === v.id)" @click="rename(v.id)">重命名</button>
+            <button class="btn small" @click="exportFor = v.id">导出</button>
           </td>
         </tr>
         <tr v-if="!versions.installed.length">
@@ -85,6 +89,7 @@ async function launch(id: string) {
       </tbody>
     </table>
   </div>
+  <ModpackExportDialog v-if="exportFor" :version-id="exportFor" @close="exportFor = null" />
 </template>
 
 <style scoped>

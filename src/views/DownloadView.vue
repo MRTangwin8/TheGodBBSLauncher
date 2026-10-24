@@ -4,9 +4,23 @@ import { useVersionsStore } from "../stores/versions";
 import type { VersionKind } from "../api/types";
 import { formatDate, kindLabel } from "../utils";
 import InstallDialog from "../components/InstallDialog.vue";
+import { open } from "@tauri-apps/plugin-dialog";
+import { inTauri } from "../api";
+import { useModpackStore } from "../stores/modpack";
 
 const versions = useVersionsStore();
 const dialogFor = ref<string | null>(null);
+const modpack = useModpackStore();
+
+async function pickModpack() {
+  if (!inTauri) {
+    // 浏览器预览：直接用假路径看对话框
+    modpack.importPath = "C:/Downloads/Fabulously.Optimized-v6.5.0.mrpack";
+    return;
+  }
+  const file = await open({ multiple: false, filters: [{ name: "整合包", extensions: ["mrpack", "zip"] }] });
+  if (typeof file === "string") modpack.importPath = file;
+}
 const filter = ref<VersionKind | "old">("release");
 const keyword = ref("");
 const PAGE = 50;
@@ -51,6 +65,7 @@ function switchTab(key: VersionKind | "old") {
       </div>
       <input v-model="keyword" class="input" placeholder="搜索版本号…" @input="limit = PAGE" />
       <button class="btn" @click="versions.loadManifest(true)">刷新</button>
+      <button class="btn primary" @click="pickModpack">导入整合包</button>
     </div>
 
     <div v-if="versions.manifestError" class="box-body">

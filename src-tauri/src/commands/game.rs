@@ -20,6 +20,7 @@ use crate::engine::auth::{microsoft, yggdrasil, AccountKind, LaunchAuth};
 use crate::engine::crash::{self, CrashAnalysis};
 use crate::engine::download::{DownloadTask, Downloader, Progress};
 use crate::engine::install::{self, GameDir, Stage};
+use crate::engine::instance;
 use crate::engine::launch::log4j::Log4jParser;
 use crate::engine::launch::{self, Agent, LaunchOptions};
 use crate::engine::meta::{AssetIndex, Platform, VersionJson};
@@ -167,13 +168,16 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         None => None,
     };
 
-    let game_dir = if settings.isolate_versions { game.versions().join(&version.id) } else { game.root.clone() };
+    // 单版本设置（整合包实例）：强制隔离、最少内存、追加参数
+    let inst = instance::load(&game, &version.id);
+    let game_dir = instance::game_dir(&game, &version.id, settings.isolate_versions);
+    let memory = settings.memory_mb.unwrap_or_else(|| auto_memory_mb(total_memory_mb()));
     let opts = LaunchOptions {
         java: java_path,
         game_dir,
-        memory_mb: settings.memory_mb.unwrap_or_else(|| auto_memory_mb(total_memory_mb())),
-        extra_jvm_args: split_args(&settings.jvm_args),
-        extra_game_args: split_args(&settings.game_args),
+        memory_mb: memory.max(inst.min_memory_mb.unwrap_or(0)),
+        extra_jvm_args: split_args(&settings.jvm_args).into_iter().chain(inst.jvm_args.iter().cloned()).collect(),
+        extra_game_args: split_args(&settings.game_args).into_iter().chain(inst.game_args.iter().cloned()).collect(),
         resolution: settings.window_width.zip(settings.window_height),
         agent,
         auth: auth.clone(),

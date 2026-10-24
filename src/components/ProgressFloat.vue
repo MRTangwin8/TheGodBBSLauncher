@@ -52,6 +52,7 @@ function percent(job: InstallJob): number {
           {{ formatBytes(job.progress.downloadedBytes) }}/{{ formatBytes(job.progress.totalBytes) }} ·
           {{ formatBytes(job.progress.speed) }}/s
         </div>
+        <div v-else-if="job.status === 'done' && job.doneText" class="floor-meta muted">{{ job.doneText }}</div>
         <div v-else-if="job.status === 'done' && job.resultId" class="floor-meta muted">
           已生成版本 <b>{{ job.resultId }}</b>，去 <RouterLink to="/versions">版本管理</RouterLink> 启动
         </div>

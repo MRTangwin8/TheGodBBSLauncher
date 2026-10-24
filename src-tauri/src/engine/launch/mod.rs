@@ -42,6 +42,24 @@ pub struct Prepared {
     pub cwd: PathBuf,
 }
 
+/// Windows 上 Java 21+ 的网络库会在临时目录建 Unix 域套接字。临时目录路径含中文（中文用户名）、
+/// 8.3 短名（`~1`）或太长时会报 "Unable to establish loopback connection"，第一个联网的模组就崩了。
+/// 这种情况下给它换一个干净的目录。
+pub fn unix_socket_dir(temp: &Path, fallback: &Path) -> Option<PathBuf> {
+    if is_clean_path(temp) {
+        return None;
+    }
+    [fallback.to_path_buf(), PathBuf::from(r"C:\Users\Public\GodBBSLauncher")]
+        .into_iter()
+        .find(|p| is_clean_path(p) && std::fs::create_dir_all(p).is_ok())
+}
+
+/// 纯英文数字、不含 8.3 短名的 `~`、不太长
+fn is_clean_path(p: &Path) -> bool {
+    let s = p.display().to_string();
+    s.len() <= 60 && s.chars().all(|c| c.is_ascii_alphanumeric() || " _-.:\\/".contains(c))
+}
+
 pub fn classpath_separator(platform: &Platform) -> &'static str {
     if platform.os == "windows" {
         ";"
@@ -221,6 +239,12 @@ pub async fn prepare(game: &GameDir, version: &VersionJson, opts: &LaunchOptions
             base64::engine::general_purpose::STANDARD.encode(&agent.metadata)
         ));
     }
+    // 用户自己写了就听用户的
+    if platform.os == "windows" && !opts.extra_jvm_args.iter().any(|a| a.contains("jdk.net.unixdomain.tmpdir")) {
+        if let Some(dir) = unix_socket_dir(&std::env::temp_dir(), &game.root.join(".tmp")) {
+            jvm_prefix.push(format!("-Djdk.net.unixdomain.tmpdir={}", dir.display()));
+        }
+    }
     jvm_prefix.extend(opts.extra_jvm_args.iter().cloned());
 
     let args = build_arguments(version, &vars, platform, opts.memory_mb, &jvm_prefix, &opts.extra_game_args, opts.resolution.is_some());
@@ -381,6 +405,15 @@ mod tests {
         assert!(!args.contains(&"--width".to_string()));
         assert_eq!(args.iter().filter(|a| *a == "-XstartOnFirstThread").count(), 1);
         assert_eq!(args.last().unwrap(), "Steve");
+    }
+
+    #[test]
+    fn detects_unusual_temp_paths() {
+        assert!(is_clean_path(Path::new(r"C:\Users\Steve\AppData\Local\Temp")));
+        assert!(!is_clean_path(Path::new(r"C:\Users\MRTANG~1\AppData\Local\Temp")), "8.3 短名");
+        assert!(!is_clean_path(Path::new(r"C:\Users\张三\AppData\Local\Temp")), "中文用户名");
+        assert!(!is_clean_path(Path::new(&format!(r"C:\{}", "a".repeat(80)))), "太长");
+        assert_eq!(unix_socket_dir(Path::new(r"C:\Users\Steve\AppData\Local\Temp"), Path::new("unused")), None, "正常路径不加参数");
     }
 
     #[test]

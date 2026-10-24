@@ -17,6 +17,8 @@ export interface InstallJob {
   report?: DownloadReport;
   /** 加载器安装成功后的版本 id */
   resultId?: string;
+  /** 完成后显示的自定义说明（比如导出路径） */
+  doneText?: string;
 }
 
 export const useVersionsStore = defineStore("versions", () => {

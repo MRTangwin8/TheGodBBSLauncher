@@ -231,6 +231,20 @@
       "solutions": ["把 Fabric 模组移出 mods 文件夹，或者换用 Fabric 版本运行它们", "下载模组时注意选择 Forge/NeoForge 版本"]
     },
     {
+      "id": "loopback-connection",
+      "title": "Java 无法建立本地连接",
+      "severity": "error",
+      "priority": 72,
+      "supersedes": ["mod-init-failed"],
+      "patterns": ["Unable to establish loopback connection", "UnixDomainSockets\\.(?:connect|bind)"],
+      "description": "Java 的网络库在临时目录建本地套接字时失败了，所以第一个联网的模组（更新检查、在线功能）就崩了——并不是那个模组的问题。常见原因：临时目录路径里有中文（中文用户名）或特殊字符，或者安全软件拦截了本地套接字。",
+      "solutions": [
+        "启动器会自动处理临时目录路径的问题；如果还出现，在「设置 → JVM 参数」里加上 -Djdk.net.unixdomain.tmpdir=C:\\Users\\Public",
+        "把 Java 和游戏目录加入杀毒软件（如 360、火绒）的信任区",
+        "换用 Java 17（这个问题主要出现在 Java 21 及以上）"
+      ]
+    },
+    {
       "id": "mod-init-failed",
       "title": "模组初始化失败：{mod}",
       "severity": "error",

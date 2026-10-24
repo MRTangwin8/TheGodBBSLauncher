@@ -3,6 +3,7 @@
 pub mod download;
 pub mod error;
 pub mod install;
+pub mod instance;
 pub mod java;
 pub mod launch;
 pub mod loader;
@@ -10,6 +11,7 @@ pub mod auth;
 pub mod crash;
 pub mod meta;
 pub mod mirror;
+pub mod modpack;
 pub mod resources;
 
 pub use error::{Error, Result};

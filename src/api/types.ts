@@ -263,3 +263,48 @@ export interface LocalResource {
   title: string | null;
   version: string | null;
 }
+
+export type PackFormat = "modrinth" | "curseforge" | "mcbbs";
+
+export interface ModpackInfo {
+  format: PackFormat;
+  name: string;
+  version: string;
+  author: string;
+  summary: string;
+  mc: string;
+  loader: LoaderKind | null;
+  loaderVersion: string | null;
+  fileCount: number;
+  overrideCount: number;
+  minMemoryMb: number | null;
+  jvmArgs: string[];
+  gameArgs: string[];
+  warnings: string[];
+}
+
+export interface ModpackPreview {
+  info: ModpackInfo;
+  suggestedName: string;
+}
+
+export interface ExportEntry {
+  name: string;
+  isDir: boolean;
+  defaultOn: boolean;
+}
+
+export interface ExportOptions {
+  format: PackFormat;
+  name: string;
+  version: string;
+  author: string;
+  summary: string;
+  include: string[];
+}
+
+export interface ExportSummary {
+  path: string;
+  linked: number;
+  bundled: number;
+}

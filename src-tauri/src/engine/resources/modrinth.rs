@@ -232,6 +232,22 @@ pub async fn identify(client: &reqwest::Client, sha1s: &[String]) -> Result<Hash
     Ok(map.into_iter().map(|(h, v)| (h, (v.project_id, v.version_number))).collect())
 }
 
+/// 按 SHA1 找到 Modrinth 上对应的文件：sha1 → (下载地址, sha512)。导出 mrpack 用
+pub async fn identify_files(client: &reqwest::Client, sha1s: &[String]) -> Result<HashMap<String, (String, Option<String>)>> {
+    if sha1s.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let body = json!({"hashes": sha1s, "algorithm": "sha1"});
+    let map: HashMap<String, MrVersion> = send_json(client, &format!("{API}/version_files"), Some(&body)).await?;
+    Ok(map
+        .into_iter()
+        .filter_map(|(h, v)| {
+            let f = v.files.into_iter().find(|f| f.hashes.get("sha1").is_some_and(|s| s.eq_ignore_ascii_case(&h)))?;
+            Some((h, (f.url, f.hashes.get("sha512").cloned())))
+        })
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,0 +1,10 @@
+---- Minecraft Crash Report ----
+// This doesn't make any sense!
+
+Time: 2026-10-25 00:03:25
+Description: Initializing game
+
+java.lang.RuntimeException: Could not execute entrypoint stage 'client' due to errors, provided by 'debugify' at 'dev.isxander.debugify.client.DebugifyClient::onInitializeClient'!
+Caused by: java.io.IOException: Unable to establish loopback connection
+Caused by: java.net.SocketException: Invalid argument: connect
+	at java.base/sun.nio.ch.UnixDomainSockets.connect0(Native Method)

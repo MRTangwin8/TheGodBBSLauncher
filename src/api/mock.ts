@@ -102,6 +102,18 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       { filename: "sodium-fabric-0.8.13.jar", report: { status: "ok", problems: [], notes: ["已核对 75 个必需的 Mixin 注入点"] } },
       { filename: "old-mod.jar.disabled", report: { status: "problem", problems: ["需要 Minecraft [1.20,1.21)，当前是 1.21.1"], notes: [] } },
     ],
+    modpack_preview: () => ({
+      suggestedName: "Fabulously Optimized-6.5.0",
+      info: { format: "modrinth", name: "Fabulously Optimized", version: "6.5.0", author: "", summary: "Improve your graphics and performance with this simple modpack.", mc: "1.21.1", loader: "fabric", loaderVersion: "0.19.3", fileCount: 50, overrideCount: 63, minMemoryMb: null, jvmArgs: [], gameArgs: [], warnings: [] },
+    }),
+    export_candidates: () => [
+      { name: "config", isDir: true, defaultOn: true },
+      { name: "mods", isDir: true, defaultOn: true },
+      { name: "options.txt", isDir: false, defaultOn: true },
+      { name: "resourcepacks", isDir: true, defaultOn: true },
+      { name: "saves", isDir: true, defaultOn: false },
+      { name: "screenshots", isDir: true, defaultOn: false },
+    ],
     crash_rules_info: () => ({ version: 1, count: 25, custom: false }),
     analyze_log_text: () => ({
       exitCode: null,

@@ -27,7 +27,7 @@ async fn target(state: &AppState, version_id: &str, kind: ResourceKind) -> Resul
     let game = GameDir::new(settings.game_dir.clone());
     let merged = VersionJson::resolve(&game.versions(), version_id).await?;
     let mc = base_minecraft_version(&game.versions(), version_id).await?;
-    let root = if settings.isolate_versions { game.versions().join(version_id) } else { game.root.clone() };
+    let root = crate::engine::instance::game_dir(&game, version_id, settings.isolate_versions);
     Ok(Target { dir: root.join(kind.folder()), kind, game_version: Some(mc), loader: loader::detect(&merged) })
 }
 

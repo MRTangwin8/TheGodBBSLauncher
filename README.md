@@ -18,7 +18,8 @@
 - [x] 崩溃分析：JSON 规则库（中英文日志）+ 中文诊断，崩溃后自动分析，也可分析外部日志文件，规则可在线热更新
 - [x] 资源中心：Modrinth / CurseForge 搜索模组、资源包、光影，自动解析前置，已装识别（哈希），启用/禁用/删除
 - [x] 下载时兼容性检查：平台、依赖版本范围、Mixin 注入点是否存在于当前游戏 jar（含 Jar-in-Jar），不兼容的前置自动换成兼容版本
-- [ ] 整合包导入导出、插件系统、自动更新……见 PLAN
+- [x] 整合包导入导出：Modrinth（.mrpack）/ CurseForge / MCBBS 三种格式，可拖进窗口导入；导出时能在平台上找到的模组只写下载链接
+- [ ] 插件系统、自动更新……见 PLAN
 
 ## 开发
 
@@ -39,6 +40,7 @@ cargo run --example loader -- forge 1.20.1 ./.minecraft # 安装原版 + 加载�
 cargo run --example resources -- modrinth "sodium extra" <版本id> ./.minecraft # 搜索并安装模组（含前置）
 cargo run --example compat -- ./.minecraft <版本id> mods/*.jar   # 检查模组兼容性
 cargo run --example analyze -- crash-reports/crash-xxx.txt      # 分析崩溃报告
+cargo run --example modpack -- import pack.mrpack ./.minecraft 我的整合包   # 导入整合包
 ```
 
 ## 目录

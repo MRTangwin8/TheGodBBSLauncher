@@ -46,13 +46,23 @@ pub async fn install_loader(
     result
 }
 
+pub type ReportFn = Arc<dyn Fn(Stage, Progress) + Send + Sync>;
+
+/// 把进度事件发给前端，versionId 用任务 id
+pub fn job_reporter(app: &AppHandle, job_id: &str) -> ReportFn {
+    let (app, job_id) = (app.clone(), job_id.to_string());
+    Arc::new(move |stage, progress| {
+        let _ = app.emit(INSTALL_PROGRESS_EVENT, JobProgress { version_id: job_id.clone(), stage, progress });
+    })
+}
+
 async fn do_install(app: &AppHandle, state: &AppState, job_id: &str, mc: &str, kind: LoaderKind, loader_id: &str, name: Option<&str>) -> Result<String> {
-    let report: Arc<dyn Fn(Stage, Progress) + Send + Sync> = {
-        let (app, job_id) = (app.clone(), job_id.to_string());
-        Arc::new(move |stage, progress| {
-            let _ = app.emit(INSTALL_PROGRESS_EVENT, JobProgress { version_id: job_id.clone(), stage, progress });
-        })
-    };
+    install_game(state, job_reporter(app, job_id), mc, Some((kind, loader_id)), name).await
+}
+
+/// 安装原版 + 可选的加载器，返回版本 id。
+/// 没有加载器但给了名字时，生成一个继承原版的同名版本（整合包实例需要自己的文件夹）。
+pub async fn install_game(state: &AppState, report: ReportFn, mc: &str, loader: Option<(LoaderKind, &str)>, name: Option<&str>) -> Result<String> {
     let (game, concurrency) = {
         let s = state.settings.read().await;
         (GameDir::new(s.game_dir.clone()), s.concurrency)
@@ -70,6 +80,16 @@ async fn do_install(app: &AppHandle, state: &AppState, job_id: &str, mc: &str, k
     }
     downloader.verify_existing = true;
 
+    let Some((kind, loader_id)) = loader else {
+        return match name {
+            Some(name) if name != mc => {
+                install::create_inheriting_version(&game, name, mc)?;
+                Ok(name.to_string())
+            }
+            _ => Ok(mc.to_string()),
+        };
+    };
+
     // Forge / NeoForge 安装器需要 Java（按原版要求挑）
     let java = match kind {
         LoaderKind::Forge | LoaderKind::NeoForge => {
@@ -82,4 +102,17 @@ async fn do_install(app: &AppHandle, state: &AppState, job_id: &str, mc: &str, k
 
     let ctx = LoaderContext { downloader: &downloader, client: &state.client, game: &game, platform: &platform, java, report };
     loader::install(&ctx, kind, mc, loader_id, name).await
+}
+
+/// 整合包里写的加载器版本号 → 安装用的 id（Forge 的 id 是完整 maven 版本，比如 1.20.1-47.2.0）
+pub async fn loader_id_for(state: &AppState, kind: LoaderKind, mc: &str, version: &str) -> String {
+    if let Ok(list) = loader::list_versions(&state.client, state.source().await, kind, mc).await {
+        if let Some(v) = list.iter().find(|v| v.version == version || v.id == version) {
+            return v.id.clone();
+        }
+    }
+    match kind {
+        LoaderKind::Forge => format!("{mc}-{version}"),
+        _ => version.to_string(),
+    }
 }

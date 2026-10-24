@@ -8,18 +8,30 @@ import { useVersionsStore } from "./stores/versions";
 import { useAccountsStore } from "./stores/accounts";
 import { useGameStore } from "./stores/game";
 import ProgressFloat from "./components/ProgressFloat.vue";
+import ModpackImportDialog from "./components/ModpackImportDialog.vue";
+import { useModpackStore } from "./stores/modpack";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 const route = useRoute();
 const settings = useSettingsStore();
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const game = useGameStore();
+const modpack = useModpackStore();
 const title = computed(() => (route.meta.title as string) ?? "");
 
 onMounted(() => {
   settings.load();
   versions.loadInstalled();
   accounts.load();
+  // 把整合包文件拖进窗口直接导入
+  if (inTauri) {
+    getCurrentWebview().onDragDropEvent((e) => {
+      if (e.payload.type !== "drop") return;
+      const file = e.payload.paths.find((p) => /\.(mrpack|zip)$/i.test(p));
+      if (file) modpack.importPath = file;
+    });
+  }
 });
 </script>
 
@@ -64,6 +76,7 @@ onMounted(() => {
     </footer>
 
     <ProgressFloat />
+    <ModpackImportDialog v-if="modpack.importPath" :path="modpack.importPath" @close="modpack.importPath = null" />
   </div>
 </template>
 

@@ -246,6 +246,25 @@ pub fn rename_version(game: &GameDir, old: &str, new: &str) -> Result<()> {
     Ok(())
 }
 
+/// 新建一个只继承原版的版本（没有加载器的整合包用，让它有自己的文件夹）
+pub fn create_inheriting_version(game: &GameDir, name: &str, mc: &str) -> Result<()> {
+    validate_version_name(name)?;
+    if game.versions().join(name).exists() {
+        return Err(Error::Other(format!("已经有名为「{name}」的版本了")));
+    }
+    let parent: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(game.version_json(mc))?)?;
+    let json = serde_json::json!({
+        "id": name,
+        "inheritsFrom": mc,
+        "type": parent["type"],
+        "releaseTime": parent["releaseTime"],
+        "time": parent["time"],
+    });
+    std::fs::create_dir_all(game.versions().join(name))?;
+    std::fs::write(game.version_json(name), serde_json::to_string_pretty(&json)?)?;
+    Ok(())
+}
+
 /// 已安装版本（扫描 versions 目录）
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -80,6 +80,8 @@ struct CfMod {
     #[serde(default)]
     date_modified: String,
     links: Option<Links>,
+    #[serde(default)]
+    class_id: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -291,9 +293,94 @@ pub async fn titles(api: &ResourceApi, ids: &[String]) -> Result<HashMap<String,
     Ok(resp.data.into_iter().map(|m| (m.id.to_string(), m.name)).collect())
 }
 
+/// 按文件 id 批量查文件
+pub async fn files_by_ids(api: &ResourceApi, file_ids: &[u64]) -> Result<Vec<ResourceVersion>> {
+    let mut out = Vec::new();
+    // 一次请求别太大
+    for chunk in file_ids.chunks(500) {
+        let resp: Data<Vec<CfFile>> = send(api, "/mods/files", &[], Some(&json!({"fileIds": chunk}))).await?;
+        out.extend(resp.data.into_iter().map(ResourceVersion::from));
+    }
+    Ok(out)
+}
+
+/// 项目 id → classId（6 模组、12 资源包、6552 光影）
+pub async fn mod_classes(api: &ResourceApi, ids: &[String]) -> Result<HashMap<String, u32>> {
+    let ids: Vec<u64> = ids.iter().filter_map(|i| i.parse().ok()).collect();
+    let mut out = HashMap::new();
+    for chunk in ids.chunks(500) {
+        let resp: Data<Vec<CfMod>> = send(api, "/mods", &[], Some(&json!({"modIds": chunk}))).await?;
+        out.extend(resp.data.into_iter().filter_map(|m| m.class_id.map(|c| (m.id.to_string(), c))));
+    }
+    Ok(out)
+}
+
+/// CurseForge 文件指纹：去掉空白字节（9、10、13、32）后算 MurmurHash2，种子 1
+pub fn fingerprint(data: &[u8]) -> u32 {
+    let bytes: Vec<u8> = data.iter().copied().filter(|b| !matches!(b, 9 | 10 | 13 | 32)).collect();
+    const M: u32 = 0x5bd1_e995;
+    let mut h: u32 = 1 ^ (bytes.len() as u32);
+    let (chunks, rest) = bytes.as_chunks::<4>();
+    for c in chunks {
+        let mut k = u32::from_le_bytes(*c);
+        k = k.wrapping_mul(M);
+        k ^= k >> 24;
+        k = k.wrapping_mul(M);
+        h = h.wrapping_mul(M) ^ k;
+    }
+    if !rest.is_empty() {
+        for (i, b) in rest.iter().enumerate() {
+            h ^= (*b as u32) << (8 * i);
+        }
+        h = h.wrapping_mul(M);
+    }
+    h ^= h >> 13;
+    h = h.wrapping_mul(M);
+    h ^ (h >> 15)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FingerprintResp {
+    #[serde(default)]
+    exact_matches: Vec<FingerprintMatch>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FingerprintMatch {
+    id: u64,
+    file: FingerprintFile,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FingerprintFile {
+    id: u64,
+    file_fingerprint: u32,
+}
+
+/// 指纹 → (项目 id, 文件 id)
+pub async fn match_fingerprints(api: &ResourceApi, fps: &[u32]) -> Result<HashMap<u32, (u64, u64)>> {
+    if fps.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let resp: Data<FingerprintResp> = send(api, "/fingerprints", &[], Some(&json!({"fingerprints": fps}))).await?;
+    Ok(resp.data.exact_matches.into_iter().map(|m| (m.file.file_fingerprint, (m.id, m.file.id))).collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fingerprint_ignores_whitespace() {
+        assert_eq!(fingerprint(b"ab c
+	d"), fingerprint(b"abcd"));
+        assert_ne!(fingerprint(b"abcd"), fingerprint(b"abce"));
+        // 长度不是 4 的倍数时也要处理尾部
+        assert_ne!(fingerprint(b"abcde"), fingerprint(b"abcd"));
+    }
 
     #[test]
     fn converts_file_and_builds_cdn_url() {

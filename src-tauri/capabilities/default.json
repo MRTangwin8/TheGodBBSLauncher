@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "主窗口权限",
   "windows": ["main"],
-  "permissions": ["core:default", "opener:default"]
+  "permissions": ["core:default", "opener:default", "dialog:default"]
 }

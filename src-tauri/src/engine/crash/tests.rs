@@ -126,6 +126,14 @@ fn mod_built_for_other_loader_version() {
 }
 
 #[test]
+fn loopback_failure_is_not_blamed_on_the_mod() {
+    // 真实崩溃：Debugify 只是第一个联网的模组，真正原因是 Java 建不了本地套接字
+    let f = rules().analyze(fixture!("loopback.log"), Some(-1));
+    assert_eq!(f[0].id, "loopback-connection");
+    assert!(!ids(&f).contains(&"mod-init-failed"), "{:?}", ids(&f));
+}
+
+#[test]
 fn mixin_conflict_names_mod() {
     let f = rules().analyze(fixture!("mixin.log"), Some(1));
     let m = f.iter().find(|x| x.id == "mixin-failed").unwrap();

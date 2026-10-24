@@ -6,6 +6,10 @@ import type {
   CrashAnalysis,
   DeviceCode,
   DownloadReport,
+  ExportEntry,
+  ExportOptions,
+  ExportSummary,
+  ModpackPreview,
   GameExit,
   GameLog,
   InstalledVersion,
@@ -83,6 +87,12 @@ export const api = {
   localResourceDelete: (versionId: string, kind: ResourceKind, filename: string) =>
     call<void>("local_resource_delete", { versionId, kind, filename }),
   localCompat: (versionId: string) => call<LocalCompat[]>("local_compat", { versionId }),
+
+  modpackPreview: (path: string) => call<ModpackPreview>("modpack_preview", { path }),
+  modpackImport: (jobId: string, path: string, name: string) => call<string>("modpack_import", { jobId, path, name }),
+  exportCandidates: (versionId: string) => call<ExportEntry[]>("export_candidates", { versionId }),
+  modpackExport: (jobId: string, versionId: string, options: ExportOptions, outPath: string) =>
+    call<ExportSummary>("modpack_export", { jobId, versionId, options, outPath }),
 
   analyzeLogText: (text: string) => call<CrashAnalysis>("analyze_log_text", { text }),
   crashRulesInfo: () => call<RulesInfo>("crash_rules_info"),
