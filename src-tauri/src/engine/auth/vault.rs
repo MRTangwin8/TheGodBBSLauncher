@@ -12,7 +12,9 @@ use rand::RngCore;
 
 use crate::engine::{Error, Result};
 
-const SERVICE: &str = "me.mcbbs.godbbs";
+const SERVICE: &str = "co.mcbbs.godbbs";
+/// 旧版本的钥匙串条目，找不到新条目时从这里接过密钥
+const LEGACY_SERVICE: &str = "me.mcbbs.godbbs";
 const KEY_USER: &str = "account-vault-key";
 
 pub struct Vault {
@@ -72,10 +74,16 @@ fn keychain_key() -> Option<[u8; 32]> {
     match entry.get_password() {
         Ok(s) => decode_key(&s),
         Err(keyring::Error::NoEntry) => {
-            let k = random_key();
+            let legacy = keyring::Entry::new(LEGACY_SERVICE, KEY_USER).ok();
+            let legacy_key = legacy.as_ref().and_then(|e| e.get_password().ok()).and_then(|s| decode_key(&s));
+            let k = legacy_key.unwrap_or_else(random_key);
             entry.set_password(&B64.encode(k)).ok()?;
-            // 写完读一遍，确认钥匙串真的能用
-            entry.get_password().ok().and_then(|s| decode_key(&s))
+            // 写完读一遍，确认钥匙串真的能用；确认之后才删旧条目，免得密钥丢失
+            let saved = entry.get_password().ok().and_then(|s| decode_key(&s))?;
+            if let (Some(e), Some(_)) = (legacy, legacy_key) {
+                let _ = e.delete_credential();
+            }
+            Some(saved)
         }
         Err(_) => None,
     }

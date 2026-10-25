@@ -16,7 +16,15 @@ pub fn run() {
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
             let data_dir = app.path().app_data_dir()?;
-            let settings = config::load(&config_dir.join("settings.json"));
+            // 标识符从 me.mcbbs.godbbs 改成了 co.mcbbs.godbbs：把旧目录搬过来（Windows / macOS 上两者是同一个目录）
+            let moved: Vec<_> = [&config_dir, &data_dir]
+                .into_iter()
+                .filter_map(|dir| config::migrate_legacy_dir(dir).map(|old| (old, dir.clone())))
+                .collect();
+            let mut settings = config::load(&config_dir.join("settings.json"));
+            if moved.iter().fold(false, |changed, (old, new)| settings.rebase_paths(old, new) | changed) {
+                let _ = config::save(&config_dir.join("settings.json"), &settings);
+            }
             let vault = Vault::open(&config_dir.join("account.key"));
             let accounts = AccountStore::load(config_dir.join("accounts.json"), vault);
             app.manage(AppState::new(settings, config_dir.join("settings.json"), data_dir, accounts));

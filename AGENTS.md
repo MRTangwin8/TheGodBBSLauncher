@@ -1,7 +1,7 @@
 # AGENTS.md：神权论坛启动器协作手册
 
 写给并行开发本项目的 Agent 和人看：读完它就能接手任意模块，并且和别人不打架。
-项目简介和命令行示例见 [README.md](README.md)；路线图在仓库外的 PLAN.md 里，由维护者提供。
+项目简介和命令行示例见 [README.md](README.md)；当前状态、已知限制和路线图见 [docs/STATUS.md](docs/STATUS.md)。
 
 ---
 

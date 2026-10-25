@@ -63,7 +63,7 @@
 | 内容 | Windows | macOS | Linux |
 |---|---|---|---|
 | 默认游戏目录 | `%APPDATA%\GodBBSLauncher\.minecraft` | `~/Library/Application Support/GodBBSLauncher/.minecraft` | `~/.local/share/GodBBSLauncher/.minecraft` |
-| 设置与账号 | `%APPDATA%\me.mcbbs.godbbs` | `~/Library/Application Support/me.mcbbs.godbbs` | `~/.config/me.mcbbs.godbbs` |
+| 设置与账号 | `%APPDATA%\co.mcbbs.godbbs` | `~/Library/Application Support/co.mcbbs.godbbs` | `~/.config/co.mcbbs.godbbs` |
 
 游戏目录可以在「设置」里修改。
 

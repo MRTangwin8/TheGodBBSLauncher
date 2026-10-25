@@ -124,6 +124,41 @@ pub fn default_game_dir() -> PathBuf {
         .join(".minecraft")
 }
 
+/// 旧版本用过的应用标识符（mcbbs.me 不是本项目的域名，已改用 co.mcbbs.*）
+pub const LEGACY_IDENTIFIER: &str = "me.mcbbs.godbbs";
+
+/// 把旧标识符的同级目录整体改名成新目录。新目录已存在、旧目录不存在、或改名失败都什么也不做。
+/// 成功时返回旧目录，供调用方修正设置里指向旧目录的路径。
+pub fn migrate_legacy_dir(new_dir: &Path) -> Option<PathBuf> {
+    let old_dir = new_dir.parent()?.join(LEGACY_IDENTIFIER);
+    if new_dir.exists() || !old_dir.is_dir() {
+        return None;
+    }
+    std::fs::rename(&old_dir, new_dir).ok()?;
+    Some(old_dir)
+}
+
+impl Settings {
+    /// 设置里指向 old 目录下的路径改成 new 目录下的同一位置；有改动返回 true
+    pub fn rebase_paths(&mut self, old: &Path, new: &Path) -> bool {
+        let fix = |p: &mut PathBuf| match p.strip_prefix(old) {
+            Ok(rest) => {
+                *p = new.join(rest);
+                true
+            }
+            Err(_) => false,
+        };
+        let mut changed = fix(&mut self.game_dir);
+        if let Some(p) = self.java_path.as_mut() {
+            changed |= fix(p);
+        }
+        if let Some(p) = self.background_image.as_mut() {
+            changed |= fix(p);
+        }
+        changed
+    }
+}
+
 /// 读不到或解析失败都回退默认值，不让坏配置挡住启动
 pub fn load(path: &Path) -> Settings {
     std::fs::read_to_string(path)
@@ -188,6 +223,24 @@ mod tests {
         assert_eq!(auto_memory_mb(2048), 1024);
         assert_eq!(auto_memory_mb(16 * 1024), 4096);
         assert_eq!(auto_memory_mb(10 * 1024), 2560);
+    }
+
+    #[test]
+    fn migrates_legacy_dir_and_rebases_paths() {
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join(LEGACY_IDENTIFIER);
+        std::fs::create_dir_all(old.join("themes")).unwrap();
+        std::fs::write(old.join("settings.json"), "{}").unwrap();
+        let new = root.path().join("co.mcbbs.godbbs");
+
+        assert_eq!(migrate_legacy_dir(&new), Some(old.clone()));
+        assert!(new.join("settings.json").exists() && !old.exists());
+        assert_eq!(migrate_legacy_dir(&new), None, "只迁移一次");
+
+        let mut s = Settings { background_image: Some(old.join("themes").join("a.png")), ..Default::default() };
+        assert!(s.rebase_paths(&old, &new));
+        assert_eq!(s.background_image.unwrap(), new.join("themes").join("a.png"));
+        assert!(!Settings::default().rebase_paths(&old, &new));
     }
 
     #[test]
