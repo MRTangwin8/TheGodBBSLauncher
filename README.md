@@ -1,73 +1,143 @@
 # 神权论坛启动器（MCBBS 纪念版）
 
-跨平台（Windows / macOS / Linux）Minecraft Java 版启动器，界面致敬 MCBBS 经典论坛风格。
+一个跨平台（Windows / macOS / Linux）的 Minecraft Java 版启动器，界面致敬当年的 MCBBS（我的世界中文论坛）。
 
-> 非官方粉丝纪念作品，与 MCBBS / Mojang Studios / Microsoft 无关。界面素材全部原创；本程序不分发任何 Minecraft 游戏文件，全部从官方源或 BMCLAPI 镜像下载。
+> 非官方粉丝纪念作品，与 MCBBS、Mojang Studios、Microsoft 均无关联。界面素材全部原创绘制，没有使用任何官方 Logo 或图片。本程序不分发任何 Minecraft 游戏文件，所有文件都从 Mojang 官方服务器或 BMCLAPI 镜像下载。
 
-## 当前进度
+## 下载
 
-- [x] Tauri 2 + Vue 3 骨架、MCBBS 经典主题
-- [x] 版本清单（官方 / BMCLAPI，自动测速）
-- [x] version.json 解析：新旧参数格式、规则过滤、inheritsFrom 合并
-- [x] 并发下载器：64 并发、断点续传、SHA1 校验、重试 + 镜像回退
-- [x] 原版安装（client.jar / 库 / natives / 资源 / 日志配置）
-- [x] Java 管理：扫描本机 Java，缺少时自动下载 Mojang 官方 runtime
-- [x] 启动游戏：natives 解压、新旧参数格式、旧版资源映射、版本隔离、实时日志
-- [x] 账号：微软正版（设备码）、离线、外置登录（authlib-injector），令牌 AES-GCM 加密、密钥存系统钥匙串
-- [x] 模组加载器一键安装：Fabric / Quilt（meta profile）、Forge / NeoForge（本地执行安装器 processors，旧版 Forge 走 versionInfo）
-- [x] 崩溃分析：JSON 规则库（中英文日志）+ 中文诊断，崩溃后自动分析，也可分析外部日志文件，规则可在线热更新
-- [x] 资源中心：Modrinth / CurseForge 搜索模组、资源包、光影，自动解析前置，已装识别（哈希），启用/禁用/删除
-- [x] 下载时兼容性检查：平台、依赖版本范围、Mixin 注入点是否存在于当前游戏 jar（含 Jar-in-Jar），不兼容的前置自动换成兼容版本
-- [x] 整合包导入导出：Modrinth（.mrpack）/ CurseForge / MCBBS 三种格式，可拖进窗口导入；导出时能在平台上找到的模组只写下载链接
-- [x] KLPBBS 公开中文目录搜索；纪念版资源中心和红石中继站通过系统浏览器访问，见 [资源来源说明](docs/RESOURCES.md)
-- [ ] 插件系统、自动更新等后续工作，见 [开发状态与下一步](docs/STATUS.md)
+到 [Releases](../../releases) 页面下载最新版本：
 
-## 开发
+| 系统 | 推荐下载 | 说明 |
+|---|---|---|
+| Windows 10 / 11 | `*_x64-setup.exe` | 也提供 `.msi`。需要 WebView2，Windows 11 自带 |
+| macOS（Apple 芯片） | `*_aarch64.dmg` | 暂不提供 Intel 版 |
+| Linux | `*.AppImage` | 也提供 `.deb` / `.rpm`。需要 webkit2gtk 4.1 |
 
-需要 Rust（rustup）、Node 20+；Windows 需要 MSVC Build Tools 和 WebView2，Linux 需要 webkit2gtk。
+目前处于**预发布阶段**，安装包还没有代码签名：
+- **Windows**：SmartScreen 可能拦截，点「更多信息 → 仍要运行」。
+- **macOS**：提示"已损坏，无法打开"时，在终端执行 `xattr -cr /Applications/神权论坛启动器.app`。
+
+## 功能
+
+**游戏管理**
+- 原版安装：版本列表来自官方源和 BMCLAPI，自动测速选最快的；下载支持 64 线程并发、断点续传、SHA1 校验，失败自动换源重试。
+- 加载器一键安装：Fabric、Quilt、Forge、NeoForge。
+- Java 管理：自动扫描本机 Java，按游戏版本选择合适的；没有合适的就自动下载 Mojang 官方运行时。
+- 版本隔离：每个版本的存档、模组和设置可以互不影响。
+
+**账号**
+- 微软正版登录：在浏览器里完成授权，启动器全程接触不到你的密码。
+- 离线账号。
+- 外置登录：兼容 authlib-injector 的皮肤站，比如 LittleSkin。
+- 显示真实皮肤。
+
+**资源与整合包**
+- 资源中心：从 Modrinth / CurseForge 搜索模组、资源包、光影，自动安装前置；已安装的资源能识别出来，可以启用、禁用、删除。
+- 下载时兼容性检查：检查加载器平台、依赖版本范围，以及模组的 Mixin 注入点在当前游戏版本里是否存在；不兼容的前置会自动换成兼容版本。
+- 整合包：导入、导出 Modrinth（`.mrpack`）、CurseForge、MCBBS 三种格式，导入时把文件拖进窗口就行。
+- 中文社区资源入口，详见 [资源来源说明](docs/RESOURCES.md)。
+
+**崩溃分析**
+- 游戏崩溃后自动分析日志，用中文告诉你可能的原因和解决办法；也可以分析外部日志文件。
+- 规则库是 JSON 格式，可以在线更新。
+
+**外观**
+- 三种布局：经典论坛（横幅 + 顶部导航）、木板侧栏、完全现代。
+- 七套内置配色，外加自定义配色编辑器；深浅色可以跟随系统。
+- 自定义背景图；圆角、透明度、毛玻璃、字体等都能细调。
+- 外观可以导出成 `.godtheme` 主题文件分享给别人。
+
+## 常见问题
+
+**CurseForge 需要 API Key 吗？**
+不需要。不填 Key 时，启动器通过 [MCIM](https://mod.mcimirror.top) 社区镜像访问 CurseForge。如果你有自己的 Key（可在 [console.curseforge.com](https://console.curseforge.com) 免费申请），可以在「设置」里填写，之后改为直连官方接口。有少数模组的作者关闭了第三方下载，这类模组无论填不填 Key 都只能去 CurseForge 网页手动下载。
+
+**我的账号安全吗？**
+- 微软账号的密码只在微软自己的网页里输入。外置登录的密码只用来换取令牌，不会保存。
+- 登录令牌用 AES-256-GCM 加密后存在本地，加密密钥放在系统钥匙串里（Windows 凭据管理器 / macOS 钥匙串 / Linux Secret Service）。
+- 外置登录服务器必须使用 https，否则启动器会拒绝登录，避免密码明文传输。
+
+**数据存在哪里？**
+
+| 内容 | Windows | macOS | Linux |
+|---|---|---|---|
+| 默认游戏目录 | `%APPDATA%\GodBBSLauncher\.minecraft` | `~/Library/Application Support/GodBBSLauncher/.minecraft` | `~/.local/share/GodBBSLauncher/.minecraft` |
+| 设置与账号 | `%APPDATA%\me.mcbbs.godbbs` | `~/Library/Application Support/me.mcbbs.godbbs` | `~/.config/me.mcbbs.godbbs` |
+
+游戏目录可以在「设置」里修改。
+
+## 从源码构建
+
+需要：
+- Rust（通过 [rustup](https://rustup.rs) 安装）、Node.js 20 以上；
+- Windows：MSVC Build Tools 和 WebView2；
+- Linux：`libwebkit2gtk-4.1-dev` 等依赖，完整列表见 [Tauri 文档](https://tauri.app/start/prerequisites/)。
 
 ```bash
 npm install
-npm run tauri dev      # 桌面窗口
-npm run dev            # 仅浏览器预览界面（假数据）
-npm test               # 启动事件和社区入口回归测试
+npm run tauri dev      # 启动桌面窗口（开发模式）
+npm run tauri build    # 打包安装包
+npm run dev            # 只在浏览器里预览界面，使用假数据
 ```
 
+### 测试
+
 ```bash
+npm run typecheck && npm test
 cd src-tauri
-cargo test                                             # 单元测试
-cargo clippy --locked --all-targets -- -D warnings       # 与 CI 一致的严格检查
-cargo run --example install -- 1.20.1 ./.minecraft     # 命令行安装原版（冒烟测试）
-cargo run --example launch -- 1.20.1 ./.minecraft      # 离线启动到主菜单后自动退出
-cargo run --example loader -- forge 1.20.1 ./.minecraft # 安装原版 + 加载器（fabric/quilt/forge/neoforge）
-cargo run --example resources -- modrinth "sodium extra" <版本id> ./.minecraft # 搜索并安装模组（含前置）
-cargo run --example compat -- ./.minecraft <版本id> mods/*.jar   # 检查模组兼容性
-cargo run --example analyze -- crash-reports/crash-xxx.txt      # 分析崩溃报告
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+```
+
+`src-tauri/examples/` 下有一些命令行冒烟测试，不用打开界面就能验证核心流程：
+
+```bash
+cargo run --example install -- 1.20.1 ./.minecraft          # 安装原版
+cargo run --example launch -- 1.20.1 ./.minecraft           # 离线启动到主菜单后自动退出
+cargo run --example loader -- forge 1.20.1 ./.minecraft     # 安装原版 + 加载器（fabric / quilt / forge / neoforge）
+cargo run --example resources -- modrinth "sodium" <版本id> ./.minecraft   # 搜索并安装模组（含前置）
+cargo run --example compat -- ./.minecraft <版本id> mods/*.jar             # 检查模组兼容性
+cargo run --example analyze -- crash-reports/crash-xxx.txt  # 分析崩溃报告
 cargo run --example modpack -- import pack.mrpack ./.minecraft 我的整合包   # 导入整合包
 ```
 
-## GitHub 协作
+### 自己发布修改版
 
-远程仓库：`MRTangwin8/TheGodBBSLauncher`（私有）。维护者已于 2026-10-25 授权首次提交和推送；后续提交仍需明确授权。不上传本地账号、密钥、游戏目录或构建产物。
+微软登录使用的 Azure 应用 Client ID 属于本项目（`src-tauri/src/engine/auth/microsoft.rs` 中的 `CLIENT_ID`）。如果你要发布修改版，请[注册自己的 Azure 应用](https://learn.microsoft.com/entra/identity-platform/quickstart-register-app)，向 Mojang 申请 Minecraft API 权限，然后替换掉这个 ID。
 
-推送 `main`、创建 Pull Request 或在 Actions 中手动运行 `build`，会分别构建 Windows、macOS 和 Linux 安装包。成功后从对应运行的 Artifacts 下载；保留 14 天，不会自动发布 Release。
+## 参与贡献
 
-微软登录使用公共客户端 ID，不需要把应用密钥放入启动器。维护者已确认当前 ID 由本人注册，且已具备 Mojang / Minecraft API 权限；授权、续期、取消和错误提示仍需通过桌面实测验收。
+欢迎提 Issue 和 Pull Request。
 
-## 目录
+- 开始之前请先读 [AGENTS.md](AGENTS.md)，里面有架构说明、跨层约定和几条红线。
+- 每个 PR 都会在三个平台上自动构建和测试，请保证 CI 通过。
+- 界面文案使用简体中文；新增素材必须是原创的。
+
+## 项目结构
 
 ```
 src-tauri/src/
-  engine/        和 Tauri 无关的核心逻辑（避免和 Rust 内置的 core crate 重名）
-    meta/        版本清单、version.json、平台规则
-    download/    并发下载器
-    mirror/      官方 / BMCLAPI 源改写与测速
-    install/     原版安装流程
-  commands/      前端 IPC（command 请求响应，event 推进度）
-  config/        全局设置
+  engine/      核心逻辑，和 Tauri 无关：下载、安装、启动、账号、加载器、资源、整合包、崩溃分析、主题
+  commands/    提供给前端调用的接口
+  config/      全局设置
 src/
-  views/ components/ stores/ api/ themes/
+  layouts/     三种布局外壳
+  views/       页面
+  components/  通用组件
+  stores/      状态管理（Pinia）
+  api/         前后端通信，以及浏览器预览用的假数据
+  themes/      配色与布局样式
 ```
+
+## 致谢
+
+- [BMCLAPI](https://bmclapidoc.bangbang93.com)（bangbang93）：国内下载镜像
+- [MCIM](https://mod.mcimirror.top)：Modrinth / CurseForge 镜像
+- [authlib-injector](https://github.com/yushijinhun/authlib-injector)：外置登录
+- [Modrinth](https://modrinth.com) 与 [CurseForge](https://www.curseforge.com)：资源平台
+- [Tauri](https://tauri.app)、[Vue](https://vuejs.org)
+- 以及所有曾经在 MCBBS 发过帖、回过帖的人
 
 ## 许可证
 
