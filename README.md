@@ -11,7 +11,8 @@
 | 系统 | 推荐下载 | 说明 |
 |---|---|---|
 | Windows 10 / 11 | `*_x64-setup.exe` | 也提供 `.msi`。需要 WebView2，Windows 11 自带 |
-| macOS（Apple 芯片） | `*_aarch64.dmg` | 暂不提供 Intel 版 |
+| macOS（Apple 芯片） | `*_aarch64.dmg` | |
+| macOS（Intel 芯片） | `*_x64.dmg` | 不清楚是哪种芯片：点左上角苹果菜单 →「关于本机」查看 |
 | Linux | `*.AppImage` | 也提供 `.deb` / `.rpm`。需要 webkit2gtk 4.1 |
 
 目前处于**预发布阶段**，安装包还没有代码签名：

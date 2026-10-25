@@ -23,6 +23,8 @@ jobs:
         include:
           - os: windows-latest
           - os: macos-latest
+          # Intel 芯片 Mac 用原生 x86_64 运行器，单元测试也在 Intel 上跑
+          - os: macos-15-intel
           - os: ubuntu-22.04
     runs-on: ${{ matrix.os }}
     steps:
@@ -119,6 +121,7 @@ jobs:
             |---|---|
             | Windows | `*_x64-setup.exe`（推荐）或 `*.msi` |
             | macOS（Apple 芯片） | `*_aarch64.dmg` |
+            | macOS（Intel 芯片） | `*_x64.dmg` |
             | Linux | `*.AppImage` / `*.deb` / `*.rpm` |
 
             安装包暂未签名：Windows 可能弹出 SmartScreen，点「更多信息 → 仍要运行」；macOS 提示"已损坏"时在终端执行 `xattr -cr /Applications/神权论坛启动器.app`。

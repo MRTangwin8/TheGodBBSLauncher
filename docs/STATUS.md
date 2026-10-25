@@ -26,7 +26,7 @@
 ## 已知限制
 
 - **安装包未签名**：Windows SmartScreen、macOS Gatekeeper 会拦截，绕过方法见 README。
-- **macOS 只提供 Apple 芯片版**；在 Apple 芯片上运行很老的游戏版本（依赖旧 LWJGL natives）尚未适配。
+- **macOS**：提供 Apple 芯片版和 Intel 版。在 Apple 芯片上运行很老的游戏版本（依赖旧 LWJGL natives）尚未适配，Intel 版没有这个问题。
 - **钥匙串回退**：系统钥匙串不可用时（例如 Linux 没有运行 Secret Service），加密密钥会存成配置目录里的普通文件，保护效果减弱。
 - **第三方整合包**：导入时会拦截常见的 `..` 路径穿越，但对 Windows 保留文件名、符号链接 / junction 等情况的防护还不完整。请只导入来源可信的整合包。
 - **日志脱敏**只作用于启动器界面里显示的内容，不会改写 Minecraft 或模组自己写到磁盘的日志。分享原始日志前请自己检查一遍。
