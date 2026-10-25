@@ -154,6 +154,14 @@ cd src-tauri && cargo clippy && cargo test
   - 浏览器预览里背景的 transition 可能被节流，截图会是旧画面。可以先注入 `*{transition:none!important}`，或者直接查 DOM。
 - 改了后端：在 `npm run tauri dev` 的真实窗口里跑一遍对应流程。
 
+### 打包与发布
+- `main` 上每次推送都会在三个平台上构建，产物在 Actions 里保留 14 天。推 `v*` 标签（如 `v0.1.0`）会额外创建一个 GitHub Release，类型为预发布。
+- 产品名是中文，打包时有几个坑：
+  - Windows MSI 必须设 `wix.language = zh-CN`，否则 WiX 默认的 1252 代码页装不下中文；
+  - Linux 的 rpm 包名不能以中文开头，所以 `tauri.linux.conf.json` 把 productName 换成英文，菜单里显示的中文名由 `linux/app.desktop` 提供；
+  - Release 附件名不支持中文，workflow 会把文件名里的中文产品名换成 `GodBBSLauncher`。
+- 版本号要同时改 `tauri.conf.json`、`Cargo.toml`、`package.json` 三处，再打同名标签。
+
 ### Windows 环境注意事项
 - Git Bash 里可能找不到 cargo，先 `export PATH="$HOME/.cargo/bin:$PATH"`。
 - 杀毒或索引会锁文件，导致 cargo 偶尔报 `os error 32` 或 `can't find crate`。重试即可，也可以用 `-j 2` 降低并发。

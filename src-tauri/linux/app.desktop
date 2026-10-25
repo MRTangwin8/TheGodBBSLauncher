@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=神权论坛启动器
+Name[en]=GodBBS Launcher
+Comment=Minecraft 启动器 · MCBBS 纪念版
+Exec={{exec}}
+Icon={{icon}}
+Categories=Game;
+Terminal=false

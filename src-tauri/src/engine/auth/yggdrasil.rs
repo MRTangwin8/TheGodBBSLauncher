@@ -44,6 +44,8 @@ pub async fn resolve_server(client: &reqwest::Client, input: &str) -> Result<Ser
         }
     }
     let url = url.trim_end_matches('/').to_string();
+    // 之后密码会发到这个地址，明文 http 只允许本机调试用
+    ensure_secure(&url)?;
     let metadata = client.get(&url).send().await?.text().await?;
     let v: Value = serde_json::from_str(&metadata)
         .map_err(|_| Error::Other("这个地址不是 Yggdrasil 认证服务器".into()))?;
@@ -55,6 +57,16 @@ pub async fn resolve_server(client: &reqwest::Client, input: &str) -> Result<Ser
         api_root: url,
         metadata,
     })
+}
+
+fn ensure_secure(url: &str) -> Result<()> {
+    let u = reqwest::Url::parse(url).map_err(|e| Error::Other(format!("地址格式不对：{e}")))?;
+    let local = matches!(u.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
+    if u.scheme() == "https" || (u.scheme() == "http" && local) {
+        Ok(())
+    } else {
+        Err(Error::Other("认证服务器必须使用 https，否则密码会明文传输。请联系皮肤站管理员开启 https".into()))
+    }
 }
 
 async fn post(client: &reqwest::Client, url: String, body: Value) -> Result<(u16, Value)> {
@@ -153,5 +165,19 @@ pub async fn ensure_injector(downloader: &Downloader, client: &reqwest::Client, 
     match report.failed.first() {
         Some(f) => Err(Error::Other(format!("下载 authlib-injector 失败：{}", f.reason))),
         None => Ok(path),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_secure;
+
+    #[test]
+    fn password_only_over_https() {
+        assert!(ensure_secure("https://littleskin.cn/api/yggdrasil").is_ok());
+        assert!(ensure_secure("http://127.0.0.1:8080/api/yggdrasil").is_ok());
+        assert!(ensure_secure("http://localhost/api").is_ok());
+        assert!(ensure_secure("http://example.com/api/yggdrasil").is_err());
+        assert!(ensure_secure("ftp://example.com").is_err());
     }
 }

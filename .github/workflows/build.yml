@@ -3,6 +3,8 @@ name: build
 on:
   push:
     branches: [main]
+    # 推 v* 标签时额外发布 Release
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -66,3 +68,57 @@ jobs:
           path: src-tauri/target/release/bundle/
           if-no-files-found: error
           retention-days: 14
+
+      # 安装包文件名里的中文产品名换成英文，GitHub Release 的附件名不支持中文
+      - name: 整理发布文件
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/release"
+          cd src-tauri/target/release/bundle
+          for f in nsis/*.exe msi/*.msi dmg/*.dmg deb/*.deb rpm/*.rpm appimage/*.AppImage; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f")
+            name=${name//神权论坛启动器/GodBBSLauncher}
+            cp "$f" "$GITHUB_WORKSPACE/release/$name"
+          done
+          ls -la "$GITHUB_WORKSPACE/release"
+          [ -n "$(ls -A "$GITHUB_WORKSPACE/release")" ]
+
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 3
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: 神权论坛启动器 ${{ github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
+          files: release/*
+          body: |
+            非官方粉丝纪念作品，与 MCBBS / Mojang Studios / Microsoft 无关；不包含任何 Minecraft 游戏文件。
+
+            | 系统 | 下载 |
+            |---|---|
+            | Windows | `*_x64-setup.exe`（推荐）或 `*.msi` |
+            | macOS（Apple 芯片） | `*_aarch64.dmg` |
+            | Linux | `*.AppImage` / `*.deb` / `*.rpm` |
+
+            安装包暂未签名：Windows 可能弹出 SmartScreen，点「更多信息 → 仍要运行」；macOS 提示"已损坏"时在终端执行 `xattr -cr /Applications/神权论坛启动器.app`。

@@ -35,6 +35,14 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "wix": { "language": "zh-CN" },
+      "nsis": { "languages": ["SimpChinese", "English"] }
+    },
+    "linux": {
+      "deb": { "desktopTemplate": "linux/app.desktop" },
+      "rpm": { "desktopTemplate": "linux/app.desktop" }
+    }
   }
 }
