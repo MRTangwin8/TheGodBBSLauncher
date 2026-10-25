@@ -73,7 +73,8 @@ html, body {
   margin: 0;
   height: 100%;
   font-family: var(--font);
-  font-size: 13px;
+  /* 字号可在主题中心调整 */
+  font-size: var(--font-size, 13px);
   color: var(--text);
   overflow: hidden;
 }
@@ -215,6 +216,8 @@ h1, h2, h3 { margin: 0; }
 .dialog { animation: pop-in 0.18s ease; box-shadow: var(--shadow-lg); }
 .mask { backdrop-filter: blur(2px); }
 
+/* 主题中心关掉动画，或者系统要求减少动态效果 */
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

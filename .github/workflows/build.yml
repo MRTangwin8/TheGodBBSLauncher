@@ -47,6 +47,7 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
+      - run: npm test
 
       - name: clippy
         working-directory: src-tauri

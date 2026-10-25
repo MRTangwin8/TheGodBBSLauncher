@@ -13,15 +13,21 @@ pub mod meta;
 pub mod mirror;
 pub mod modpack;
 pub mod resources;
+pub mod theme;
+mod http;
 
 pub use error::{Error, Result};
 
 /// 统一的 HTTP 客户端。BMCLAPI 要求带上能识别启动器的 UA。
 pub fn http_client() -> reqwest::Client {
+    http_client_builder()
+        .build()
+        .expect("初始化 HTTP 客户端失败")
+}
+
+fn http_client_builder() -> reqwest::ClientBuilder {
     reqwest::Client::builder()
         .user_agent(concat!("GodBBSLauncher/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(std::time::Duration::from_secs(10))
         .read_timeout(std::time::Duration::from_secs(30))
-        .build()
-        .expect("初始化 HTTP 客户端失败")
 }

@@ -148,3 +148,40 @@ async fn mcbbs_export_roundtrip() {
     assert_eq!(p.extract_overrides(&target).unwrap(), 2);
     assert_eq!(std::fs::read_to_string(target.join("config/a.toml")).unwrap(), "x=1");
 }
+
+fn cf_version(filename: &str) -> ResourceVersion {
+    serde_json::from_value(serde_json::json!({
+        "source": "curseforge", "id": "20", "projectId": "10",
+        "name": "Test", "versionNumber": "1", "gameVersions": [], "loaders": [],
+        "published": "", "releaseType": "release", "dependencies": [],
+        "file": { "url": "https://edge.forgecdn.net/files/1/2/mod.jar", "filename": filename, "sha1": null, "size": 5 }
+    })).unwrap()
+}
+
+#[test]
+fn required_curseforge_files_cannot_be_silently_skipped() {
+    let classes = HashMap::from([("10".into(), 6)]);
+    let refs = [(10, 20)];
+    assert!(curseforge_pack_files(&[], &refs, &classes).is_err());
+    let mut version = cf_version("mod.jar");
+    version.file = None;
+    assert!(curseforge_pack_files(&[version], &refs, &classes).is_err());
+    let mut version = cf_version("mod.jar");
+    version.project_id = "999".into();
+    assert!(curseforge_pack_files(&[version], &refs, &classes).is_err());
+}
+
+#[test]
+fn curseforge_pack_files_have_safe_paths_and_known_resource_types() {
+    let refs = [(10, 20)];
+    for (class, folder) in [(6, "mods"), (12, "resourcepacks"), (6552, "shaderpacks")] {
+        let classes = HashMap::from([("10".into(), class)]);
+        let files = curseforge_pack_files(&[cf_version("test.zip")], &refs, &classes).unwrap();
+        assert_eq!(files[0].path, format!("{folder}/test.zip"));
+    }
+    let classes = HashMap::from([("10".into(), 6)]);
+    for filename in ["../outside.jar", r"..\outside.jar", "C:outside.jar", "/outside.jar"] {
+        assert!(curseforge_pack_files(&[cf_version(filename)], &refs, &classes).is_err(), "{filename}");
+    }
+    assert!(curseforge_pack_files(&[cf_version("mod.jar")], &refs, &HashMap::new()).is_err());
+}

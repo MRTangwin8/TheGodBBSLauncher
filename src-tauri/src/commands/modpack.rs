@@ -89,8 +89,9 @@ pub async fn modpack_import(app: AppHandle, state: State<'_, AppState>, job_id: 
 
     // 3. 下载整合包里引用的文件
     let (files, warnings) = pack.files(&api(state).await).await?;
-    let concurrency = state.settings.read().await.concurrency;
-    let downloader = Downloader::new(state.client.clone(), state.source().await, concurrency);
+    let settings = state.settings.read().await.clone();
+    let downloader = Downloader::new(state.client.clone(), state.source().await, settings.concurrency)
+        .with_curseforge_key(Some(&settings.curseforge_api_key));
     let tasks: Vec<DownloadTask> = files
         .into_iter()
         .map(|f| DownloadTask {

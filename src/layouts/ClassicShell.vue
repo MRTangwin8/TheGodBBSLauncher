@@ -94,7 +94,7 @@ const title = computed(() => (route.meta.title as string) ?? "");
 .group-god, .login-link { color: var(--gold); font-weight: bold; }
 .win { position: absolute; top: 0; right: 0; height: 32px; }
 
-.nav { display: flex; flex-shrink: 0; background: var(--wood-light); border-bottom: 1px solid var(--wood-dark); padding: 0 16px; }
+.nav { display: flex; flex-wrap: wrap; flex-shrink: 0; background: var(--wood-light); border-bottom: 1px solid var(--wood-dark); padding: 0 16px; }
 .nav-item { padding: 9px 16px; color: #fff7e6; font-weight: bold; border-right: 1px solid rgba(0, 0, 0, 0.15); white-space: nowrap; }
 .nav-item:first-child { border-left: 1px solid rgba(0, 0, 0, 0.15); }
 .nav-item:hover { background: rgba(255, 255, 255, 0.12); color: #fff; text-decoration: none; }
@@ -108,4 +108,13 @@ const title = computed(() => (route.meta.title as string) ?? "");
 .preview-hint { margin-left: auto; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--red); color: #fff; }
 .footer { text-align: center; font-size: 12px; margin-top: 20px; color: var(--text-muted); }
 .footer p { margin: 4px 0; }
+@media (max-width: 680px) {
+  .banner { height: auto; min-height: 112px; padding: 14px 16px 12px; align-items: flex-start; flex-direction: column; gap: 6px; }
+  .logo { flex-wrap: wrap; gap: 6px; padding-bottom: 0; }
+  .logo-main { font-size: 28px; letter-spacing: 0; }
+  .banner-user { padding-bottom: 0; }
+  .nav { padding: 0 8px; }
+  .nav-item { padding: 9px 12px; }
+  .nav-right { white-space: normal; }
+}
 </style>

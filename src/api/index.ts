@@ -32,6 +32,7 @@ import type {
   ProbeResult,
   RulesInfo,
   Settings,
+  ThemePreview,
   VersionManifest,
 } from "./types";
 import { mock } from "./mock";
@@ -52,6 +53,9 @@ export const api = {
   getSettings: () => call<Settings>("get_settings"),
   saveSettings: (settings: Settings) => call<void>("save_settings", { settings }),
   backgroundImage: () => call<string | null>("background_image"),
+  themeExport: (path: string, name: string, author: string) => call<void>("theme_export", { path, name, author }),
+  themePreview: (path: string) => call<ThemePreview>("theme_preview", { path }),
+  themeImport: (path: string) => call<Settings>("theme_import", { path }),
   probeMirrors: () => call<ProbeResult[]>("probe_mirrors"),
   getVersionManifest: (force = false) => call<VersionManifest>("get_version_manifest", { force }),
   listInstalledVersions: () => call<InstalledVersion[]>("list_installed_versions"),
@@ -78,6 +82,7 @@ export const api = {
 
   resourceTarget: (versionId: string, kind: ResourceKind) => call<TargetInfo>("resource_target", { versionId, kind }),
   resourceSearch: (source: ResourceSource, query: SearchQuery) => call<SearchPage>("resource_search", { source, query }),
+  klpbbsSearch: (query: SearchQuery) => call<SearchPage>("klpbbs_search", { query }),
   resourceVersions: (source: ResourceSource, projectId: string, kind: ResourceKind, versionId: string) =>
     call<ResourceVersion[]>("resource_versions", { source, projectId, kind, versionId }),
   resourcePlan: (kind: ResourceKind, versionId: string, resource: ResourceVersion) =>

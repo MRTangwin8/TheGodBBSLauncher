@@ -44,7 +44,9 @@ async fn main() {
     let target = Target { dir: dir.clone(), kind: ResourceKind::Mod, game_version: Some(mc), loader };
     let env = GameEnv::detect(&game, &version_id).await.unwrap();
     let runtime = env.runtime_jar.as_deref().and_then(RuntimeJar::open).map(Arc::new);
-    let checker = Checker { env, runtime, cache_dir: game.root.join(".cache"), downloader: Downloader::new(api.client.clone(), mirror::Source::Official, 16) };
+    let downloader = Downloader::new(api.client.clone(), mirror::Source::Official, 16)
+        .with_curseforge_key(api.curseforge_key.as_deref());
+    let checker = Checker { env, runtime, cache_dir: game.root.join(".cache"), downloader: downloader.clone() };
     let plan = resolve::plan(&api, &target, chosen, Some(&checker)).await.expect("解析失败");
     for item in &plan.items {
         println!(
@@ -66,7 +68,6 @@ async fn main() {
     }
     println!("已安装：{:?} 未解决：{:?} 可选：{:?} 冲突：{:?}", plan.already_installed, plan.unresolved, plan.optional, plan.incompatible);
 
-    let downloader = Downloader::new(api.client.clone(), mirror::Source::Official, 16);
     let report = resolve::execute(&downloader, &dir, &plan, Some(&game.root.join(".cache")), Arc::new(|_| {})).await.unwrap();
     println!("下载 {} 跳过 {} 失败 {}", report.downloaded, report.skipped, report.failed.len());
     for f in &report.failed {

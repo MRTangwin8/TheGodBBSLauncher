@@ -150,3 +150,35 @@ async fn directories_are_not_complete_downloads() {
     task.size = None;
     assert!(!is_complete(&task, false).await);
 }
+
+#[test]
+fn download_keys_do_not_follow_other_hosts_or_downgrades() {
+    let official = reqwest::Url::parse("https://edge.forgecdn.net/files/1/2/mod.jar").unwrap();
+    let request = download_request(&official, 12, Some("local-test-key")).unwrap();
+    assert_eq!(request.headers()["x-api-key"], "local-test-key");
+    assert!(request.headers()["x-api-key"].is_sensitive());
+    assert_eq!(request.headers()[header::RANGE], "bytes=12-");
+
+    for next in [
+        "https://mod.mcimirror.top/files/1/2/mod.jar",
+        "https://cdn.modrinth.com/mod.jar",
+        "https://redirect.example.test/mod.jar",
+        "http://edge.forgecdn.net/files/1/2/mod.jar",
+    ] {
+        let request = download_request(&reqwest::Url::parse(next).unwrap(), 12, Some("local-test-key")).unwrap();
+        assert!(!request.headers().contains_key("x-api-key"), "{next}");
+        assert_eq!(request.headers()[header::RANGE], "bytes=12-");
+    }
+}
+
+#[tokio::test]
+async fn configured_keys_are_not_sent_to_an_unrelated_download_server() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("file");
+    let (url, server) = server(vec!["HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello"]).await;
+    let downloader = downloader().with_curseforge_key(Some("local-test-key"));
+    downloader.fetch(&url, &task(url.clone(), path), &Counters::default(), &mut 0).await.unwrap();
+    let request = &server.await.unwrap()[0];
+    assert!(!request.contains("x-api-key"));
+    assert!(!request.contains("local-test-key"));
+}

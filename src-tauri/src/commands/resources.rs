@@ -56,6 +56,11 @@ pub async fn resource_search(state: State<'_, AppState>, source: ResourceSource,
     api(&state).await.search(source, &query).await
 }
 
+#[tauri::command]
+pub async fn klpbbs_search(state: State<'_, AppState>, query: SearchQuery) -> Result<SearchPage> {
+    crate::engine::resources::klpbbs::search(&state.client, &query).await
+}
+
 /// 兼容所选游戏版本的资源版本
 #[tauri::command]
 pub async fn resource_versions(
@@ -94,7 +99,8 @@ async fn checker(state: &AppState, version_id: &str) -> Result<Checker> {
         Some(p) => tokio::task::spawn_blocking(move || RuntimeJar::open(&p)).await.ok().flatten().map(Arc::new),
         None => None,
     };
-    let downloader = Downloader::new(state.client.clone(), state.source().await, settings.concurrency);
+    let downloader = Downloader::new(state.client.clone(), state.source().await, settings.concurrency)
+        .with_curseforge_key(Some(&settings.curseforge_api_key));
     Ok(Checker { env, runtime, cache_dir: cache_dir(state), downloader })
 }
 
@@ -141,8 +147,9 @@ pub async fn resource_install(
 ) -> Result<DownloadReport> {
     let t = target(&state, &version_id, kind).await?;
     std::fs::create_dir_all(&t.dir)?;
-    let concurrency = state.settings.read().await.concurrency;
-    let downloader = Downloader::new(state.client.clone(), state.source().await, concurrency);
+    let settings = state.settings.read().await.clone();
+    let downloader = Downloader::new(state.client.clone(), state.source().await, settings.concurrency)
+        .with_curseforge_key(Some(&settings.curseforge_api_key));
     let report = Arc::new(move |progress| {
         let _ = app.emit(INSTALL_PROGRESS_EVENT, JobProgress { version_id: job_id.clone(), stage: Stage::Files, progress });
     });

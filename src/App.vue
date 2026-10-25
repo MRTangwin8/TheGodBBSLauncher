@@ -5,9 +5,10 @@ import { useSettingsStore } from "./stores/settings";
 import { useVersionsStore } from "./stores/versions";
 import { useAccountsStore } from "./stores/accounts";
 import { useModpackStore } from "./stores/modpack";
-import { currentLayout, setupAppearance } from "./appearance";
+import { currentLayout, pendingThemeImport, setupAppearance } from "./appearance";
 import ProgressFloat from "./components/ProgressFloat.vue";
 import ModpackImportDialog from "./components/ModpackImportDialog.vue";
+import ThemeImportDialog from "./components/ThemeImportDialog.vue";
 import ClassicShell from "./layouts/ClassicShell.vue";
 import SidebarShell from "./layouts/SidebarShell.vue";
 import ModernShell from "./layouts/ModernShell.vue";
@@ -27,10 +28,15 @@ onMounted(() => {
   settings.load();
   versions.loadInstalled();
   accounts.load();
-  // 把整合包文件拖进窗口直接导入
+  // 把整合包或主题文件拖进窗口直接导入
   if (inTauri) {
     getCurrentWebview().onDragDropEvent((e) => {
       if (e.payload.type !== "drop") return;
+      const theme = e.payload.paths.find((p) => /\.godtheme$/i.test(p));
+      if (theme) {
+        pendingThemeImport.value = theme;
+        return;
+      }
       const file = e.payload.paths.find((p) => /\.(mrpack|zip)$/i.test(p));
       if (file) modpack.importPath = file;
     });
@@ -42,4 +48,5 @@ onMounted(() => {
   <component :is="shell" />
   <ProgressFloat />
   <ModpackImportDialog v-if="modpack.importPath" :path="modpack.importPath" @close="modpack.importPath = null" />
+  <ThemeImportDialog v-if="pendingThemeImport" :path="pendingThemeImport" @close="pendingThemeImport = null" />
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { api } from "../api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, inTauri } from "../api";
 import type { InstallPlan, Project, ResourceKind, ResourceVersion } from "../api/types";
 import { useVersionsStore } from "../stores/versions";
 import { formatBytes, formatDate } from "../utils";
@@ -17,6 +18,11 @@ const plan = ref<InstallPlan | null>(null);
 const planning = ref(false);
 
 const typeLabel: Record<string, string> = { release: "正式", beta: "测试", alpha: "开发" };
+
+function openProject() {
+  if (inTauri) openUrl(props.project.pageUrl);
+  else window.open(props.project.pageUrl, "_blank", "noopener,noreferrer");
+}
 
 onMounted(async () => {
   try {
@@ -87,13 +93,15 @@ async function confirm() {
                   <span class="tag" :class="'rt-' + v.releaseType">{{ typeLabel[v.releaseType] ?? v.releaseType }}</span>
                   <b>{{ v.versionNumber }}</b>
                   <div class="muted small">{{ v.gameVersions.slice(0, 6).join(", ") }} · {{ v.loaders.join(", ") || "通用" }}</div>
+                  <div v-if="!v.file" class="muted small">未提供下载地址或第三方分发受限</div>
                 </td>
                 <td class="num">{{ formatDate(v.published) }}</td>
                 <td class="num">{{ v.file ? formatBytes(v.file.size) : "-" }}</td>
                 <td class="num">
-                  <button class="btn small primary" :disabled="!v.file || planning" @click="pick(v)">
+                  <button v-if="v.file" class="btn small primary" :disabled="planning" @click="pick(v)">
                     {{ planning && chosen?.id === v.id ? "下载并检查…" : "选这个" }}
                   </button>
+                  <button v-else class="btn small" @click="openProject">项目官网</button>
                 </td>
               </tr>
             </tbody>

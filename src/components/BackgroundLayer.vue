@@ -10,10 +10,21 @@ defineProps<{ kind: "scene" | "checker" | "mesh" }>();
   <div v-else-if="kind === 'scene'" class="bg scene"><div class="ground" /></div>
   <div v-else-if="kind === 'checker'" class="bg checker" />
   <div v-else class="bg mesh" />
+  <!-- 主题中心的"背景压暗" -->
+  <div class="dim" />
 </template>
 
 <style scoped>
-.bg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; }
+.bg {
+  position: fixed;
+  /* 模糊会让边缘透出底色，往外多铺一圈 */
+  inset: calc(var(--bg-blur, 0px) * -2);
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  filter: var(--bg-filter, none);
+}
+.dim { position: fixed; inset: 0; z-index: -1; background: #000; opacity: var(--bg-dim, 0); pointer-events: none; }
 .custom::after {
   /* 盖一层渐变，保证文字看得清 */
   content: "";

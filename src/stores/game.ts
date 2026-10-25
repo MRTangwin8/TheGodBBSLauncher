@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { computed, reactive, ref } from "vue";
 import { api, onGameExit, onGameLog } from "../api";
 import { useVersionsStore } from "./versions";
-import type { CrashAnalysis } from "../api/types";
+import type { CrashAnalysis, GameExit } from "../api/types";
 
 export interface GameRun {
   runId: string;
@@ -30,24 +30,35 @@ export const useGameStore = defineStore("game", () => {
 
   // 进程还没登记前就可能来日志，先暂存
   const early: Record<string, string[]> = {};
+  const earlyExits: Record<string, GameExit> = {};
+
+  function appendLine(lines: string[], line: string) {
+    lines.push(line);
+    if (lines.length > MAX_LINES) lines.splice(0, lines.length - MAX_LINES);
+  }
+
+  function applyExit(run: GameRun, event: GameExit) {
+    run.status = "exited";
+    run.code = event.code;
+    run.killed = event.killed;
+    run.analysis = event.analysis;
+  }
 
   onGameLog(({ runId, line }) => {
     const run = runs[runId];
     if (!run) {
-      (early[runId] ??= []).push(line);
+      if (launching.value) appendLine(early[runId] ??= [], line);
       return;
     }
-    run.lines.push(line);
-    if (run.lines.length > MAX_LINES) run.lines.splice(0, run.lines.length - MAX_LINES);
+    appendLine(run.lines, line);
   });
 
-  onGameExit(({ runId, code, killed, analysis }) => {
-    const run = runs[runId];
+  onGameExit((event) => {
+    const run = runs[event.runId];
     if (run) {
-      run.status = "exited";
-      run.code = code;
-      run.killed = killed;
-      run.analysis = analysis;
+      applyExit(run, event);
+    } else if (launching.value) {
+      earlyExits[event.runId] = event;
     }
   });
 
@@ -68,7 +79,9 @@ export const useGameStore = defineStore("game", () => {
         killed: false,
         analysis: null,
       };
+      if (earlyExits[r.runId]) applyExit(runs[r.runId], earlyExits[r.runId]);
       delete early[r.runId];
+      delete earlyExits[r.runId];
       current.value = r.runId;
       versions.dismiss(job.versionId);
       return true;
@@ -79,6 +92,8 @@ export const useGameStore = defineStore("game", () => {
       return false;
     } finally {
       launching.value = null;
+      for (const id of Object.keys(early)) delete early[id];
+      for (const id of Object.keys(earlyExits)) delete earlyExits[id];
     }
   }
 

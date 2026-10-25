@@ -15,6 +15,7 @@ use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::engine::mirror::{self, Source};
+use crate::engine::http;
 use crate::engine::{Error, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,6 +81,7 @@ pub struct Downloader {
     pub retries: usize,
     /// 已存在的文件是否重新算 SHA1。快速补全仅在已知大小时跳过哈希
     pub verify_existing: bool,
+    curseforge_key: Option<String>,
 }
 
 impl Downloader {
@@ -90,7 +92,13 @@ impl Downloader {
             concurrency: concurrency.max(1),
             retries: 3,
             verify_existing: true,
+            curseforge_key: None,
         }
+    }
+
+    pub fn with_curseforge_key(mut self, key: Option<&str>) -> Self {
+        self.curseforge_key = key.map(str::trim).filter(|key| !key.is_empty()).map(str::to_string);
+        self
     }
 
     /// 下载一批文件。单个文件失败不会中断其它文件，失败列表放在报告里。
@@ -179,7 +187,9 @@ impl Downloader {
             counters.bytes.fetch_add(task.size.unwrap_or(0), Ordering::Relaxed);
             return Ok(Outcome::Skipped);
         }
-        let urls = mirror::candidates(&task.url, self.primary);
+        let authenticated_cf = self.curseforge_key.is_some()
+            && reqwest::Url::parse(&task.url).is_ok_and(|url| http::curseforge_download(&url));
+        let urls = mirror::candidates(&task.url, if authenticated_cf { Source::Official } else { self.primary });
         let mut last_err = None;
         for attempt in 0..self.retries {
             if attempt > 0 {
@@ -216,11 +226,7 @@ impl Downloader {
             hash_file_into(&part, &mut hasher).await?;
         }
 
-        let mut req = self.client.get(url);
-        if existing > 0 {
-            req = req.header(header::RANGE, format!("bytes={existing}-"));
-        }
-        let resp = req.send().await?;
+        let resp = self.response(url, existing).await?;
         let status = resp.status();
 
         let response_size = if status == StatusCode::PARTIAL_CONTENT {
@@ -243,6 +249,11 @@ impl Downloader {
                 let _ = fs::remove_file(&part).await;
             }
             if status != StatusCode::OK {
+                if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN)
+                    && reqwest::Url::parse(url).is_ok_and(|url| http::curseforge_download(&url))
+                {
+                    return Err(Error::Other("CurseForge 文件下载被拒绝：请检查本地设置中的 API Key、应用权限或资源分发限制".into()));
+                }
                 return Err(Error::BadStatus { url: url.to_string(), status: status.as_u16() });
             }
             // 服务器不支持续传，从头开始
@@ -285,6 +296,46 @@ impl Downloader {
         fs::rename(&part, &task.path).await?;
         Ok(())
     }
+
+    async fn response(&self, url: &str, offset: u64) -> Result<reqwest::Response> {
+        let mut url = reqwest::Url::parse(url).map_err(|_| Error::Other("下载地址格式无效".into()))?;
+        if self.curseforge_key.is_none() || !http::curseforge_download(&url) {
+            let mut request = self.client.get(url);
+            if offset > 0 {
+                request = request.header(header::RANGE, format!("bytes={offset}-"));
+            }
+            return Ok(request.send().await?);
+        }
+
+        // Build each redirect request afresh: custom API-key headers must not follow arbitrary hosts.
+        for _ in 0..10 {
+            let request = download_request(&url, offset, self.curseforge_key.as_deref())?;
+            let response = http::credential_client().execute(request).await?;
+            if !matches!(response.status().as_u16(), 301 | 302 | 303 | 307 | 308) {
+                return Ok(response);
+            }
+            let Some(location) = response.headers().get(header::LOCATION).and_then(|value| value.to_str().ok()) else {
+                return Ok(response);
+            };
+            let next = url.join(location).map_err(|_| Error::Other("下载服务器返回了无效的跳转地址".into()))?;
+            if next.scheme() != "https" || !next.username().is_empty() || next.password().is_some() {
+                return Err(Error::Other("已拒绝不安全的文件下载跳转".into()));
+            }
+            url = next;
+        }
+        Err(Error::Other("文件下载跳转次数过多".into()))
+    }
+}
+
+fn download_request(url: &reqwest::Url, offset: u64, key: Option<&str>) -> Result<reqwest::Request> {
+    let mut request = http::credential_client().get(url.clone());
+    if offset > 0 {
+        request = request.header(header::RANGE, format!("bytes={offset}-"));
+    }
+    if let Some(key) = key.filter(|_| http::curseforge_download(url)) {
+        request = request.header("x-api-key", http::api_key_header(key)?);
+    }
+    Ok(request.build()?)
 }
 
 /// A suffix response must start at our offset and reach the end of the same file.

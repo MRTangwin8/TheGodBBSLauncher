@@ -1,8 +1,11 @@
+use std::path::{Path, PathBuf};
+
 use tauri::State;
 
 use super::AppState;
 use crate::config::{self, Settings};
 use crate::engine::mirror::{self, ProbeResult};
+use crate::engine::theme::{self, ThemePreview};
 use crate::engine::{Error, Result};
 
 #[tauri::command]
@@ -45,4 +48,41 @@ pub async fn probe_mirrors(state: State<'_, AppState>) -> Result<Vec<ProbeResult
     }
     *state.auto_source.lock().await = Some(mirror::fastest(&results));
     Ok(results)
+}
+
+/// 把当前外观导出成 .godtheme
+#[tauri::command]
+pub async fn theme_export(state: State<'_, AppState>, path: PathBuf, name: String, author: String) -> Result<()> {
+    let settings = state.settings.read().await.clone();
+    let bytes = tokio::task::spawn_blocking(move || theme::export(&name, &author, &settings))
+        .await
+        .map_err(|e| Error::Other(e.to_string()))??;
+    tokio::fs::write(&path, bytes).await?;
+    Ok(())
+}
+
+async fn read_theme(path: &Path) -> Result<theme::ThemeFile> {
+    let meta = tokio::fs::metadata(path).await?;
+    // base64 后会比原图大三分之一，再留点 JSON 的余量
+    if meta.len() as usize > theme::MAX_IMAGE / 3 * 4 + 64 * 1024 {
+        return Err(Error::Other("主题文件太大了".into()));
+    }
+    theme::parse(&tokio::fs::read(path).await?)
+}
+
+/// 导入前预览
+#[tauri::command]
+pub async fn theme_preview(path: PathBuf) -> Result<ThemePreview> {
+    Ok(theme::preview(&read_theme(&path).await?))
+}
+
+/// 导入并立即应用，返回新的设置
+#[tauri::command]
+pub async fn theme_import(state: State<'_, AppState>, path: PathBuf) -> Result<Settings> {
+    let file = read_theme(&path).await?;
+    let mut settings = state.settings.read().await.clone();
+    theme::apply(file, &mut settings, &state.data_dir.join("themes"))?;
+    config::save(&state.config_path, &settings)?;
+    *state.settings.write().await = settings.clone();
+    Ok(settings)
 }

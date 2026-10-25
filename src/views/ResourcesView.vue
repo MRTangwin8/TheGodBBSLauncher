@@ -7,14 +7,15 @@ import type { CompatReport, LocalResource, Project, ResourceKind, ResourceSource
 import { useVersionsStore } from "../stores/versions";
 import { formatBytes, formatDate, loaderLabel } from "../utils";
 import ResourceDialog from "../components/ResourceDialog.vue";
+import CommunitySources from "../components/CommunitySources.vue";
 
 const versions = useVersionsStore();
 const route = useRoute();
 
 const versionId = ref<string>("");
 const kind = ref<ResourceKind>("mod");
-const source = ref<ResourceSource>("modrinth");
-const tab = ref<"browse" | "installed">("browse");
+const source = ref<ResourceSource | "klpbbs">("modrinth");
+const tab = ref<"browse" | "installed" | "community">("browse");
 const query = ref("");
 const sort = ref<SortBy>("relevance");
 const PAGE = 20;
@@ -55,12 +56,18 @@ onMounted(async () => {
   // 从首页「管理模组」进来时带着版本；否则选第一个装了加载器的版本
   const wanted = route.query.version as string | undefined;
   versionId.value = (versions.installed.find((v) => v.id === wanted) ?? versions.installed.find((v) => v.loader) ?? versions.installed[0])?.id ?? "";
+  if (!versionId.value) await search();
 });
 
 const isVanillaMod = computed(() => kind.value === "mod" && target.value && !target.value.loader);
 
 watch([versionId, kind], async () => {
-  if (!versionId.value) return;
+  if (!versionId.value) {
+    target.value = null;
+    offset.value = 0;
+    await refresh();
+    return;
+  }
   error.value = null;
   try {
     target.value = await api.resourceTarget(versionId.value, kind.value);
@@ -81,23 +88,26 @@ watch(tab, refresh);
 
 async function refresh() {
   if (tab.value === "browse") await search();
-  else await loadLocal();
+  else if (tab.value === "installed") await loadLocal();
 }
 
 async function search() {
-  if (!target.value || tab.value !== "browse") return;
+  if (tab.value !== "browse") return;
   searching.value = true;
   error.value = null;
   try {
-    page.value = await api.resourceSearch(source.value, {
+    const searchQuery = {
       query: query.value,
       kind: kind.value,
-      gameVersion: target.value.mcVersion,
-      loader: kind.value === "mod" ? target.value.loader : null,
+      gameVersion: target.value?.mcVersion ?? null,
+      loader: kind.value === "mod" ? target.value?.loader ?? null : null,
       sort: sort.value,
       offset: offset.value,
       limit: PAGE,
-    });
+    };
+    page.value = source.value === "klpbbs"
+      ? await api.klpbbsSearch(searchQuery)
+      : await api.resourceSearch(source.value, searchQuery);
   } catch (e) {
     error.value = String(e);
     page.value = null;
@@ -161,7 +171,7 @@ function formatCount(n: number) {
   <div class="box">
     <div class="box-title">
       资源中心
-      <span class="extra target">
+      <span v-if="tab !== 'community' && versions.installed.length" class="extra target">
         安装到
         <select v-model="versionId" class="input small-select">
           <option v-for="v in versions.installed" :key="v.id" :value="v.id">
@@ -174,21 +184,22 @@ function formatCount(n: number) {
       </span>
     </div>
 
-    <div v-if="!versions.installed.length" class="box-body muted">
+    <div class="toolbar">
+      <div v-if="tab !== 'community'" class="tabs">
+        <a v-for="k in kinds" :key="k.key" :class="{ active: kind === k.key }" @click="kind = k.key">{{ k.label }}</a>
+      </div>
+      <div class="tabs">
+        <a :class="{ active: tab === 'browse' }" @click="tab = 'browse'">找资源</a>
+        <a :class="{ active: tab === 'installed' }" @click="tab = 'installed'">已安装</a>
+        <a :class="{ active: tab === 'community' }" @click="tab = 'community'">整合包与社区</a>
+      </div>
+    </div>
+    <CommunitySources v-if="tab === 'community'" />
+    <div v-else-if="tab === 'installed' && !versions.installed.length" class="box-body muted">
       还没有安装任何版本，先去 <RouterLink to="/download">下载中心</RouterLink> 装一个吧。
     </div>
 
     <template v-else>
-      <div class="toolbar">
-        <div class="tabs">
-          <a v-for="k in kinds" :key="k.key" :class="{ active: kind === k.key }" @click="kind = k.key">{{ k.label }}</a>
-        </div>
-        <div class="tabs">
-          <a :class="{ active: tab === 'browse' }" @click="tab = 'browse'">找资源</a>
-          <a :class="{ active: tab === 'installed' }" @click="tab = 'installed'">已安装</a>
-        </div>
-      </div>
-
       <div v-if="isVanillaMod" class="box-body">
         <div class="mod-tip">【版主提示】{{ versionId }} 是原版，装模组需要先在「下载中心」给它装上 Fabric / Forge 等加载器。</div>
       </div>
@@ -201,6 +212,7 @@ function formatCount(n: number) {
             <a :class="{ active: source === 'curseforge' }" @click="source = 'curseforge'">
               CurseForge<span v-if="target?.curseforgeViaMirror" class="muted mirror">（镜像）</span>
             </a>
+            <a :class="{ active: source === 'klpbbs' }" @click="source = 'klpbbs'">KLPBBS 中文</a>
           </div>
           <input v-model="query" class="input grow" placeholder="搜索模组、资源包、光影…" />
           <select v-model="sort" class="input">
@@ -216,7 +228,7 @@ function formatCount(n: number) {
 
         <table v-if="page" class="thread-table results" :class="{ dim: searching }">
           <tbody>
-            <tr v-for="p in page.hits" :key="p.id">
+            <tr v-for="p in page.hits" :key="`${p.source}:${p.id}`">
               <td class="icon-cell">
                 <img v-if="p.iconUrl" :src="p.iconUrl" alt="" loading="lazy" />
                 <div v-else class="icon-placeholder">{{ p.title.slice(0, 1) }}</div>
@@ -224,6 +236,7 @@ function formatCount(n: number) {
               <td>
                 <a class="title" @click="open(p.pageUrl)">{{ p.title }}</a>
                 <span class="muted by">by {{ p.author }}</span>
+                <span v-if="source === 'klpbbs'" class="muted by">{{ p.source === "curseforge" ? "CurseForge" : "Modrinth" }}</span>
                 <div class="desc">{{ p.description }}</div>
                 <div class="cats">
                   <span v-for="c in p.categories.slice(0, 4)" :key="c" class="cat">{{ c }}</span>
@@ -234,7 +247,7 @@ function formatCount(n: number) {
                 <div class="muted">{{ formatDate(p.updated) }}</div>
               </td>
               <td class="num">
-                <button class="btn small primary" :disabled="!!isVanillaMod" @click="dialog = p">安装</button>
+                <button class="btn small primary" :disabled="!versionId || !!isVanillaMod" :title="!versionId ? '先安装一个游戏版本，再选择安装目标' : undefined" @click="dialog = p">安装</button>
               </td>
             </tr>
             <tr v-if="!page.hits.length"><td colspan="4" class="muted">没有找到相关资源</td></tr>
@@ -298,12 +311,12 @@ function formatCount(n: number) {
 <style scoped>
 .target { display: flex; align-items: center; gap: 6px; }
 .small-select { padding: 2px 6px; font-size: 12px; max-width: 260px; }
-.toolbar { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border); }
 .tabs { display: flex; }
 .tabs a { padding: 4px 12px; border: 1px solid var(--border); margin-right: -1px; background: var(--bg-box-alt); color: var(--text); white-space: nowrap; }
 .tabs a:hover { text-decoration: none; background: var(--bg-title); }
 .tabs a.active { background: var(--bg-box); font-weight: bold; color: var(--brown-dark); }
-.search { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px dashed var(--border); }
+.search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px dashed var(--border); }
 .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mirror { font-size: 11px; font-weight: normal; }
 .results.dim { opacity: 0.6; }

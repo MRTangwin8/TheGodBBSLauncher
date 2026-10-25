@@ -6,6 +6,7 @@ pub mod curseforge;
 pub mod local;
 pub mod modrinth;
 pub mod resolve;
+pub mod klpbbs;
 
 use serde::{Deserialize, Serialize};
 

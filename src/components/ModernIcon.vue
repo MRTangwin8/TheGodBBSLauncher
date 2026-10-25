@@ -16,6 +16,7 @@ const PATHS: Record<string, string[]> = {
     "M17 11h.01",
   ],
   folder: ["M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"],
+  external: ["M14 3h7v7", "m21 3-9 9", "M10 3H3v18h18v-7"],
 };
 
 withDefaults(defineProps<{ name: string; size?: number }>(), { size: 20 });

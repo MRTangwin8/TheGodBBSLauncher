@@ -410,7 +410,7 @@ mod tests {
     #[test]
     fn detects_unusual_temp_paths() {
         assert!(is_clean_path(Path::new(r"C:\Users\Steve\AppData\Local\Temp")));
-        assert!(!is_clean_path(Path::new(r"C:\Users\MRTANG~1\AppData\Local\Temp")), "8.3 短名");
+        assert!(!is_clean_path(Path::new(r"C:\Users\STEVE~1\AppData\Local\Temp")), "8.3 短名");
         assert!(!is_clean_path(Path::new(r"C:\Users\张三\AppData\Local\Temp")), "中文用户名");
         assert!(!is_clean_path(Path::new(&format!(r"C:\{}", "a".repeat(80)))), "太长");
         assert_eq!(unix_socket_dir(Path::new(r"C:\Users\Steve\AppData\Local\Temp"), Path::new("unused")), None, "正常路径不加参数");

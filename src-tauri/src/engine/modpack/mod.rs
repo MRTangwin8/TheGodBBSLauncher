@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use crate::engine::loader::LoaderKind;
 use crate::engine::resources::curseforge;
-use crate::engine::resources::ResourceApi;
+use crate::engine::resources::{ResourceApi, ResourceVersion};
 use crate::engine::{Error, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -355,7 +355,7 @@ impl Modpack {
             }
             Manifest::CurseForge(m) => {
                 let refs: Vec<(u64, u64)> = m.files.iter().filter(|f| f.required).map(|f| (f.project_id, f.file_id)).collect();
-                out.extend(resolve_curseforge(api, &refs, &mut warnings).await?);
+                out.extend(resolve_curseforge(api, &refs).await?);
             }
             Manifest::Mcbbs(m) => {
                 let mut curse = Vec::new();
@@ -378,7 +378,7 @@ impl Modpack {
                         _ => {}
                     }
                 }
-                out.extend(resolve_curseforge(api, &curse, &mut warnings).await?);
+                out.extend(resolve_curseforge(api, &curse).await?);
             }
         }
         Ok((out, warnings))
@@ -428,32 +428,34 @@ fn mcbbs_needs_download(f: &Value, file_api: &Option<String>) -> bool {
 }
 
 /// CurseForge 的 (projectID, fileID) → 下载地址，按项目类型放进 mods / resourcepacks / shaderpacks
-async fn resolve_curseforge(api: &ResourceApi, refs: &[(u64, u64)], warnings: &mut Vec<String>) -> Result<Vec<PackFile>> {
+async fn resolve_curseforge(api: &ResourceApi, refs: &[(u64, u64)]) -> Result<Vec<PackFile>> {
     if refs.is_empty() {
         return Ok(vec![]);
     }
     let ids: Vec<u64> = refs.iter().map(|(_, f)| *f).collect();
     let files = curseforge::files_by_ids(api, &ids).await?;
     let mod_ids: Vec<String> = refs.iter().map(|(p, _)| p.to_string()).collect();
-    let classes = curseforge::mod_classes(api, &mod_ids).await.unwrap_or_default();
-    let found: std::collections::HashSet<String> = files.iter().map(|v| v.id.clone()).collect();
-    for (p, f) in refs {
-        if !found.contains(&f.to_string()) {
-            warnings.push(format!("CurseForge 上找不到文件 {f}（项目 {p}），可能已被作者删除"));
+    let classes = curseforge::mod_classes(api, &mod_ids).await?;
+    curseforge_pack_files(&files, refs, &classes)
+}
+
+fn curseforge_pack_files(files: &[ResourceVersion], refs: &[(u64, u64)], classes: &HashMap<String, u32>) -> Result<Vec<PackFile>> {
+    refs.iter().map(|(project, id)| {
+        let version = files.iter().find(|file| file.id == id.to_string() && file.project_id == project.to_string())
+            .ok_or_else(|| Error::Other(format!("整合包必需的 CurseForge 文件 {id}（项目 {project}）不存在或不可访问，已停止导入")))?;
+        let file = version.file.as_ref()
+            .ok_or_else(|| Error::Other(format!("整合包必需的 CurseForge 文件 {id}（项目 {project}）未提供下载地址，可能受分发限制，已停止导入")))?;
+        if !safe_rel(&file.filename).is_some_and(|name| name == file.filename && !name.contains('/')) {
+            return Err(Error::Other("CurseForge 返回了不安全的文件名，已停止导入".into()));
         }
-    }
-    Ok(files
-        .into_iter()
-        .filter_map(|v| {
-            let file = v.file?;
-            let folder = match classes.get(&v.project_id) {
-                Some(12) => "resourcepacks",
-                Some(6552) => "shaderpacks",
-                _ => "mods",
-            };
-            Some(PackFile { path: format!("{folder}/{}", file.filename), url: file.url, sha1: file.sha1, size: file.size })
-        })
-        .collect())
+        let folder = match classes.get(&version.project_id) {
+            Some(6) => "mods",
+            Some(12) => "resourcepacks",
+            Some(6552) => "shaderpacks",
+            _ => return Err(Error::Other(format!("无法确定 CurseForge 项目 {project} 的资源类型，已停止导入"))),
+        };
+        Ok(PackFile { path: format!("{folder}/{}", file.filename), url: file.url.clone(), sha1: file.sha1.clone(), size: file.size })
+    }).collect()
 }
 
 #[cfg(test)]

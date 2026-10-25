@@ -100,7 +100,17 @@ src/
   - 强调色：`--grass`、`--grass-light`、`--grass-dark`、`--gold`、`--red`
   - 木头边框：`--wood`、`--wood-dark`、`--wood-light`；标题色：`--brown-dark`
   - 圆角：`--radius`、`--radius-sm`
-- 新配色：在 `palettes.css` 加 `:root[data-palette="x"]` 和 `[data-theme="dark"]` 两套，再把名字加进 `appearance.ts` 的 `PALETTES` 和 `ThemeView.vue` 的 `palettes`。
+- 新配色：在 `palettes.css` 加 `:root[data-palette="x"]` 和 `[data-theme="dark"]` 两套，再把名字加进三处：`appearance.ts` 的 `PALETTES`、`ThemeView.vue` 的 `palettes`、`engine/theme.rs` 的 `PALETTES`。
+- 自定义配色（`palette = "custom"`）：
+  - 只存四个基础色（`Settings.customPalette`）；
+  - `colors.ts` 推算整套变量，包括深色版本；
+  - `appearance.ts` 把结果写成 `<html>` 上的内联变量，优先级高于所有样式表；
+  - 现代布局只写强调色。
+- 外观细调（`Settings.tweaks`）也走内联变量：`--radius`、`--bg-box`、`--blur`、`--bg-filter`、`--bg-dim`、`--font-size`、`--font`；关掉动画时设 `data-motion="off"`。
+- 主题文件 `.godtheme`：
+  - 格式由 `engine/theme.rs` 定义，是 JSON，背景图用 base64 内嵌；
+  - 导入时清洗所有字段，因为主题文件来自别人，不可信；
+  - 新增可导出的外观字段时，要同时改 `ThemeFile`、`apply` 和清洗函数。
 - 新布局：新建 `layouts/XxxShell.vue`，然后：
   - 加进 `appearance.ts` 的 `LAYOUTS`、`App.vue` 的映射、`ThemeView.vue` 的 `layouts`；
   - 改 `types.ts` 里 `Settings.layout` 的联合类型；
@@ -158,11 +168,13 @@ cd src-tauri && cargo clippy && cargo test
 - 加载器、崩溃分析；
 - 资源中心（含下载时兼容性检查）、整合包导入导出。
 
-最近一批界面改动（尚未提交）：
+界面：
 - 无边框窗口和自绘标题栏，快捷键屏蔽，真实皮肤显示；
 - 主题中心：
   - 三种布局：经典论坛（默认）、木板侧栏（可收起）、完全现代；
-  - 七套配色，深浅色可跟随系统，自定义背景图；
+  - 七套配色加自定义配色编辑器，深浅色可跟随系统，自定义背景图；
+  - 预设主题和外观细调：圆角、透明度、毛玻璃、背景模糊和压暗、字号、字体、动画；
+  - `.godtheme` 主题导入导出，主题文件可以直接拖进窗口；
 - 首页：经典布局带快速启动，侧栏和现代布局用启动器式首页；
 - 游玩时长统计、记住上次启动的版本。
 

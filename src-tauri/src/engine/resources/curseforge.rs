@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 
 use super::{DepKind, Dependency, Project, ResFile, ResourceApi, ResourceKind, ResourceSource, ResourceVersion, SearchPage, SearchQuery, SortBy};
 use crate::engine::loader::LoaderKind;
+use crate::engine::http;
 use crate::engine::{Error, Result};
 
 const OFFICIAL: &str = "https://api.curseforge.com/v1";
@@ -16,7 +17,7 @@ const MCIM: &str = "https://mod.mcimirror.top/curseforge/v1";
 const MINECRAFT: u32 = 432;
 
 fn base(api: &ResourceApi) -> &'static str {
-    if api.curseforge_key.is_some() {
+    if api.curseforge_key.as_deref().is_some_and(|key| !key.trim().is_empty()) {
         OFFICIAL
     } else {
         MCIM
@@ -29,13 +30,17 @@ async fn send<T: DeserializeOwned>(api: &ResourceApi, path: &str, params: &[(&st
         Some(b) => api.client.post(&url).json(b),
         None => api.client.get(&url).query(params),
     };
-    if let Some(key) = &api.curseforge_key {
-        req = req.header("x-api-key", key);
-    }
-    let resp = req.send().await?;
+    let resp = if let Some(key) = api.curseforge_key.as_deref().map(str::trim).filter(|key| !key.is_empty()) {
+        req = req.header("x-api-key", http::api_key_header(key)?);
+        http::credential_client().execute(req.build()?).await?
+    } else {
+        req.send().await?
+    };
     match resp.status().as_u16() {
         200..=299 => Ok(resp.json().await?),
-        401 | 403 => Err(Error::Other("CurseForge 拒绝了请求，请检查「设置」里的 API Key".into())),
+        401 | 403 if base(api) == OFFICIAL => Err(Error::Other("CurseForge 拒绝了请求，请检查「设置」里的 API Key 和应用权限".into())),
+        401 | 403 => Err(Error::Other("CurseForge 社区镜像拒绝了请求；可稍后重试，或在本地设置自己的 API Key 后使用官方接口".into())),
+        429 => Err(Error::Other("CurseForge 请求过于频繁，请稍后重试".into())),
         s => Err(Error::BadStatus { url, status: s }),
     }
 }
@@ -194,18 +199,6 @@ struct CfDep {
     relation_type: u32,
 }
 
-/// 作者禁止第三方分发时 downloadUrl 为空，按 CDN 规则拼出地址
-fn cdn_url(id: u64, file_name: &str) -> String {
-    let mut url = reqwest::Url::parse("https://edge.forgecdn.net/").expect("固定地址");
-    url.path_segments_mut()
-        .expect("https 地址")
-        .push("files")
-        .push(&(id / 1000).to_string())
-        .push(&(id % 1000).to_string())
-        .push(file_name);
-    url.to_string()
-}
-
 impl From<CfFile> for ResourceVersion {
     fn from(f: CfFile) -> Self {
         let loaders = f
@@ -230,8 +223,8 @@ impl From<CfFile> for ResourceVersion {
                 _ => "alpha",
             }
             .into(),
-            file: Some(ResFile {
-                url: f.download_url.filter(|u| !u.is_empty()).unwrap_or_else(|| cdn_url(f.id, &f.file_name)),
+            file: f.download_url.filter(|url| !url.trim().is_empty()).map(|url| ResFile {
+                url,
                 sha1: f.hashes.iter().find(|h| h.algo == 1).map(|h| h.value.clone()),
                 filename: f.file_name,
                 size: f.file_length,
@@ -383,22 +376,43 @@ mod tests {
     }
 
     #[test]
-    fn converts_file_and_builds_cdn_url() {
+    fn converts_file_with_an_explicit_download_url() {
         let f: CfFile = serde_json::from_str(r#"{
             "id": 9298209, "modId": 238222, "displayName": "15.74.0.229 for Forge 1.20.1",
-            "fileName": "jei 1.20.1+forge.jar", "downloadUrl": null, "fileLength": 6892564,
+            "fileName": "jei 1.20.1+forge.jar", "downloadUrl": "https://edge.forgecdn.net/files/9298/209/jei.jar", "fileLength": 6892564,
             "gameVersions": ["Client", "1.20.1", "Forge", "Server"], "releaseType": 2, "fileDate": "2026-10-23T14:03:50Z",
             "hashes": [{"value": "f3ef", "algo": 1}, {"value": "md5", "algo": 2}],
             "dependencies": [{"modId": 1, "relationType": 2}, {"modId": 2, "relationType": 3}, {"modId": 3, "relationType": 4}]
         }"#).unwrap();
         let v: ResourceVersion = f.into();
         let file = v.file.unwrap();
-        assert_eq!(file.url, "https://edge.forgecdn.net/files/9298/209/jei%201.20.1+forge.jar");
+        assert_eq!(file.url, "https://edge.forgecdn.net/files/9298/209/jei.jar");
         assert_eq!(file.sha1.as_deref(), Some("f3ef"));
         assert_eq!(v.loaders, ["forge"]);
         assert_eq!(v.game_versions, ["1.20.1"]);
         assert_eq!(v.release_type, "beta");
         assert_eq!(v.dependencies.len(), 2, "Tool 类依赖忽略");
         assert_eq!(v.dependencies[1].kind, DepKind::Required);
+    }
+
+    #[test]
+    fn does_not_guess_download_urls_for_restricted_files() {
+        for download_url in [Value::Null, json!(""), json!("   ")] {
+            let file: CfFile = serde_json::from_value(json!({
+                "id": 1, "modId": 2, "displayName": "Restricted file",
+                "fileName": "restricted.jar", "downloadUrl": download_url
+            })).unwrap();
+            let version: ResourceVersion = file.into();
+            assert!(version.file.is_none());
+            assert_eq!(version.project_id, "2");
+        }
+    }
+
+    #[test]
+    fn blank_keys_use_the_community_mirror() {
+        let mut api = ResourceApi { client: reqwest::Client::new(), curseforge_key: Some(" \t ".into()) };
+        assert_eq!(base(&api), MCIM);
+        api.curseforge_key = Some("local-test-key".into());
+        assert_eq!(base(&api), OFFICIAL);
     }
 }

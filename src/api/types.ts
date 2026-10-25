@@ -50,6 +50,39 @@ export interface Settings {
   theme: "light" | "dark" | "system";
   backgroundImage: string | null;
   lastVersion: string | null;
+  customPalette: CustomPalette;
+  tweaks: Tweaks;
+}
+
+/** 自定义配色的四个基础色（#rrggbb） */
+export interface CustomPalette {
+  accent: string;
+  surface: string;
+  text: string;
+  wood: string;
+}
+
+/** 外观细调；null 表示用布局默认值 */
+export interface Tweaks {
+  radius: number | null;
+  cardOpacity: number | null;
+  cardBlur: number | null;
+  bgBlur: number;
+  bgDim: number;
+  fontSize: number;
+  font: string;
+  animations: boolean;
+}
+
+export interface ThemePreview {
+  name: string;
+  author: string;
+  layout: Settings["layout"] | null;
+  palette: string | null;
+  theme: Settings["theme"] | null;
+  customPalette: CustomPalette | null;
+  /** 背景图 data URL */
+  background: string | null;
 }
 
 export interface ProbeResult {

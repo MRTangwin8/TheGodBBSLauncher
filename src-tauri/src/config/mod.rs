@@ -39,6 +39,56 @@ pub struct Settings {
     pub background_image: Option<PathBuf>,
     /// 首页默认选中的版本（上次启动的）
     pub last_version: Option<String>,
+    /// palette = "custom" 时用的自定义配色
+    pub custom_palette: CustomPalette,
+    /// 外观细调（圆角、透明度、字体……）
+    pub tweaks: Tweaks,
+}
+
+/// 自定义配色：四个基础色，其余变量（深色版本、边框、悬停色）由前端推算
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CustomPalette {
+    /// 强调色（按钮、选中项）
+    pub accent: String,
+    /// 卡片底色
+    pub surface: String,
+    pub text: String,
+    /// "木头"色：导航、边框、标题
+    pub wood: String,
+}
+
+impl Default for CustomPalette {
+    fn default() -> Self {
+        Self { accent: "#5e9c35".into(), surface: "#fbf2db".into(), text: "#3d2f1f".into(), wood: "#6b4a2b".into() }
+    }
+}
+
+/// 外观细调；Option 为 None 表示用布局自己的默认值
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Tweaks {
+    /// 卡片圆角 px
+    pub radius: Option<u32>,
+    /// 卡片不透明度 0~100
+    pub card_opacity: Option<u32>,
+    /// 卡片毛玻璃强度 px
+    pub card_blur: Option<u32>,
+    /// 背景模糊 px
+    pub bg_blur: u32,
+    /// 背景压暗 0~100
+    pub bg_dim: u32,
+    /// 基础字号 px
+    pub font_size: u32,
+    /// 字体；空字符串表示默认
+    pub font: String,
+    pub animations: bool,
+}
+
+impl Default for Tweaks {
+    fn default() -> Self {
+        Self { radius: None, card_opacity: None, card_blur: None, bg_blur: 0, bg_dim: 0, font_size: 13, font: String::new(), animations: true }
+    }
 }
 
 impl Default for Settings {
@@ -61,6 +111,8 @@ impl Default for Settings {
             theme: "light".into(),
             background_image: None,
             last_version: None,
+            custom_palette: CustomPalette::default(),
+            tweaks: Tweaks::default(),
         }
     }
 }

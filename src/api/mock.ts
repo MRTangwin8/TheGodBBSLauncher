@@ -37,6 +37,8 @@ let settings: Settings = {
   theme: "light",
   backgroundImage: null,
   lastVersion: "fabric-loader-0.16.9-1.21.1",
+  customPalette: { accent: "#5e9c35", surface: "#fbf2db", text: "#3d2f1f", wood: "#6b4a2b" },
+  tweaks: { radius: null, cardOpacity: null, cardBlur: null, bgBlur: 0, bgDim: 0, fontSize: 13, font: "", animations: true },
 };
 const installed: InstalledVersion[] = [
   { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1", playTimeSecs: 45000, lastPlayed: 1792850000, modpack: null },
@@ -80,6 +82,13 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
             { id: "0.17.0-beta.1", version: "0.17.0-beta.1", stable: false },
           ],
     resource_target: () => ({ mcVersion: "1.21.1", loader: "fabric", dir: "C:/mc/versions/fabric-loader-0.16.9-1.21.1/mods", curseforgeViaMirror: true }),
+    klpbbs_search: () => ({
+      total: 2,
+      hits: [
+        { source: "curseforge", id: "238222", slug: "jei", title: "JEI 物品管理器", description: "查询物品、配方与用途。", author: "mezz", iconUrl: null, downloads: 460000000, categories: ["物品管理"], updated: "2026-10-01T00:00:00Z", pageUrl: "https://www.curseforge.com/minecraft/mc-mods/jei" },
+        { source: "modrinth", id: "AANobbMI", slug: "sodium", title: "钠 Sodium", description: "Minecraft 客户端渲染优化模组。", author: "jellysquid3", iconUrl: null, downloads: 80000000, categories: ["优化"], updated: "2026-10-01T00:00:00Z", pageUrl: "https://modrinth.com/mod/sodium" },
+      ],
+    }),
     resource_search: () => ({
       total: 2,
       hits: [

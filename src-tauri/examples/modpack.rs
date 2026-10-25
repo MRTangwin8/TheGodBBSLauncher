@@ -42,7 +42,8 @@ async fn import(api: &ResourceApi, path: &Path, game: GameDir, name: &str) {
     println!("{:?} 整合包「{}」{}：MC {}，{:?} {:?}，{} 个文件需下载，{} 个自带文件", info.format, info.name, info.version, info.mc, info.loader, info.loader_version, info.file_count, info.override_count);
 
     let platform = Platform::current();
-    let downloader = Downloader::new(api.client.clone(), mirror::Source::Official, 64);
+    let downloader = Downloader::new(api.client.clone(), mirror::Source::Official, 64)
+        .with_curseforge_key(api.curseforge_key.as_deref());
     let quiet = Arc::new(|_, _| {});
     let manifest = install::fetch_manifest(&api.client, mirror::Source::Official).await.unwrap();
     let entry = manifest.find(&info.mc).expect("原版不存在").clone();

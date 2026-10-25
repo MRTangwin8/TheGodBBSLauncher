@@ -19,6 +19,7 @@
 - [x] 资源中心：Modrinth / CurseForge 搜索模组、资源包、光影，自动解析前置，已装识别（哈希），启用/禁用/删除
 - [x] 下载时兼容性检查：平台、依赖版本范围、Mixin 注入点是否存在于当前游戏 jar（含 Jar-in-Jar），不兼容的前置自动换成兼容版本
 - [x] 整合包导入导出：Modrinth（.mrpack）/ CurseForge / MCBBS 三种格式，可拖进窗口导入；导出时能在平台上找到的模组只写下载链接
+- [x] KLPBBS 公开中文目录搜索；纪念版资源中心和红石中继站通过系统浏览器访问，见 [资源来源说明](docs/RESOURCES.md)
 - [ ] 插件系统、自动更新等后续工作，见 [开发状态与下一步](docs/STATUS.md)
 
 ## 开发
@@ -29,6 +30,7 @@
 npm install
 npm run tauri dev      # 桌面窗口
 npm run dev            # 仅浏览器预览界面（假数据）
+npm test               # 启动事件和社区入口回归测试
 ```
 
 ```bash
@@ -66,3 +68,7 @@ src-tauri/src/
 src/
   views/ components/ stores/ api/ themes/
 ```
+
+## 许可证
+
+代码以 [MIT 许可证](LICENSE) 开源。"MCBBS""我的世界中文论坛"等名称不在许可范围内；Minecraft 是 Mojang Studios 的商标，本项目与其无关。

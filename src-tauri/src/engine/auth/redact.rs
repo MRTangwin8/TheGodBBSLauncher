@@ -26,7 +26,7 @@ impl LogRedactor {
         static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
         let patterns = PATTERNS.get_or_init(|| {
             [
-                r#"(?i)(\b(?:access[_-]?token|refresh[_-]?token|client[_-]?token|device[_-]?code|password)\b["']?\s*(?::|=|\s)\s*)(?:"[^"]*"|'[^']*'|[^\s,;<>"']+)"#,
+                r#"(?i)(\b(?:access[_-]?token|refresh[_-]?token|client[_-]?token|device[_-]?code|(?:x-)?api[_-]?key|password)\b["']?\s*(?::|=|\s)\s*)(?:"[^"]*"|'[^']*'|[^\s,;&<>"']+)"#,
                 r"(?i)(\b(?:bearer|basic)\s+)[A-Za-z0-9._~+/\-=]+",
                 r#"(?i)(\btoken:)[^:\s"'<>]+"#,
             ]
@@ -62,6 +62,8 @@ mod tests {
             "clientToken = secret-value",
             r#"device_code: 'secret value with spaces'"#,
             r#"password="secret value with spaces""#,
+            "x-api-key: secret-value",
+            "https://example.test/file?api-key=secret-value&version=1",
         ] {
             let clean = redactor.redact(text);
             assert!(!clean.contains("secret"), "{clean}");

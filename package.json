@@ -2,11 +2,13 @@
   "name": "godbbs-launcher",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
+    "test": "node --test tests/game.test.mjs tests/community.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },
