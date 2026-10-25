@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
-import { api } from "../api";
+import { api, inTauri } from "../api";
+import { getVersion } from "@tauri-apps/api/app";
 import type { JavaInstall, MemoryInfo, ProbeResult, RulesInfo, Settings } from "../api/types";
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
@@ -93,6 +94,10 @@ async function runProbe() {
 }
 
 const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
+
+// 版本号读打包时写进程序的那个，不在这里写死
+const appVersion = ref("");
+if (inTauri) getVersion().then((v) => (appVersion.value = v));
 </script>
 
 <template>
@@ -233,7 +238,7 @@ const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
   <div class="box">
     <div class="box-title">关于</div>
     <div class="box-body about">
-      <p><b>神权论坛启动器</b> v0.1.0 —— 献给 MCBBS（我的世界中文论坛）的一封情书。</p>
+      <p><b>神权论坛启动器</b> {{ appVersion ? `v${appVersion}` : "（浏览器预览）" }} —— 献给 MCBBS（我的世界中文论坛）的一封情书。</p>
       <p>本程序是<b>非官方粉丝纪念作品</b>，与 MCBBS、Mojang Studios、Microsoft 均无关联；界面元素全部为原创绘制，未使用任何官方 Logo 或图片素材。</p>
       <p>本程序不分发 Minecraft 游戏文件，所有文件均从 Mojang 官方服务器或 BMCLAPI 镜像下载。感谢 bangbang93 提供 BMCLAPI，感谢 MCIM 提供 Modrinth / CurseForge 镜像。</p>
     </div>

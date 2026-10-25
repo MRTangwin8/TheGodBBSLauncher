@@ -160,7 +160,7 @@ cd src-tauri && cargo clippy && cargo test
   - Windows MSI 必须设 `wix.language = zh-CN`，否则 WiX 默认的 1252 代码页装不下中文；
   - Linux 的 rpm 包名不能以中文开头，所以 `tauri.linux.conf.json` 把 productName 换成英文，菜单里显示的中文名由 `linux/app.desktop` 提供；
   - Release 附件名不支持中文，workflow 会把文件名里的中文产品名换成 `GodBBSLauncher`。
-- 版本号要同时改 `tauri.conf.json`、`Cargo.toml`、`package.json` 三处，再打同名标签。
+- 版本号要同时改 `tauri.conf.json`、`Cargo.toml`、`package.json` 三处（`Cargo.lock` 和 `package-lock.json` 里的本项目版本也要跟着改），再打同名标签。设置页「关于」里的版本号是运行时读取的，不用改。
 
 ### Windows 环境注意事项
 - Git Bash 里可能找不到 cargo，先 `export PATH="$HOME/.cargo/bin:$PATH"`。
