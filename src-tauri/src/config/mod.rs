@@ -39,6 +39,10 @@ pub struct Settings {
     pub background_image: Option<PathBuf>,
     /// 首页默认选中的版本（上次启动的）
     pub last_version: Option<String>,
+    /// 启动时自动检查 GitHub 上有没有新版本
+    pub auto_check_update: bool,
+    /// 用户选了"跳过此版本"的版本号（不带 v）
+    pub skipped_update: Option<String>,
     /// palette = "custom" 时用的自定义配色
     pub custom_palette: CustomPalette,
     /// 外观细调（圆角、透明度、字体……）
@@ -111,6 +115,8 @@ impl Default for Settings {
             theme: "light".into(),
             background_image: None,
             last_version: None,
+            auto_check_update: true,
+            skipped_update: None,
             custom_palette: CustomPalette::default(),
             tweaks: Tweaks::default(),
         }

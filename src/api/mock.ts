@@ -37,6 +37,8 @@ let settings: Settings = {
   theme: "light",
   backgroundImage: null,
   lastVersion: "fabric-loader-0.16.9-1.21.1",
+  autoCheckUpdate: true,
+  skippedUpdate: null,
   customPalette: { accent: "#5e9c35", surface: "#fbf2db", text: "#3d2f1f", wood: "#6b4a2b" },
   tweaks: { radius: null, cardOpacity: null, cardBlur: null, bgBlur: 0, bgDim: 0, fontSize: 13, font: "", animations: true },
 };
@@ -71,6 +73,19 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     get_settings: () => settings,
     save_settings: () => void (settings = args!.settings as Settings),
     background_image: () => null,
+    // 预览默认"已是最新"，免得弹窗盖住截图；地址加 ?mockUpdate 可以看到有更新时的样子
+    check_update: () => {
+      const has = location.search.includes("mockUpdate");
+      return {
+        current: "0.2.0",
+        latest: has ? "0.3.0" : "0.2.0",
+        hasUpdate: has,
+        url: "https://github.com/MRTangwin8/TheGodBBSLauncher/releases/tag/" + (has ? "v0.3.0" : "v0.2.0"),
+        notes: has ? ["## 更新内容", "- 资源中心新增整合包分类", "- 启动时检查更新，有新版本会提示", "- CI 输出安装包的 SHA256 / MD5"].join(String.fromCharCode(10)) : "",
+        published: "2026-10-26T00:00:00Z",
+        prerelease: true,
+      };
+    },
     account_skin: () => null,
     probe_mirrors: () => [{ source: "official", millis: 812 }, { source: "bmclapi", millis: 96 }],
     get_version_manifest: () => manifest,

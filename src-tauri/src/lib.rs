@@ -38,6 +38,7 @@ pub fn run() {
             commands::settings::theme_export,
             commands::settings::theme_preview,
             commands::settings::theme_import,
+            commands::settings::check_update,
             commands::versions::get_version_manifest,
             commands::versions::list_installed_versions,
             commands::versions::install_version,

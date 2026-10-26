@@ -14,6 +14,7 @@ pub mod mirror;
 pub mod modpack;
 pub mod resources;
 pub mod theme;
+pub mod update;
 mod http;
 
 pub use error::{Error, Result};

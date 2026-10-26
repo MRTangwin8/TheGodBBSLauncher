@@ -50,8 +50,22 @@ export interface Settings {
   theme: "light" | "dark" | "system";
   backgroundImage: string | null;
   lastVersion: string | null;
+  autoCheckUpdate: boolean;
+  skippedUpdate: string | null;
   customPalette: CustomPalette;
   tweaks: Tweaks;
+}
+
+export interface UpdateInfo {
+  current: string;
+  latest: string | null;
+  hasUpdate: boolean;
+  /** 发布页网址，只用来在系统浏览器里打开 */
+  url: string | null;
+  /** 更新说明（纯文本） */
+  notes: string;
+  published: string | null;
+  prerelease: boolean;
 }
 
 /** 自定义配色的四个基础色（#rrggbb） */

@@ -33,6 +33,7 @@ import type {
   RulesInfo,
   Settings,
   ThemePreview,
+  UpdateInfo,
   VersionManifest,
 } from "./types";
 import { mock } from "./mock";
@@ -56,6 +57,7 @@ export const api = {
   themeExport: (path: string, name: string, author: string) => call<void>("theme_export", { path, name, author }),
   themePreview: (path: string) => call<ThemePreview>("theme_preview", { path }),
   themeImport: (path: string) => call<Settings>("theme_import", { path }),
+  checkUpdate: () => call<UpdateInfo>("check_update"),
   probeMirrors: () => call<ProbeResult[]>("probe_mirrors"),
   getVersionManifest: (force = false) => call<VersionManifest>("get_version_manifest", { force }),
   listInstalledVersions: () => call<InstalledVersion[]>("list_installed_versions"),

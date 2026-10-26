@@ -5,6 +5,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import type { JavaInstall, MemoryInfo, ProbeResult, RulesInfo, Settings } from "../api/types";
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
+import { checkForUpdate } from "../update";
 
 const store = useSettingsStore();
 const versions = useVersionsStore();
@@ -94,6 +95,32 @@ async function runProbe() {
 }
 
 const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
+
+// 检查更新：手动查，查到新版本会弹窗；自动检查的开关改了立刻保存
+const checking = ref(false);
+const updateMsg = ref<{ ok: boolean; text: string } | null>(null);
+async function manualCheck() {
+  checking.value = true;
+  updateMsg.value = null;
+  try {
+    const info = await checkForUpdate(true);
+    if (!info?.latest) updateMsg.value = { ok: true, text: "GitHub 上还没有发布版本" };
+    else if (info.hasUpdate) updateMsg.value = { ok: true, text: `发现新版本 v${info.latest}` };
+    else updateMsg.value = { ok: true, text: `已经是最新版（v${info.current}）` };
+  } catch (e) {
+    updateMsg.value = { ok: false, text: String(e) };
+  } finally {
+    checking.value = false;
+  }
+}
+async function setAutoCheck(on: boolean) {
+  if (!store.settings) return;
+  try {
+    await store.save({ ...store.settings, autoCheckUpdate: on });
+  } catch (e) {
+    updateMsg.value = { ok: false, text: String(e) };
+  }
+}
 
 // 版本号读打包时写进程序的那个，不在这里写死
 const appVersion = ref("");
@@ -241,6 +268,15 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
       <p><b>神权论坛启动器</b> {{ appVersion ? `v${appVersion}` : "（浏览器预览）" }} —— 献给 MCBBS（我的世界中文论坛）的一封情书。</p>
       <p>本程序是<b>非官方粉丝纪念作品</b>，与 MCBBS、Mojang Studios、Microsoft 均无关联；界面元素全部为原创绘制，未使用任何官方 Logo 或图片素材。</p>
       <p>本程序不分发 Minecraft 游戏文件，所有文件均从 Mojang 官方服务器或 BMCLAPI 镜像下载。感谢 bangbang93 提供 BMCLAPI，感谢 MCIM 提供 Modrinth / CurseForge 镜像。</p>
+      <div class="update-row">
+        <button class="btn small" :disabled="checking" @click="manualCheck">{{ checking ? "检查中…" : "检查更新" }}</button>
+        <label class="check">
+          <input type="checkbox" :checked="store.settings?.autoCheckUpdate !== false" @change="setAutoCheck(($event.target as HTMLInputElement).checked)" />
+          启动时自动检查更新
+        </label>
+        <span v-if="updateMsg" :class="updateMsg.ok ? 'ok' : 'error-text'">{{ updateMsg.text }}</span>
+      </div>
+      <p class="muted hint">检查更新只会向 GitHub 查询发布列表（会让 GitHub 看到你的网络地址），不会上传任何其他信息，也不会自动下载或安装。</p>
     </div>
   </div>
 </template>
@@ -260,6 +296,7 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
 .section .muted { font-size: 12px; font-weight: normal; }
 .check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .mono { font-family: var(--font-pixel); }
+.update-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 10px 0 4px; }
 .rules-info { margin: 0 0 6px; }
 .field label.check { width: auto; text-align: left; padding-top: 0; color: var(--text); }
 </style>

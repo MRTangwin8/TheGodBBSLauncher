@@ -6,6 +6,7 @@ use super::AppState;
 use crate::config::{self, Settings};
 use crate::engine::mirror::{self, ProbeResult};
 use crate::engine::theme::{self, ThemePreview};
+use crate::engine::update::{self, UpdateInfo};
 use crate::engine::{Error, Result};
 
 #[tauri::command]
@@ -85,4 +86,10 @@ pub async fn theme_import(state: State<'_, AppState>, path: PathBuf) -> Result<S
     config::save(&state.config_path, &settings)?;
     *state.settings.write().await = settings.clone();
     Ok(settings)
+}
+
+/// 检查 GitHub 上有没有新版本。只做查询，不下载也不安装；是否提示由前端按设置决定
+#[tauri::command]
+pub async fn check_update(state: State<'_, AppState>) -> Result<UpdateInfo> {
+    update::check(&state.client, env!("CARGO_PKG_VERSION")).await
 }

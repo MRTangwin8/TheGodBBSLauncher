@@ -68,8 +68,8 @@ jobs:
       - name: 产物校验值
         shell: bash
         run: |
-          sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
-          md5() { if command -v md5sum >/dev/null; then md5sum "$1" | cut -d' ' -f1; else md5 -q "$1"; fi; }
+          hash_sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
+          hash_md5() { if command -v md5sum >/dev/null; then md5sum "$1" | cut -d' ' -f1; else md5 -q "$1"; fi; }
           cd src-tauri/target/release/bundle
           {
             echo "### ${{ matrix.os }} 产物校验值"
@@ -82,8 +82,8 @@ jobs:
             [ -f "$f" ] || continue
             found=1
             size=$(wc -c < "$f" | tr -d ' ')
-            s=$(sha256 "$f")
-            m=$(md5 "$f")
+            s=$(hash_sha256 "$f")
+            m=$(hash_md5 "$f")
             echo "$f"
             echo "  大小    $size"
             echo "  SHA256  $s"
