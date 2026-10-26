@@ -8,6 +8,8 @@ import { useVersionsStore } from "../stores/versions";
 import { formatBytes, formatDate, loaderLabel } from "../utils";
 import ResourceDialog from "../components/ResourceDialog.vue";
 import CommunitySources from "../components/CommunitySources.vue";
+import ModpackVersionDialog from "../components/ModpackVersionDialog.vue";
+import { browseCommunity } from "../community";
 
 const versions = useVersionsStore();
 const route = useRoute();
@@ -26,6 +28,9 @@ const page = ref<SearchPage | null>(null);
 const searching = ref(false);
 const error = ref<string | null>(null);
 const dialog = ref<Project | null>(null);
+const modpackDialog = ref<Project | null>(null);
+// CurseForge 是否走镜像；整合包不选安装目标，沿用最近一次读到的值
+const cfMirror = ref(false);
 
 const local = ref<LocalResource[]>([]);
 const localLoading = ref(false);
@@ -49,7 +54,21 @@ const kinds: { key: ResourceKind; label: string }[] = [
   { key: "mod", label: "模组" },
   { key: "resourcepack", label: "资源包" },
   { key: "shader", label: "光影" },
+  { key: "modpack", label: "整合包" },
 ];
+
+// 整合包自带游戏版本：不选安装目标、不按已装版本筛选，下载后走整合包导入
+const isModpack = computed(() => kind.value === "modpack");
+const placeholder = computed(() => ({ mod: "搜索模组…", resourcepack: "搜索资源包…", shader: "搜索光影…", modpack: "搜索整合包…" })[kind.value]);
+
+async function openMemorial() {
+  error.value = null;
+  try {
+    await browseCommunity("memorialResources");
+  } catch (e) {
+    error.value = String(e);
+  }
+}
 
 onMounted(async () => {
   if (!versions.installed.length) await versions.loadInstalled();
@@ -62,6 +81,13 @@ onMounted(async () => {
 const isVanillaMod = computed(() => kind.value === "mod" && target.value && !target.value.loader);
 
 watch([versionId, kind], async () => {
+  if (isModpack.value) {
+    if (tab.value === "installed") tab.value = "browse";
+    target.value = null;
+    offset.value = 0;
+    await refresh();
+    return;
+  }
   if (!versionId.value) {
     target.value = null;
     offset.value = 0;
@@ -71,6 +97,7 @@ watch([versionId, kind], async () => {
   error.value = null;
   try {
     target.value = await api.resourceTarget(versionId.value, kind.value);
+    cfMirror.value = target.value.curseforgeViaMirror;
   } catch (e) {
     error.value = String(e);
     return;
@@ -99,7 +126,7 @@ async function search() {
     const searchQuery = {
       query: query.value,
       kind: kind.value,
-      gameVersion: target.value?.mcVersion ?? null,
+      gameVersion: isModpack.value ? null : target.value?.mcVersion ?? null,
       loader: kind.value === "mod" ? target.value?.loader ?? null : null,
       sort: sort.value,
       offset: offset.value,
@@ -171,7 +198,7 @@ function formatCount(n: number) {
   <div class="box">
     <div class="box-title">
       资源中心
-      <span v-if="tab !== 'community' && versions.installed.length" class="extra target">
+      <span v-if="tab !== 'community' && !isModpack && versions.installed.length" class="extra target">
         安装到
         <select v-model="versionId" class="input small-select">
           <option v-for="v in versions.installed" :key="v.id" :value="v.id">
@@ -190,8 +217,8 @@ function formatCount(n: number) {
       </div>
       <div class="tabs">
         <a :class="{ active: tab === 'browse' }" @click="tab = 'browse'">找资源</a>
-        <a :class="{ active: tab === 'installed' }" @click="tab = 'installed'">已安装</a>
-        <a :class="{ active: tab === 'community' }" @click="tab = 'community'">整合包与社区</a>
+        <a v-if="!isModpack" :class="{ active: tab === 'installed' }" @click="tab = 'installed'">已安装</a>
+        <a :class="{ active: tab === 'community' }" @click="tab = 'community'">社区资源</a>
       </div>
     </div>
     <CommunitySources v-if="tab === 'community'" />
@@ -210,11 +237,11 @@ function formatCount(n: number) {
           <div class="tabs src">
             <a :class="{ active: source === 'modrinth' }" @click="source = 'modrinth'">Modrinth</a>
             <a :class="{ active: source === 'curseforge' }" @click="source = 'curseforge'">
-              CurseForge<span v-if="target?.curseforgeViaMirror" class="muted mirror">（镜像）</span>
+              CurseForge<span v-if="cfMirror" class="muted mirror">（镜像）</span>
             </a>
             <a :class="{ active: source === 'klpbbs' }" @click="source = 'klpbbs'">KLPBBS 中文</a>
           </div>
-          <input v-model="query" class="input grow" placeholder="搜索模组、资源包、光影…" />
+          <input v-model="query" class="input grow" :placeholder="placeholder" />
           <select v-model="sort" class="input">
             <option value="relevance">相关度</option>
             <option value="downloads">下载量</option>
@@ -222,6 +249,12 @@ function formatCount(n: number) {
           </select>
           <button class="btn primary">搜索</button>
         </form>
+
+        <div v-if="isModpack" class="memorial">
+          <span>想找国内作者发布的中文整合包？</span>
+          <button class="btn small primary" @click="openMemorial">前往 MCBBS 纪念版寻找整合包 →</button>
+          <span class="muted small">在浏览器里下载后，把整合包文件拖进启动器窗口即可导入</span>
+        </div>
 
         <p v-if="error" class="box-body error-text">{{ error }}</p>
         <div v-else-if="searching && !page" class="box-body muted">搜索中…</div>
@@ -247,7 +280,8 @@ function formatCount(n: number) {
                 <div class="muted">{{ formatDate(p.updated) }}</div>
               </td>
               <td class="num">
-                <button class="btn small primary" :disabled="!versionId || !!isVanillaMod" :title="!versionId ? '先安装一个游戏版本，再选择安装目标' : undefined" @click="dialog = p">安装</button>
+                <button v-if="isModpack" class="btn small primary" @click="modpackDialog = p">下载导入</button>
+                <button v-else class="btn small primary" :disabled="!versionId || !!isVanillaMod" :title="!versionId ? '先安装一个游戏版本，再选择安装目标' : undefined" @click="dialog = p">安装</button>
               </td>
             </tr>
             <tr v-if="!page.hits.length"><td colspan="4" class="muted">没有找到相关资源</td></tr>
@@ -306,6 +340,7 @@ function formatCount(n: number) {
     @close="dialog = null"
     @installed="tab === 'installed' && loadLocal()"
   />
+  <ModpackVersionDialog v-if="modpackDialog" :project="modpackDialog" @close="modpackDialog = null" />
 </template>
 
 <style scoped>
@@ -340,4 +375,5 @@ tr.disabled b { color: var(--text-muted); text-decoration: line-through; }
 .compat.st-unknown { background: #8b8b8b; }
 .problem { color: var(--red); font-size: 12px; }
 .ver { margin-left: 6px; }
+.memorial { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px dashed var(--border); background: var(--bg-box-alt); }
 </style>

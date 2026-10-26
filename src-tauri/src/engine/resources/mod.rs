@@ -26,6 +26,8 @@ pub enum ResourceKind {
     Mod,
     ResourcePack,
     Shader,
+    /// 整合包：只用于搜索和下载，下载后交给整合包导入流程，不装进某个版本的目录
+    Modpack,
 }
 
 impl ResourceKind {
@@ -35,6 +37,7 @@ impl ResourceKind {
             ResourceKind::Mod => "mods",
             ResourceKind::ResourcePack => "resourcepacks",
             ResourceKind::Shader => "shaderpacks",
+            ResourceKind::Modpack => "modpacks",
         }
     }
 }

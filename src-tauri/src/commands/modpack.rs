@@ -12,7 +12,7 @@ use crate::engine::instance::{self, InstanceConfig, ModpackOrigin};
 use crate::engine::modpack::export::{self, ExportEntry, ExportEnv, ExportOptions, ExportSummary};
 use crate::engine::modpack::{Modpack, ModpackInfo};
 use crate::engine::resources::compat::GameEnv;
-use crate::engine::resources::ResourceApi;
+use crate::engine::resources::{local, ResourceApi, ResourceKind, ResourceSource, ResourceVersion};
 use crate::engine::{Error, Result};
 
 async fn api(state: &AppState) -> ResourceApi {
@@ -116,6 +116,38 @@ pub async fn modpack_import(app: AppHandle, state: State<'_, AppState>, job_id: 
         let _ = std::fs::write(dir.join("modpack-warnings.txt"), warnings.join("\n"));
     }
     Ok(id)
+}
+
+/// 资源中心里某个整合包的全部版本（整合包自带游戏版本，不按已安装版本筛选），新的在前
+#[tauri::command]
+pub async fn modpack_versions(state: State<'_, AppState>, source: ResourceSource, project_id: String) -> Result<Vec<ResourceVersion>> {
+    api(&state).await.versions(source, &project_id, ResourceKind::Modpack, None, None).await
+}
+
+/// 把资源中心选中的整合包版本下载到缓存目录，返回本地路径；之后走和拖进窗口一样的导入流程
+#[tauri::command]
+pub async fn modpack_download(app: AppHandle, state: State<'_, AppState>, job_id: String, version: ResourceVersion) -> Result<String> {
+    let file = version
+        .file
+        .ok_or_else(|| Error::Other("这个版本没有提供下载地址（作者可能限制了第三方下载），请到项目页面手动下载后拖进窗口导入".into()))?;
+    let lower = file.filename.to_lowercase();
+    if !lower.ends_with(".mrpack") && !lower.ends_with(".zip") {
+        return Err(Error::Other(format!("「{}」不是整合包文件（应为 .mrpack 或 .zip）", file.filename)));
+    }
+    let dir = state.data_dir.join("cache").join("modpacks");
+    std::fs::create_dir_all(&dir)?;
+    // 文件名来自平台接口，只当作单个文件名使用，防止越出缓存目录
+    let path = local::safe_path(&dir, &file.filename)?;
+    let settings = state.settings.read().await.clone();
+    let downloader = Downloader::new(state.client.clone(), state.source().await, settings.concurrency)
+        .with_curseforge_key(Some(&settings.curseforge_api_key));
+    let report = job_reporter(&app, &job_id);
+    let task = DownloadTask { url: file.url, path: path.clone(), sha1: file.sha1, size: (file.size > 0).then_some(file.size) };
+    let result = downloader.download_all(vec![task], Arc::new(move |p| report(Stage::Files, p))).await;
+    if let Some(f) = result.failed.first() {
+        return Err(Error::Other(format!("整合包下载失败：{}", f.reason)));
+    }
+    Ok(path.display().to_string())
 }
 
 #[tauri::command]

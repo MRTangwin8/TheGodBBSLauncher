@@ -98,6 +98,8 @@ export const api = {
 
   modpackPreview: (path: string) => call<ModpackPreview>("modpack_preview", { path }),
   modpackImport: (jobId: string, path: string, name: string) => call<string>("modpack_import", { jobId, path, name }),
+  modpackVersions: (source: ResourceSource, projectId: string) => call<ResourceVersion[]>("modpack_versions", { source, projectId }),
+  modpackDownload: (jobId: string, version: ResourceVersion) => call<string>("modpack_download", { jobId, version }),
   exportCandidates: (versionId: string) => call<ExportEntry[]>("export_candidates", { versionId }),
   modpackExport: (jobId: string, versionId: string, options: ExportOptions, outPath: string) =>
     call<ExportSummary>("modpack_export", { jobId, versionId, options, outPath }),

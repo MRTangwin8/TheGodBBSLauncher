@@ -111,6 +111,7 @@ pub async fn search(client: &reqwest::Client, query: &SearchQuery) -> Result<Sea
             ResourceKind::Mod => "mod",
             ResourceKind::ResourcePack => "resource-pack",
             ResourceKind::Shader => "shader",
+            ResourceKind::Modpack => "modpack",
         }.into()),
         ("sort", match query.sort {
             SortBy::Downloads | SortBy::Relevance => "downloads",

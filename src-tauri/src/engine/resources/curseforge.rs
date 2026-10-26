@@ -50,11 +50,22 @@ struct Data<T> {
     data: T,
 }
 
+/// 网站上对应的栏目，API 没给项目网址时拼链接用
+fn site_section(kind: ResourceKind) -> &'static str {
+    match kind {
+        ResourceKind::Mod => "mc-mods",
+        ResourceKind::ResourcePack => "texture-packs",
+        ResourceKind::Shader => "shaders",
+        ResourceKind::Modpack => "modpacks",
+    }
+}
+
 fn class_id(kind: ResourceKind) -> u32 {
     match kind {
         ResourceKind::Mod => 6,
         ResourceKind::ResourcePack => 12,
         ResourceKind::Shader => 6552,
+        ResourceKind::Modpack => 4471,
     }
 }
 
@@ -150,7 +161,7 @@ pub async fn search(api: &ResourceApi, q: &SearchQuery) -> Result<SearchPage> {
             .map(|m| Project {
                 source: ResourceSource::CurseForge,
                 id: m.id.to_string(),
-                page_url: m.links.and_then(|l| l.website_url).unwrap_or_else(|| format!("https://www.curseforge.com/minecraft/mc-mods/{}", m.slug)),
+                page_url: m.links.and_then(|l| l.website_url).unwrap_or_else(|| format!("https://www.curseforge.com/minecraft/{}/{}", site_section(q.kind), m.slug)),
                 slug: m.slug,
                 title: m.name,
                 description: m.summary,
@@ -184,6 +195,9 @@ struct CfFile {
     release_type: u32,
     #[serde(default)]
     dependencies: Vec<CfDep>,
+    /// 整合包的服务端包，客户端导入不了
+    #[serde(default)]
+    is_server_pack: bool,
 }
 
 #[derive(Deserialize)]
@@ -271,6 +285,9 @@ pub async fn versions(
     if files.is_empty() && loader == Some(LoaderKind::Quilt) && kind == ResourceKind::Mod {
         files = fetch(Some(loader_type(LoaderKind::Fabric))).await?;
     }
+    if kind == ResourceKind::Modpack {
+        files.retain(|f| !f.is_server_pack);
+    }
     files.sort_by(|a, b| b.file_date.cmp(&a.file_date));
     Ok(files.into_iter().map(Into::into).collect())
 }
@@ -297,7 +314,7 @@ pub async fn files_by_ids(api: &ResourceApi, file_ids: &[u64]) -> Result<Vec<Res
     Ok(out)
 }
 
-/// 项目 id → classId（6 模组、12 资源包、6552 光影）
+/// 项目 id → classId（6 模组、12 资源包、6552 光影、4471 整合包）
 pub async fn mod_classes(api: &ResourceApi, ids: &[String]) -> Result<HashMap<String, u32>> {
     let ids: Vec<u64> = ids.iter().filter_map(|i| i.parse().ok()).collect();
     let mut out = HashMap::new();

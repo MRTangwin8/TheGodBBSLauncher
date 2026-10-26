@@ -54,6 +54,14 @@ const accounts: AccountList = {
   selected: "a1",
 };
 
+const modpackPage = {
+  total: 2,
+  hits: [
+    { source: "modrinth", id: "1KVo5zza", slug: "fabulously-optimized", title: "Fabulously Optimized", description: "Beautiful graphics, speedy performance and familiar features in one simple package.", author: "robotkoer", iconUrl: null, downloads: 9800000, categories: ["optimization", "lightweight"], updated: "2026-10-20T00:00:00Z", pageUrl: "https://modrinth.com/modpack/fabulously-optimized" },
+    { source: "curseforge", id: "285109", slug: "rlcraft", title: "RLCraft", description: "一个专门设计的整合包，旨在带来极度硬核且半现实的生存挑战。", author: "Shivaxi", iconUrl: null, downloads: 22000000, categories: ["Adventure and RPG", "Hardcore"], updated: "2026-09-12T00:00:00Z", pageUrl: "https://www.curseforge.com/minecraft/modpacks/rlcraft" },
+  ],
+};
+
 export async function mock<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   await new Promise((r) => setTimeout(r, 200));
   const unsupported = () => {
@@ -89,7 +97,7 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
         { source: "modrinth", id: "AANobbMI", slug: "sodium", title: "钠 Sodium", description: "Minecraft 客户端渲染优化模组。", author: "jellysquid3", iconUrl: null, downloads: 80000000, categories: ["优化"], updated: "2026-10-01T00:00:00Z", pageUrl: "https://modrinth.com/mod/sodium" },
       ],
     }),
-    resource_search: () => ({
+    resource_search: () => ((args?.query as { kind?: string } | undefined)?.kind === "modpack" ? modpackPage : {
       total: 2,
       hits: [
         { source: "modrinth", id: "PtjYWJkn", slug: "sodium-extra", title: "Sodium Extra", description: "A Sodium addon that adds features that shouldn't be in Sodium.", author: "FlashyReese", iconUrl: null, downloads: 29000000, categories: ["optimization", "utility"], updated: "2026-09-01T00:00:00Z", pageUrl: "https://modrinth.com/mod/sodium-extra" },
@@ -117,6 +125,10 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     local_compat: () => [
       { filename: "sodium-fabric-0.8.13.jar", report: { status: "ok", problems: [], notes: ["已核对 75 个必需的 Mixin 注入点"] } },
       { filename: "old-mod.jar.disabled", report: { status: "problem", problems: ["需要 Minecraft [1.20,1.21)，当前是 1.21.1"], notes: [] } },
+    ],
+    modpack_versions: () => [
+      { source: "modrinth", id: "fo1", projectId: "1KVo5zza", name: "6.5.0", versionNumber: "6.5.0", gameVersions: ["1.21.1"], loaders: ["fabric"], published: "2026-10-20T00:00:00Z", releaseType: "release", file: { url: "", filename: "Fabulously.Optimized-6.5.0.mrpack", sha1: null, size: 31000 }, dependencies: [] },
+      { source: "modrinth", id: "fo0", projectId: "1KVo5zza", name: "6.4.1", versionNumber: "6.4.1", gameVersions: ["1.21"], loaders: ["fabric"], published: "2026-08-02T00:00:00Z", releaseType: "beta", file: { url: "", filename: "Fabulously.Optimized-6.4.1.mrpack", sha1: null, size: 30500 }, dependencies: [] },
     ],
     modpack_preview: () => ({
       suggestedName: "Fabulously Optimized-6.5.0",

@@ -41,6 +41,7 @@ fn project_type(kind: ResourceKind) -> &'static str {
         ResourceKind::Mod => "mod",
         ResourceKind::ResourcePack => "resourcepack",
         ResourceKind::Shader => "shader",
+        ResourceKind::Modpack => "modpack",
     }
 }
 

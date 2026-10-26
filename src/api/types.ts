@@ -207,7 +207,7 @@ export interface LoaderVersion {
 }
 
 export type ResourceSource = "modrinth" | "curseforge";
-export type ResourceKind = "mod" | "resourcepack" | "shader";
+export type ResourceKind = "mod" | "resourcepack" | "shader" | "modpack";
 export type SortBy = "relevance" | "downloads" | "updated";
 
 export interface SearchQuery {

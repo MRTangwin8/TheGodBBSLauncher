@@ -64,6 +64,34 @@ jobs:
       - name: 打包
         run: npx tauri build --ci
 
+      # 每个安装包的 SHA256 / MD5 打到日志里，同时写进本次运行的摘要页，方便核对下载的文件
+      - name: 产物校验值
+        shell: bash
+        run: |
+          sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
+          md5() { if command -v md5sum >/dev/null; then md5sum "$1" | cut -d' ' -f1; else md5 -q "$1"; fi; }
+          cd src-tauri/target/release/bundle
+          {
+            echo "### ${{ matrix.os }} 产物校验值"
+            echo
+            echo "| 文件 | 大小（字节） | SHA256 | MD5 |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          found=0
+          for f in nsis/*.exe msi/*.msi dmg/*.dmg deb/*.deb rpm/*.rpm appimage/*.AppImage; do
+            [ -f "$f" ] || continue
+            found=1
+            size=$(wc -c < "$f" | tr -d ' ')
+            s=$(sha256 "$f")
+            m=$(md5 "$f")
+            echo "$f"
+            echo "  大小    $size"
+            echo "  SHA256  $s"
+            echo "  MD5     $m"
+            echo "| \`$(basename "$f")\` | $size | \`$s\` | \`$m\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          [ "$found" = 1 ] || { echo "没有找到安装包"; exit 1; }
+
       - uses: actions/upload-artifact@v7
         with:
           name: godbbs-launcher-${{ matrix.os }}
@@ -107,6 +135,20 @@ jobs:
           pattern: release-*
           path: release
           merge-multiple: true
+
+      # 发布前再算一遍最终附件（文件名已换成英文）的校验值
+      - name: 发布文件校验值
+        working-directory: release
+        run: |
+          echo "SHA256:"; sha256sum *
+          echo; echo "MD5:"; md5sum *
+          {
+            echo "### Release 附件校验值"
+            echo
+            echo "| 文件 | SHA256 | MD5 |"
+            echo "|---|---|---|"
+            for f in *; do echo "| \`$f\` | \`$(sha256sum "$f" | cut -d' ' -f1)\` | \`$(md5sum "$f" | cut -d' ' -f1)\` |"; done
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: softprops/action-gh-release@v3
         with:

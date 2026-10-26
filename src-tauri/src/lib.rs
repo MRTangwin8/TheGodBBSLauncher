@@ -70,6 +70,8 @@ pub fn run() {
             commands::resources::local_compat,
             commands::modpack::modpack_preview,
             commands::modpack::modpack_import,
+            commands::modpack::modpack_versions,
+            commands::modpack::modpack_download,
             commands::modpack::export_candidates,
             commands::modpack::modpack_export,
             commands::crash::analyze_log_text,
