@@ -30,6 +30,19 @@ async fn server(responses: Vec<&'static str>) -> (String, JoinHandle<Vec<String>
     (url, handle)
 }
 
+#[tokio::test]
+async fn file_downloads_ask_for_uncompressed_bytes() {
+    // 全局 HTTP 客户端开了 gzip / brotli（搜索结果压缩后小十倍），但下载文件必须是原始字节
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("file");
+    let (url, server) = server(vec!["HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello"]).await;
+    let client = reqwest::Client::builder().no_proxy().gzip(true).brotli(true).build().unwrap();
+    let mut counted = 0;
+    Downloader::new(client, Source::Official, 1).fetch(&url, &task(url.clone(), path.clone()), &Counters::default(), &mut counted).await.unwrap();
+    assert_eq!(fs::read(&path).await.unwrap(), b"hello");
+    assert!(server.await.unwrap()[0].contains("accept-encoding: identity"));
+}
+
 fn task(url: String, path: PathBuf) -> DownloadTask {
     DownloadTask { url, path, sha1: None, size: Some(5) }
 }

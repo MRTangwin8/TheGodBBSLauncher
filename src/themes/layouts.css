@@ -83,3 +83,12 @@
 :root[data-layout="modern"] .xp-bar > div { background: var(--grass); }
 :root[data-layout="modern"] .mod-tip { border-style: solid; border-radius: var(--radius-sm); }
 :root[data-layout="modern"] ::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--text) 25%, transparent); }
+
+/* ---------- macOS：原生红绿灯浮在窗口左上角（覆盖式标题栏），给它留出位置 ---------- */
+/* 红绿灯约占 x 14~66、y 12~24（中心在 y=18，和 36px 高的标题行对齐）。
+   窄条要让左右各留 14px，所以 mac 上图标条 / 收起的侧栏要比平时宽一点 */
+html[data-os="mac"] .rail { width: 80px; }
+html[data-os="mac"] .rail-drag { height: 40px; }
+html[data-os="mac"] .shell.collapsed .sidebar { width: 80px; }
+/* 经典横幅：标题贴着横幅底部排，加高 16px 标题整体下移，让出顶部给红绿灯 */
+html[data-os="mac"] .banner { height: 112px; }

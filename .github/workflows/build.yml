@@ -91,29 +91,30 @@ jobs:
       - name: 产物校验值
         shell: bash
         run: |
-          hash_sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
-          hash_md5() { if command -v md5sum >/dev/null; then md5sum "$1" | cut -d' ' -f1; else md5 -q "$1"; fi; }
+          sha256_line() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi; }
+          md5_line() { if command -v md5sum >/dev/null; then md5sum "$1"; else md5 -r "$1"; fi; }
           cd src-tauri/target/release/bundle
+          files=()
+          for f in nsis/*.exe msi/*.msi dmg/*.dmg deb/*.deb rpm/*.rpm appimage/*.AppImage; do
+            [ -f "$f" ] && files+=("$f")
+          done
+          [ "${#files[@]}" -gt 0 ] || { echo "没有找到安装包"; exit 1; }
+          # 直接用 sha256sum / md5sum 的标准格式打到 stdout：可以整行复制，也能用 sha256sum -c 核对
+          echo "SHA256:"
+          for f in "${files[@]}"; do sha256_line "$f"; done
+          echo
+          echo "MD5:"
+          for f in "${files[@]}"; do md5_line "$f"; done
+          # 同样的数据再写进本次运行的摘要页，方便阅读
           {
             echo "### ${{ matrix.os }} 产物校验值"
             echo
             echo "| 文件 | 大小（字节） | SHA256 | MD5 |"
             echo "|---|---|---|---|"
+            for f in "${files[@]}"; do
+              echo "| \`$(basename "$f")\` | $(wc -c < "$f" | tr -d ' ') | \`$(sha256_line "$f" | cut -d' ' -f1)\` | \`$(md5_line "$f" | cut -d' ' -f1)\` |"
+            done
           } >> "$GITHUB_STEP_SUMMARY"
-          found=0
-          for f in nsis/*.exe msi/*.msi dmg/*.dmg deb/*.deb rpm/*.rpm appimage/*.AppImage; do
-            [ -f "$f" ] || continue
-            found=1
-            size=$(wc -c < "$f" | tr -d ' ')
-            s=$(hash_sha256 "$f")
-            m=$(hash_md5 "$f")
-            echo "$f"
-            echo "  大小    $size"
-            echo "  SHA256  $s"
-            echo "  MD5     $m"
-            echo "| \`$(basename "$f")\` | $size | \`$s\` | \`$m\` |" >> "$GITHUB_STEP_SUMMARY"
-          done
-          [ "$found" = 1 ] || { echo "没有找到安装包"; exit 1; }
 
       - uses: actions/upload-artifact@v7
         with:

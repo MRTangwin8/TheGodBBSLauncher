@@ -82,6 +82,11 @@ src/
    - `api/mock.ts` 加假数据，否则浏览器预览会报错。
 5. 需要新权限时（窗口、对话框等）改 `src-tauri/capabilities/default.json`。
 
+### 网络请求
+- 共用的 HTTP 客户端（`engine::http_client`）开了 gzip / brotli，搜索和元数据接口压缩后小 4~10 倍（CurseForge 镜像一页 555 KB，不压缩要等 20 多秒，压缩后 3 秒）。
+- **下载文件的请求必须显式带 `Accept-Encoding: identity`**（`engine/download` 里两处），断点续传和大小校验都按原始字节算，不能让对方压缩。新增下载路径时照做，`http_tests.rs` 里有回归测试。
+- 搜索类命令用 `engine::http::within(SEARCH_TIMEOUT, …)` 包一层总超时，对方卡住时给出明确提示，不让界面一直转圈。
+
 ### 长任务与进度
 - 用事件推送：`install-progress`、`game-log`、`game-exit`。前端用 `api/index.ts` 导出的 `onInstallProgress` / `onGameLog` / `onGameExit` 订阅；新事件照此加一个导出。
 - 下载任务带 `jobId`，进度显示在 `ProgressFloat`。
@@ -122,6 +127,11 @@ src/
   - 标题栏：窗口没有系统边框，拖动区加 `data-tauri-drag-region`（只有带这个属性的元素本身能拖），右上角放 `<WindowControls>`；
   - 导航；
   - `<RouterView>`：必须包一层 `<div :key="r.path" class="page">` 再放进 `<Transition mode="out-in">`，否则多根页面会卡住不切换。
+- macOS 窗口：
+  - `src-tauri/tauri.macos.conf.json` 把窗口改成原生边框 + 覆盖式标题栏（`titleBarStyle: Overlay`），左上角是系统的红绿灯；Windows / Linux 仍用自绘的 `— ☐ ✕`。
+  - 平台配置按 JSON 合并补丁合并，**数组会被整体替换**，所以里面要写出完整的窗口定义；`config/mod.rs` 里有测试用 Tauri 自己的解析器检查字段，并和主配置的尺寸比对。
+  - 前端用 `src/platform.ts` 的 `isMac`：三个布局都用 `v-if="inTauri && !isMac"` 隐藏自绘按钮，并给红绿灯（约 x 14~66、y 12~24，中心和 36px 标题行对齐）留位置：经典横幅在 mac 上加高 16px，现代布局的图标条加宽并加高顶部，收起的木板侧栏也加宽（`layouts.css` 末尾）。新增布局时要照做。
+  - 没有 Mac 时在浏览器预览地址后加 `?mockMac`，会模拟 mac 布局并画出三个假红绿灯，用来检查有没有内容被压住。
 - 背景层 `z-index:-1`，所以底色只能放在 `html` 上，`body` 不能有背景。
 
 ## 5. 并行分工：怎样不打架

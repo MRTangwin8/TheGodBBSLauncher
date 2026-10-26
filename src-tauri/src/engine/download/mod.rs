@@ -300,7 +300,8 @@ impl Downloader {
     async fn response(&self, url: &str, offset: u64) -> Result<reqwest::Response> {
         let mut url = reqwest::Url::parse(url).map_err(|_| Error::Other("下载地址格式无效".into()))?;
         if self.curseforge_key.is_none() || !http::curseforge_download(&url) {
-            let mut request = self.client.get(url);
+            // 文件下载不要压缩：断点续传和大小校验都按原始字节算
+            let mut request = self.client.get(url).header(header::ACCEPT_ENCODING, "identity");
             if offset > 0 {
                 request = request.header(header::RANGE, format!("bytes={offset}-"));
             }
@@ -328,7 +329,7 @@ impl Downloader {
 }
 
 fn download_request(url: &reqwest::Url, offset: u64, key: Option<&str>) -> Result<reqwest::Request> {
-    let mut request = http::credential_client().get(url.clone());
+    let mut request = http::credential_client().get(url.clone()).header(header::ACCEPT_ENCODING, "identity");
     if offset > 0 {
         request = request.header(header::RANGE, format!("bytes={offset}-"));
     }

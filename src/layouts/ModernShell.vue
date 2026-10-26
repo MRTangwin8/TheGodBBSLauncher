@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { navItems } from "../router";
 import { inTauri } from "../api";
+import { isMac } from "../platform";
 import { useVersionsStore } from "../stores/versions";
 import { useAccountsStore } from "../stores/accounts";
 import { useGameStore } from "../stores/game";
@@ -44,7 +45,7 @@ const title = computed(() => (route.meta.title as string) ?? "");
         <span class="app-name" data-tauri-drag-region>神权论坛启动器</span>
         <span v-if="!inTauri" class="preview-hint">浏览器预览 · 假数据</span>
         <div class="space" data-tauri-drag-region />
-        <WindowControls v-if="inTauri" tone="auto" />
+        <WindowControls v-if="inTauri && !isMac" tone="auto" />
       </header>
       <main class="content">
         <h1 class="page-title">{{ title }}</h1>

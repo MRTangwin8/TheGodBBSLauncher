@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { navItems } from "../router";
 import { inTauri } from "../api";
+import { isMac } from "../platform";
 import { useVersionsStore } from "../stores/versions";
 import { useAccountsStore, kindLabel } from "../stores/accounts";
 import { useGameStore } from "../stores/game";
@@ -78,7 +79,7 @@ watch(collapsed, (v) => {
       <!-- 顶部 32px 拖动条放窗口按钮，标题另起一行，不再贴着窗口顶边 -->
       <div class="drag-strip top" data-tauri-drag-region>
         <span v-if="!inTauri" class="preview-hint">浏览器预览模式 · 数据是假的</span>
-        <WindowControls v-if="inTauri" class="win" />
+        <WindowControls v-if="inTauri && !isMac" class="win" />
       </div>
       <header class="title-row" data-tauri-drag-region>
         <h1 data-tauri-drag-region>{{ title }}</h1>

@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { navItems } from "../router";
 import { inTauri } from "../api";
+import { isMac } from "../platform";
 import { useVersionsStore } from "../stores/versions";
 import { useAccountsStore } from "../stores/accounts";
 import { useGameStore } from "../stores/game";
@@ -31,7 +32,7 @@ const title = computed(() => (route.meta.title as string) ?? "");
         <span class="sep">|</span>
         <span>用户组：<span class="group-god">神权</span></span>
       </div>
-      <WindowControls v-if="inTauri" class="win" />
+      <WindowControls v-if="inTauri && !isMac" class="win" />
     </header>
 
     <nav class="nav">

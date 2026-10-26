@@ -14,6 +14,7 @@ use crate::engine::resources::local::{self, LocalResource};
 use crate::engine::resources::compat::{check_jar, CompatReport, GameEnv, RuntimeJar};
 use crate::engine::resources::resolve::{self, Checker, InstallPlan, Target};
 use crate::engine::resources::{ResourceApi, ResourceKind, ResourceSource, ResourceVersion, SearchPage, SearchQuery};
+use crate::engine::http::{within, SEARCH_TIMEOUT};
 use crate::engine::Result;
 
 async fn api(state: &AppState) -> ResourceApi {
@@ -53,12 +54,12 @@ pub async fn resource_target(state: State<'_, AppState>, version_id: String, kin
 
 #[tauri::command]
 pub async fn resource_search(state: State<'_, AppState>, source: ResourceSource, query: SearchQuery) -> Result<SearchPage> {
-    api(&state).await.search(source, &query).await
+    within(SEARCH_TIMEOUT, api(&state).await.search(source, &query)).await
 }
 
 #[tauri::command]
 pub async fn klpbbs_search(state: State<'_, AppState>, query: SearchQuery) -> Result<SearchPage> {
-    crate::engine::resources::klpbbs::search(&state.client, &query).await
+    within(SEARCH_TIMEOUT, crate::engine::resources::klpbbs::search(&state.client, &query)).await
 }
 
 /// 兼容所选游戏版本的资源版本

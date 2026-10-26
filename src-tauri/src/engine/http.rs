@@ -4,6 +4,15 @@ use reqwest::{header::HeaderValue, Client, Url};
 
 use super::{Error, Result};
 
+/// 搜索这类请求最多等多久。对方卡住时给出明确提示，别让界面一直转圈
+pub(crate) const SEARCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+pub(crate) async fn within<T>(limit: std::time::Duration, fut: impl std::future::Future<Output = Result<T>>) -> Result<T> {
+    tokio::time::timeout(limit, fut)
+        .await
+        .map_err(|_| Error::Other(format!("请求超时（超过 {} 秒没有响应），请稍后重试或换一个来源", limit.as_secs())))?
+}
+
 pub(crate) fn credential_client() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
     CLIENT.get_or_init(|| {
@@ -33,6 +42,16 @@ pub(crate) fn curseforge_download(url: &Url) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn slow_requests_give_up_with_a_clear_message() {
+        let slow = within(std::time::Duration::from_millis(30), std::future::pending::<Result<()>>()).await;
+        let message = slow.unwrap_err().to_string();
+        assert!(message.contains("请求超时") && message.contains("换一个来源"), "{message}");
+        // 没超时就原样返回结果和错误
+        assert_eq!(within(std::time::Duration::from_secs(5), async { Ok(7) }).await.unwrap(), 7);
+        assert!(within(std::time::Duration::from_secs(5), async { Err::<(), _>(Error::Other("boom".into())) }).await.unwrap_err().to_string().contains("boom"));
+    }
 
     #[test]
     fn restricts_download_credentials_to_official_https_file_endpoints() {

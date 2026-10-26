@@ -1,0 +1,18 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "神权论坛启动器 — MCBBS 纪念版",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 960,
+        "minHeight": 620,
+        "decorations": true,
+        "devtools": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 14, "y": 12 }
+      }
+    ]
+  }
+}

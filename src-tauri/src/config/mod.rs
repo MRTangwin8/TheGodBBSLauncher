@@ -218,6 +218,26 @@ pub fn auto_memory_mb(total_mb: u64) -> u32 {
 mod tests {
     use super::*;
 
+    /// macOS 的窗口配置（原生红绿灯 + 覆盖式标题栏）在 Windows 上没法真机试，
+    /// 这里用 Tauri 自己的解析器检查：字段名写错会被 deny_unknown_fields 拒绝，各平台的 CI 都能提前发现
+    #[test]
+    fn macos_window_config_parses_with_native_traffic_lights() {
+        use tauri::utils::{config::WindowConfig, TitleBarStyle};
+        let file: serde_json::Value = serde_json::from_str(include_str!("../../tauri.macos.conf.json")).unwrap();
+        let windows = file["app"]["windows"].as_array().expect("平台配置按 JSON 合并补丁合并，数组会被整体替换，必须写出完整的窗口");
+        assert_eq!(windows.len(), 1);
+        let window: WindowConfig = serde_json::from_value(windows[0].clone()).unwrap();
+        assert!(window.decorations, "红绿灯需要保留系统窗口边框");
+        assert_eq!(window.title_bar_style, TitleBarStyle::Overlay);
+        assert!(window.hidden_title);
+        assert!(window.traffic_light_position.is_some());
+        // 和主配置里的窗口尺寸保持一致，免得两处改漏
+        let base: serde_json::Value = serde_json::from_str(include_str!("../../tauri.conf.json")).unwrap();
+        for key in ["title", "width", "height", "minWidth", "minHeight", "devtools"] {
+            assert_eq!(windows[0][key], base["app"]["windows"][0][key], "{key} 和 tauri.conf.json 不一致");
+        }
+    }
+
     #[test]
     fn splits_quoted_args() {
         assert_eq!(split_args(r#"-Xss1m  -Dname="a b" '' -Dx=1"#), ["-Xss1m", "-Dname=a b", "", "-Dx=1"]);
