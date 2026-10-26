@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { navItems } from "../router";
+import { useButtons } from "../buttons";
 import { inTauri } from "../api";
 import { isMac } from "../platform";
 import { useVersionsStore } from "../stores/versions";
@@ -12,6 +12,7 @@ import WindowControls from "../components/WindowControls.vue";
 
 // 第一版：论坛横幅 + 顶部导航 + 面包屑。标题栏融进横幅（横幅本身可拖动窗口，右上角是窗口按钮）
 const route = useRoute();
+const { nav } = useButtons();
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const game = useGameStore();
@@ -36,7 +37,7 @@ const title = computed(() => (route.meta.title as string) ?? "");
     </header>
 
     <nav class="nav">
-      <RouterLink v-for="n in navItems" :key="n.path" :to="n.path" class="nav-item">{{ n.name }}</RouterLink>
+      <RouterLink v-for="n in nav" :key="n.path" :to="n.path" class="nav-item">{{ n.name }}</RouterLink>
       <span class="nav-right">
         <RouterLink v-if="game.running.length" to="/log" class="nav-playing">🎮 {{ game.running.length }} 个游戏运行中</RouterLink>
         <template v-if="versions.running.length">⏳ {{ versions.running.length }} 个任务进行中</template>

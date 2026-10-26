@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { navItems } from "../router";
+import { useButtons } from "../buttons";
 import { inTauri } from "../api";
 import { isMac } from "../platform";
 import { useVersionsStore } from "../stores/versions";
@@ -14,6 +14,7 @@ import BackgroundLayer from "../components/BackgroundLayer.vue";
 
 // 第二版：木板侧边栏 + 像素风景
 const route = useRoute();
+const { nav } = useButtons();
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const game = useGameStore();
@@ -53,7 +54,7 @@ watch(collapsed, (v) => {
       </RouterLink>
 
       <nav class="nav">
-        <RouterLink v-for="n in navItems" :key="n.path" :to="n.path" class="nav-item" :title="collapsed ? n.name : undefined">
+        <RouterLink v-for="n in nav" :key="n.path" :to="n.path" class="nav-item" :title="collapsed ? n.name : undefined">
           <PixelIcon :name="n.icon" />
           <span class="label">{{ n.name }}</span>
           <span v-if="n.path === '/log' && game.running.length" class="badge playing" title="游戏运行中">{{ game.running.length }}</span>

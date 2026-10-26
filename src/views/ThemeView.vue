@@ -7,6 +7,7 @@ import { useSettingsStore } from "../stores/settings";
 import { useAccountsStore } from "../stores/accounts";
 import { backgroundUrl, currentLayout, DEFAULT_TWEAKS, pendingThemeImport, type Layout } from "../appearance";
 import { contrast } from "../colors";
+import ButtonSettings from "../components/ButtonSettings.vue";
 
 // 主题中心：布局、配色（含自定义）、预设、外观细调、明暗、背景图、主题分享。改动立刻生效
 const store = useSettingsStore();
@@ -364,6 +365,8 @@ async function resetAll() {
         </div>
       </div>
     </div>
+
+    <ButtonSettings />
 
     <p v-if="message" :class="message.ok ? 'ok' : 'error-text'">{{ message.text }}</p>
   </div>

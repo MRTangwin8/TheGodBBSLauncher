@@ -117,7 +117,8 @@ async fn launch_auth(state: &AppState) -> Result<(LaunchAuth, Option<String>)> {
 }
 
 #[tauri::command]
-pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id: String) -> Result<LaunchResult> {
+/// `server`：启动后直接进这个服务器（来自首页的快捷按钮）；留空就是普通启动
+pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id: String, server: Option<String>) -> Result<LaunchResult> {
     let state: &AppState = &state;
     let settings = state.settings.read().await.clone();
     let platform = Platform::current();
@@ -179,6 +180,13 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
 
     // 单版本设置（整合包实例）：强制隔离、最少内存、追加参数
     let inst = instance::load(&game, &version.id);
+    let server_args = match server.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        Some(addr) => {
+            let mc = crate::engine::meta::version::base_minecraft_version(&game.versions(), &version_id).await?;
+            launch::server::server_join_args(&mc, addr)?
+        }
+        None => Vec::new(),
+    };
     let game_dir = instance::game_dir(&game, &version.id, settings.isolate_versions);
     let memory = settings.memory_mb.unwrap_or_else(|| auto_memory_mb(total_memory_mb()));
     let opts = LaunchOptions {
@@ -186,7 +194,7 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         game_dir,
         memory_mb: memory.max(inst.min_memory_mb.unwrap_or(0)),
         extra_jvm_args: split_args(&settings.jvm_args).into_iter().chain(inst.jvm_args.iter().cloned()).collect(),
-        extra_game_args: split_args(&settings.game_args).into_iter().chain(inst.game_args.iter().cloned()).collect(),
+        extra_game_args: split_args(&settings.game_args).into_iter().chain(inst.game_args.iter().cloned()).chain(server_args).collect(),
         resolution: settings.window_width.zip(settings.window_height),
         agent,
         auth: auth.clone(),

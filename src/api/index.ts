@@ -33,6 +33,7 @@ import type {
   RulesInfo,
   Settings,
   ThemePreview,
+  AnnouncementFeed,
   UpdateInfo,
   UpdateProgress,
   VersionManifest,
@@ -59,6 +60,8 @@ export const api = {
   themePreview: (path: string) => call<ThemePreview>("theme_preview", { path }),
   themeImport: (path: string) => call<Settings>("theme_import", { path }),
   checkUpdate: () => call<UpdateInfo>("check_update"),
+  /** 公告：force = 不看缓存，重新去 GitHub 拉 */
+  getAnnouncements: (force = false) => call<AnnouncementFeed>("get_announcements", { force }),
   /** 下载并安装这个版本，装完会自己重启；失败会抛错 */
   installUpdate: (version: string) => call<void>("install_update", { version }),
   probeMirrors: () => call<ProbeResult[]>("probe_mirrors"),
@@ -114,7 +117,10 @@ export const api = {
   updateCrashRules: (url: string) => call<RulesInfo>("update_crash_rules", { url }),
   resetCrashRules: () => call<RulesInfo>("reset_crash_rules"),
 
-  launchGame: (versionId: string) => call<LaunchResult>("launch_game", { versionId }),
+  /** server：启动后直接进这个服务器（可选） */
+  launchGame: (versionId: string, server?: string | null) => call<LaunchResult>("launch_game", { versionId, server: server ?? null }),
+  quickOpenFolder: (path: string) => call<void>("quick_open_folder", { path }),
+  quickRunProgram: (path: string) => call<void>("quick_run_program", { path }),
   killGame: (runId: string) => call<void>("kill_game", { runId }),
 };
 

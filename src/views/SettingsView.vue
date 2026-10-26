@@ -6,6 +6,7 @@ import type { JavaInstall, MemoryInfo, ProbeResult, RulesInfo, Settings } from "
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
 import { checkForUpdate } from "../update";
+import { announcementsLoading, announcementsNote, loadAnnouncements, restoreAnnouncements } from "../announcements";
 
 const store = useSettingsStore();
 const versions = useVersionsStore();
@@ -111,6 +112,15 @@ async function manualCheck() {
     updateMsg.value = { ok: false, text: String(e) };
   } finally {
     checking.value = false;
+  }
+}
+async function setAnnouncements(on: boolean) {
+  if (!store.settings) return;
+  try {
+    await store.save({ ...store.settings, announcementsEnabled: on });
+    if (on) loadAnnouncements();
+  } catch (e) {
+    updateMsg.value = { ok: false, text: String(e) };
   }
 }
 async function setAutoCheck(on: boolean) {
@@ -276,7 +286,16 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
         </label>
         <span v-if="updateMsg" :class="updateMsg.ok ? 'ok' : 'error-text'">{{ updateMsg.text }}</span>
       </div>
-      <p class="muted hint">检查更新只会向 GitHub 查询发布列表（会让 GitHub 看到你的网络地址），不会上传任何其他信息，也不会自动下载或安装。</p>
+      <div class="update-row">
+        <button class="btn small" :disabled="announcementsLoading" @click="loadAnnouncements(true)">{{ announcementsLoading ? "刷新中…" : "刷新公告" }}</button>
+        <label class="check">
+          <input type="checkbox" :checked="store.settings?.announcementsEnabled !== false" @change="setAnnouncements(($event.target as HTMLInputElement).checked)" />
+          启动时获取公告
+        </label>
+        <a v-if="store.settings?.dismissedAnnouncements?.length" @click="restoreAnnouncements()">重新显示已关闭的公告</a>
+        <span v-if="announcementsNote" :class="announcementsNote.ok ? 'ok' : 'error-text'">{{ announcementsNote.text }}</span>
+      </div>
+      <p class="muted hint">检查更新和获取公告都只会向 GitHub 读取公开内容（GitHub 能看到你的网络地址），不会上传任何其他信息。公告只在启动时获取一次；更新不会自动安装，点了「立即更新」才会。</p>
     </div>
   </div>
 </template>

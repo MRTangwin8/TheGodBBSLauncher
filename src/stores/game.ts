@@ -62,14 +62,14 @@ export const useGameStore = defineStore("game", () => {
     }
   });
 
-  async function launch(versionId: string): Promise<boolean> {
+  async function launch(versionId: string, server?: string | null): Promise<boolean> {
     if (launching.value) return false;
     const versions = useVersionsStore();
     launching.value = versionId;
     error.value = null;
     const job = versions.trackLaunch(versionId);
     try {
-      const r = await api.launchGame(versionId);
+      const r = await api.launchGame(versionId, server);
       runs[r.runId] = {
         ...r,
         startedAt: Date.now(),

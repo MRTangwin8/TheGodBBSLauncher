@@ -4,6 +4,7 @@ import { useVersionsStore } from "../../stores/versions";
 import { useAccountsStore } from "../../stores/accounts";
 import UserCard from "../UserCard.vue";
 import QuickLaunch from "./QuickLaunch.vue";
+import NoticeBoard from "./NoticeBoard.vue";
 import { formatDate, kindLabel } from "../../utils";
 
 // 第一版的论坛首页：公告栏 + 版块列表 + 最新帖子 + 个人信息
@@ -50,13 +51,10 @@ const latest = computed(() =>
   <div class="home">
     <div class="left">
       <QuickLaunch />
-      <div class="box">
-        <div class="box-title">📢 公告栏</div>
-        <div class="box-body notice">
-          <p><span class="tag">置顶</span><b>神权论坛启动器</b>：原版 / 加载器 / 整合包一键安装，资源中心下载时自动检查兼容性，崩溃了版主帮你看。</p>
-          <p class="muted">小贴士：把 .mrpack 或整合包 .zip 直接拖进窗口就能导入；去「主题中心」可以换布局和配色。</p>
-        </div>
-      </div>
+      <NoticeBoard>
+        <p><span class="tag">置顶</span><b>神权论坛启动器</b>：原版 / 加载器 / 整合包一键安装，资源中心下载时自动检查兼容性，崩溃了版主帮你看。</p>
+        <p class="muted">小贴士：把 .mrpack 或整合包 .zip 直接拖进窗口就能导入；去「主题中心」可以换布局和配色。</p>
+      </NoticeBoard>
 
       <div class="box">
         <div class="box-title">版块</div>

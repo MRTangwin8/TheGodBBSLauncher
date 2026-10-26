@@ -52,8 +52,59 @@ export interface Settings {
   lastVersion: string | null;
   autoCheckUpdate: boolean;
   skippedUpdate: string | null;
+  announcementsEnabled: boolean;
+  dismissedAnnouncements: string[];
+  buttons: Buttons;
   customPalette: CustomPalette;
   tweaks: Tweaks;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  /** 纯文本，可以有换行 */
+  body: string;
+  date: string;
+  level: "info" | "notice" | "warn";
+  pinned: boolean;
+  link: string | null;
+  linkText: string;
+  expires: string | null;
+}
+
+export interface AnnouncementFeed {
+  items: Announcement[];
+  fetchedAt: number;
+  /** true = 这次没拉成功，显示的是上次缓存的 */
+  stale: boolean;
+}
+
+export type LaunchStyle = "stone" | "flat" | "pill";
+
+export type QuickAction =
+  | { type: "openFolder"; path: string }
+  | { type: "openUrl"; url: string }
+  | { type: "launch"; versionId: string; server?: string | null }
+  | { type: "runProgram"; path: string };
+
+export interface QuickButton {
+  id: string;
+  label: string;
+  icon: string;
+  action: QuickAction;
+}
+
+/** 启动按钮、导航栏、首页快捷按钮的自定义。不进主题文件（快捷按钮能运行本地程序） */
+export interface Buttons {
+  launchLabel: string;
+  launchStyle: LaunchStyle;
+  /** #rrggbb；空 = 跟随配色方案 */
+  launchColor: string;
+  launchSound: boolean;
+  launchShortcut: boolean;
+  navOrder: string[];
+  navHidden: string[];
+  quick: QuickButton[];
 }
 
 export interface UpdateInfo {

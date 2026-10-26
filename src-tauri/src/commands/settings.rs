@@ -19,6 +19,7 @@ pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings> {
 
 #[tauri::command]
 pub async fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<()> {
+    let settings = settings.sanitized();
     config::save(&state.config_path, &settings)?;
     *state.settings.write().await = settings;
     *state.auto_source.lock().await = None;

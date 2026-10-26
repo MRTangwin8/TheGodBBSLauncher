@@ -39,6 +39,11 @@ export function contrast(a: string, b: string): number {
   return (x + 0.05) / (y + 0.05);
 }
 
+/** 在这个背景色上用白字还是深色字：白字对比度不够（背景偏浅）就换深色 */
+export function readableText(bg: string): string {
+  return contrast("#ffffff", bg) >= 3 ? "#ffffff" : "#1c1c22";
+}
+
 /** 强调色相关的变量；现代布局只用这几个 */
 export function accentVars(p: CustomPalette, dark: boolean): Record<string, string> {
   const a = p.accent;

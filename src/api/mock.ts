@@ -39,6 +39,9 @@ let settings: Settings = {
   lastVersion: "fabric-loader-0.16.9-1.21.1",
   autoCheckUpdate: true,
   skippedUpdate: null,
+  announcementsEnabled: true,
+  dismissedAnnouncements: [],
+  buttons: { launchLabel: "", launchStyle: "stone", launchColor: "", launchSound: false, launchShortcut: true, navOrder: [], navHidden: [], quick: [] },
   customPalette: { accent: "#5e9c35", surface: "#fbf2db", text: "#3d2f1f", wood: "#6b4a2b" },
   tweaks: { radius: null, cardOpacity: null, cardBlur: null, bgBlur: 0, bgDim: 0, fontSize: 13, font: "", animations: true },
 };
@@ -73,6 +76,19 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     get_settings: () => settings,
     save_settings: () => void (settings = args!.settings as Settings),
     background_image: () => null,
+    // 预览默认没有公告；地址加 ?mockNotice 可以看到有公告时的样子
+    get_announcements: () => ({
+      fetchedAt: Math.floor(Date.now() / 1000),
+      stale: false,
+      items: location.search.includes("mockNotice")
+        ? [
+            { id: "welcome", title: "欢迎使用神权论坛启动器", body: ["这里会显示 GitHub 上发布的公告。", "不用更新启动器就能收到。"].join(String.fromCharCode(10)), date: "2026-10-27", level: "info", pinned: true, link: "https://github.com/MRTangwin8/TheGodBBSLauncher", linkText: "项目主页", expires: null },
+            { id: "warn1", title: "<b>这段不会被当成 HTML</b>", body: "旧版本的整合包导出有问题，请更新到 0.3.3。", date: "2026-10-26", level: "warn", pinned: false, link: null, linkText: "", expires: null },
+          ]
+        : [],
+    }),
+    quick_open_folder: () => undefined,
+    quick_run_program: () => undefined,
     // 预览默认"已是最新"，免得弹窗盖住截图；地址加 ?mockUpdate 可以看到有更新时的样子
     check_update: () => {
       const has = location.search.includes("mockUpdate");

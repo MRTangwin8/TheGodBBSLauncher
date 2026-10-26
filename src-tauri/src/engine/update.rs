@@ -122,6 +122,14 @@ fn pick_latest(releases: Vec<GhRelease>, current: &str) -> UpdateInfo {
     }
 }
 
+/// current 在不在 [min, max] 里；某一边没填或写错了，就当那一边没限制
+pub(crate) fn version_in_range(current: &str, min: Option<&str>, max: Option<&str>) -> bool {
+    let Some(cur) = parse_version(current) else { return true };
+    let below = min.and_then(parse_version).is_some_and(|m| cur < m);
+    let above = max.and_then(parse_version).is_some_and(|m| cur > m);
+    !below && !above
+}
+
 fn clip(s: &str) -> String {
     let s = s.replace("\r\n", "\n");
     let s = s.trim();

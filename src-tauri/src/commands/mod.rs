@@ -1,6 +1,8 @@
 //! 前端 IPC。请求/响应走 command，下载进度和游戏日志走 event。
 
 pub mod accounts;
+pub mod announce;
+pub mod buttons;
 pub mod crash;
 pub mod game;
 pub mod java;

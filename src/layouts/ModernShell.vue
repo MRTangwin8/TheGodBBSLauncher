@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { navItems } from "../router";
+import { useButtons } from "../buttons";
 import { inTauri } from "../api";
 import { isMac } from "../platform";
 import { useVersionsStore } from "../stores/versions";
@@ -14,6 +14,7 @@ import BackgroundLayer from "../components/BackgroundLayer.vue";
 
 // 完全现代：图标导航条 + 透明标题栏 + 亚克力卡片
 const route = useRoute();
+const { nav } = useButtons();
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const game = useGameStore();
@@ -28,7 +29,7 @@ const title = computed(() => (route.meta.title as string) ?? "");
       <div class="rail-drag" data-tauri-drag-region />
       <RouterLink to="/" class="brand" title="神权论坛启动器">神</RouterLink>
       <nav class="rail-nav">
-        <RouterLink v-for="n in navItems" :key="n.path" :to="n.path" class="rail-item">
+        <RouterLink v-for="n in nav" :key="n.path" :to="n.path" class="rail-item">
           <ModernIcon :name="n.icon" :size="20" />
           <span class="rail-label">{{ n.name.length > 2 ? n.name.replace(/中心|管理|空间|游戏/, "") : n.name }}</span>
           <i v-if="n.path === '/log' && game.running.length" class="dot playing" />

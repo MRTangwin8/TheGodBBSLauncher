@@ -34,6 +34,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_settings,
+            commands::announce::get_announcements,
+            commands::buttons::quick_open_folder,
+            commands::buttons::quick_run_program,
             commands::settings::save_settings,
             commands::settings::probe_mirrors,
             commands::settings::background_image,

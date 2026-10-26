@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 
 use super::{Error, Result};
-use crate::config::{CustomPalette, Settings, Tweaks};
+use crate::config::{clean_text, is_hex_color, CustomPalette, Settings, Tweaks};
 
 pub const EXT: &str = "godtheme";
 const FORMAT: &str = "godbbs-theme";
@@ -189,14 +189,6 @@ fn save_background(bg: &Background, dir: &Path) -> Result<PathBuf> {
         std::fs::write(&path, bytes)?;
     }
     Ok(path)
-}
-
-fn clean_text(s: &str, max: usize) -> String {
-    s.chars().filter(|c| !c.is_control()).take(max).collect::<String>().trim().to_string()
-}
-
-fn is_hex_color(s: &str) -> bool {
-    s.len() == 7 && s.starts_with('#') && s[1..].chars().all(|c| c.is_ascii_hexdigit())
 }
 
 fn clean_palette(p: CustomPalette) -> CustomPalette {

@@ -5,6 +5,7 @@ import { useVersionsStore } from "../stores/versions";
 import { useAccountsStore } from "../stores/accounts";
 import { useGameStore } from "../stores/game";
 import { useSettingsStore } from "../stores/settings";
+import { playLaunchSound } from "../buttons";
 
 export function useLauncher() {
   const versions = useVersionsStore();
@@ -42,14 +43,16 @@ export function useLauncher() {
     return p && p.totalFiles ? `补全文件 ${p.finishedFiles}/${p.totalFiles}` : "检查游戏文件…";
   });
 
-  async function launch(id = selected.value) {
+  /** server：启动后直接进这个服务器（首页快捷按钮用） */
+  async function launch(id = selected.value, server?: string | null) {
     if (!id) return;
     selected.value = id;
     if (!accounts.selected) {
       router.push("/account");
       return;
     }
-    if (await game.launch(id)) router.push("/log");
+    if (settings.settings?.buttons?.launchSound) playLaunchSound();
+    if (await game.launch(id, server)) router.push("/log");
   }
 
   return { selected, byRecent, current, runningRun, launchingThis, launchStage, launch, versions, accounts, game, router };

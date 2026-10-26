@@ -87,6 +87,15 @@ src/
 - **下载文件的请求必须显式带 `Accept-Encoding: identity`**（`engine/download` 里两处），断点续传和大小校验都按原始字节算，不能让对方压缩。新增下载路径时照做，`http_tests.rs` 里有回归测试。
 - 搜索类命令用 `engine::http::within(SEARCH_TIMEOUT, …)` 包一层总超时，对方卡住时给出明确提示，不让界面一直转圈。
 
+### 按钮自定义与公告
+- **按钮自定义**（`settings.buttons`，Rust 在 `config/buttons.rs`，前端在 `buttons.ts` / `buttons-logic.ts` / `ButtonSettings.vue`）：启动按钮外观、导航栏顺序与隐藏、首页快捷按钮。
+  - **不进 `.godtheme`**：快捷按钮能运行本地程序，不能让别人分享的主题带进来；新增会被导出的外观字段时别把它们带进去。
+  - 设置文件里的值按不可信数据处理：`Settings::sanitized` 在保存和读取时都过一遍，不合格的整个丢掉；前端校验（`buttons-logic.ts`）和后端规则要保持一致，改一边要改另一边。
+  - 「运行程序」：后端 `quick_run_program` 只允许运行**已保存在按钮里**的路径，界面每次运行前还会弹窗确认；不要加"任意路径"的入口。
+  - 首页、主题中心、设置不能从导航栏隐藏（`ALWAYS_VISIBLE`），免得用户把自己锁在设置外面。
+  - 「启动并进服务器」：`launch_game` 的 `server` 参数经 `engine/launch/server.rs` 校验后才变成启动参数（1.20 起用 `--quickPlayMultiplayer`，更早的用 `--server/--port`）。
+- **公告栏**：`engine/announce.rs` 启动时从仓库根目录的 `announcements.json` 拉一次（运行期间不拉），格式、发布方法、限制见 [docs/ANNOUNCEMENTS.md](docs/ANNOUNCEMENTS.md)。内容全部当纯文本、链接只放行 http(s)；提交公告时在提交说明里写 `[skip ci]`，免得白白跑一次构建。
+
 ### 长任务与进度
 - 用事件推送：`install-progress`、`game-log`、`game-exit`。前端用 `api/index.ts` 导出的 `onInstallProgress` / `onGameLog` / `onGameExit` 订阅；新事件照此加一个导出。
 - 下载任务带 `jobId`，进度显示在 `ProgressFloat`。

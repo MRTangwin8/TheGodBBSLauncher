@@ -7,9 +7,13 @@ import { useSettingsStore } from "../../stores/settings";
 import { useLauncher } from "../../composables/useLauncher";
 import { formatDuration, loaderLabel, timeAgo } from "../../utils";
 import PixelIcon from "../PixelIcon.vue";
+import QuickButtons from "./QuickButtons.vue";
+import NoticeBoard from "./NoticeBoard.vue";
+import { useButtons } from "../../buttons";
 
 const { selected, byRecent, current, runningRun, launchingThis, launchStage, launch, versions, accounts, game, router } = useLauncher();
 const settings = useSettingsStore();
+const { launchLabel, launchClass, launchStyle } = useButtons();
 
 const recent = computed(() => byRecent.value.filter((v) => v.lastPlayed).slice(0, 5));
 const totalPlay = computed(() => versions.installed.reduce((s, v) => s + v.playTimeSecs, 0));
@@ -67,6 +71,7 @@ function openFolder() {
             <a v-if="current.loader" @click="router.push({ path: '/resources', query: { version: current.id } })"><PixelIcon name="resources" :size="12" /> 管理模组</a>
             <a @click="router.push('/versions')"><PixelIcon name="versions" :size="12" /> 版本管理</a>
           </div>
+          <QuickButtons />
           <p v-if="game.error && !game.launching" class="error-text small">启动失败：{{ game.error }}</p>
         </div>
 
@@ -78,10 +83,10 @@ function openFolder() {
             </button>
             <a class="stop" @click="game.kill(runningRun.runId)">结束进程</a>
           </template>
-          <button v-else class="launch" :disabled="!!game.launching" @click="launch()">
+          <button v-else class="launch" :class="launchClass" :style="launchStyle" :disabled="!!game.launching" @click="launch()">
             <PixelIcon v-if="!launchingThis" name="play" :size="22" />
             <span class="launch-text">
-              <span class="launch-title">{{ launchingThis ? "启动中…" : accounts.selected ? "开始游戏" : "添加账号" }}</span>
+              <span class="launch-title">{{ launchingThis ? "启动中…" : accounts.selected ? launchLabel : "添加账号" }}</span>
               <span class="launch-sub">{{ launchingThis ? launchStage : current?.id }}</span>
             </span>
           </button>
@@ -97,13 +102,10 @@ function openFolder() {
 
     <div class="cols">
       <div>
-        <section class="box">
-          <div class="box-title">📢 公告栏</div>
-          <div class="box-body notice">
-            <p><span class="tag">置顶</span><b>神权论坛启动器</b>：原版 / 加载器 / 整合包一键安装，资源中心下载时自动检查兼容性，崩溃了版主帮你看。</p>
-            <p class="muted">小贴士：把 .mrpack 或整合包 .zip 直接拖进窗口就能导入。</p>
-          </div>
-        </section>
+        <NoticeBoard>
+          <p><span class="tag">置顶</span><b>神权论坛启动器</b>：原版 / 加载器 / 整合包一键安装，资源中心下载时自动检查兼容性，崩溃了版主帮你看。</p>
+          <p class="muted">小贴士：把 .mrpack 或整合包 .zip 直接拖进窗口就能导入。</p>
+        </NoticeBoard>
 
         <section class="box">
           <div class="box-title">最近玩过 <RouterLink to="/versions" class="extra">全部版本 »</RouterLink></div>

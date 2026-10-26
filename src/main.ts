@@ -5,6 +5,7 @@ import router from "./router";
 import "./themes/mcbbs-classic.css";
 import "./themes/palettes.css";
 import "./themes/layouts.css";
+import "./themes/buttons.css";
 import { installShortcutGuard } from "./shortcuts";
 import { setupPlatform } from "./platform";
 

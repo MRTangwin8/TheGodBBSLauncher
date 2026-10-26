@@ -2,6 +2,7 @@
 //! 进程管理放在 commands 层（需要往前端推日志）。
 
 pub mod log4j;
+pub mod server;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};

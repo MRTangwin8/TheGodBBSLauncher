@@ -2,8 +2,11 @@
 import { useLauncher } from "../../composables/useLauncher";
 import { kindLabel as accountKind } from "../../stores/accounts";
 import { formatDuration, loaderLabel } from "../../utils";
+import { useButtons } from "../../buttons";
+import QuickButtons from "./QuickButtons.vue";
 
 // 经典论坛首页的「快速启动」版块
+const { launchLabel, launchClass, launchStyle } = useButtons();
 const { selected, byRecent, current, runningRun, launchingThis, launchStage, launch, versions, accounts, game, router } = useLauncher();
 </script>
 
@@ -34,10 +37,11 @@ const { selected, byRecent, current, runningRun, launchingThis, launchStage, lau
         <button class="btn go running" @click="router.push('/log')">游戏运行中</button>
         <a class="stop" @click="game.kill(runningRun.runId)">结束</a>
       </template>
-      <button v-else class="btn primary go" :disabled="!!game.launching" @click="launch()">
-        {{ launchingThis ? launchStage : accounts.selected ? "▶ 开始游戏" : "添加账号" }}
+      <button v-else class="btn primary go" :class="launchClass" :style="launchStyle" :disabled="!!game.launching" @click="launch()">
+        {{ launchingThis ? launchStage : accounts.selected ? `▶ ${launchLabel}` : "添加账号" }}
       </button>
     </div>
+    <div v-if="versions.installed.length" class="quick-extra"><QuickButtons /></div>
     <div v-if="current && versions.installed.length" class="meta muted">
       {{ current.loader ? loaderLabel[current.loader] : "原版" }}{{ current.mcVersion && current.mcVersion !== current.id ? ` · MC ${current.mcVersion}` : "" }}
       · 已玩 {{ formatDuration(current.playTimeSecs) }}
@@ -55,4 +59,6 @@ const { selected, byRecent, current, runningRun, launchingThis, launchStage, lau
 .go.running { color: #fff; background: linear-gradient(#5d9fd8, #2f6aa8); border-color: #1d4570; }
 .stop { color: var(--red); font-size: 12px; white-space: nowrap; }
 .meta { padding: 0 14px 10px; font-size: 12px; }
+.quick-extra { padding: 0 14px 8px; }
+.quick-extra :deep(.quick-buttons) { margin-top: 2px; }
 </style>

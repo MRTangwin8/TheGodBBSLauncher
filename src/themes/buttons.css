@@ -1,0 +1,27 @@
+/*
+ * 启动按钮的自定义样式（主题中心 → 启动按钮）。
+ * 默认的「石头 + 跟随配色」不覆盖任何东西，保持各布局原来的样子；
+ * 用 :root 抬高优先级，盖过各组件里的 scoped 样式。
+ */
+
+/* 扁平 / 胶囊：纯色底，没有石头按钮的立体边 */
+:root .ui-launch.ui-flat,
+:root .ui-launch.ui-pill {
+  background: var(--launch-color, var(--grass));
+  border: 1px solid color-mix(in srgb, var(--launch-color, var(--grass)) 70%, #000);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--launch-color, var(--grass)) 35%, transparent);
+  color: var(--launch-fg, #fff);
+  text-shadow: none;
+}
+:root .ui-launch.ui-flat { border-radius: 6px; }
+:root .ui-launch.ui-pill { border-radius: 999px; }
+:root .ui-launch.ui-flat:active:not(:disabled),
+:root .ui-launch.ui-pill:active:not(:disabled) { box-shadow: none; transform: translateY(1px); }
+
+/* 石头 + 自定义颜色：还是那个立体按钮，只换颜色 */
+:root .ui-launch.ui-stone.ui-colored {
+  background: linear-gradient(color-mix(in srgb, var(--launch-color) 78%, #fff), var(--launch-color));
+  border-color: color-mix(in srgb, var(--launch-color) 45%, #000);
+  color: var(--launch-fg, #fff);
+  text-shadow: var(--launch-shadow, none);
+}

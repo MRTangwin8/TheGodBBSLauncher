@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::engine::mirror::SourcePref;
 
+mod buttons;
+pub use buttons::{Buttons, QuickAction};
+pub(crate) use buttons::{clean_text, is_hex_color};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -43,10 +47,16 @@ pub struct Settings {
     pub auto_check_update: bool,
     /// 用户选了"跳过此版本"的版本号（不带 v）
     pub skipped_update: Option<String>,
+    /// 启动时和运行期间定期从 GitHub 拉公告
+    pub announcements_enabled: bool,
+    /// 用户关掉的公告 id（最多记 200 个）
+    pub dismissed_announcements: Vec<String>,
     /// palette = "custom" 时用的自定义配色
     pub custom_palette: CustomPalette,
     /// 外观细调（圆角、透明度、字体……）
     pub tweaks: Tweaks,
+    /// 启动按钮、导航栏、首页快捷按钮的自定义（不进主题文件，见 buttons.rs）
+    pub buttons: Buttons,
 }
 
 /// 自定义配色：四个基础色，其余变量（深色版本、边框、悬停色）由前端推算
@@ -117,9 +127,28 @@ impl Default for Settings {
             last_version: None,
             auto_check_update: true,
             skipped_update: None,
+            announcements_enabled: true,
+            dismissed_announcements: Vec::new(),
             custom_palette: CustomPalette::default(),
             tweaks: Tweaks::default(),
+            buttons: Buttons::default(),
         }
+    }
+}
+
+impl Settings {
+    /// 来自界面或磁盘的值都不可信：把按钮自定义里不合格的部分修正或丢掉
+    pub fn sanitized(mut self) -> Self {
+        self.buttons = self.buttons.sanitized();
+        let mut dismissed: Vec<String> = Vec::new();
+        for id in self.dismissed_announcements.iter().filter_map(|id| crate::engine::announce::clean_announce_id(id)) {
+            if !dismissed.contains(&id) {
+                dismissed.push(id);
+            }
+        }
+        let skip = dismissed.len().saturating_sub(200);
+        self.dismissed_announcements = dismissed.split_off(skip);
+        self
     }
 }
 
@@ -169,8 +198,9 @@ impl Settings {
 pub fn load(path: &Path) -> Settings {
     std::fs::read_to_string(path)
         .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
+        .and_then(|s| serde_json::from_str::<Settings>(&s).ok())
         .unwrap_or_default()
+        .sanitized()
 }
 
 pub fn save(path: &Path, settings: &Settings) -> std::io::Result<()> {

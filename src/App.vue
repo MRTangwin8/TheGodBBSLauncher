@@ -11,6 +11,8 @@ import ModpackImportDialog from "./components/ModpackImportDialog.vue";
 import ThemeImportDialog from "./components/ThemeImportDialog.vue";
 import UpdateDialog from "./components/UpdateDialog.vue";
 import { checkForUpdate, pendingUpdate, skipUpdate } from "./update";
+import { loadAnnouncements } from "./announcements";
+import { useLauncher } from "./composables/useLauncher";
 import ClassicShell from "./layouts/ClassicShell.vue";
 import SidebarShell from "./layouts/SidebarShell.vue";
 import ModernShell from "./layouts/ModernShell.vue";
@@ -20,6 +22,19 @@ const settings = useSettingsStore();
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const modpack = useModpackStore();
+const launcher = useLauncher();
+
+// Ctrl+Enter（macOS 是 ⌘+Enter）直接启动当前选中的版本。在输入框、弹窗里不触发，免得误启动
+function onKey(e: KeyboardEvent) {
+  if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey) || e.repeat) return;
+  if (settings.settings?.buttons?.launchShortcut === false) return;
+  const el = e.target;
+  if (el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
+  if (document.querySelector('[role="dialog"], .mask')) return;
+  if (launcher.runningRun.value || launcher.game.launching) return;
+  e.preventDefault();
+  launcher.launch();
+}
 
 setupAppearance();
 
@@ -27,9 +42,12 @@ setupAppearance();
 const shell = computed(() => ({ classic: ClassicShell, sidebar: SidebarShell, modern: ModernShell })[currentLayout.value]);
 
 onMounted(() => {
+  window.addEventListener("keydown", onKey);
   // 设置读到之后，等界面稳定几秒再静默查一次更新，不拖慢启动
   settings.load().then(() => {
     if (settings.settings?.autoCheckUpdate !== false) setTimeout(() => checkForUpdate(false), 4000);
+    // 公告只在启动时拉一次，运行期间不再拉
+    if (settings.settings?.announcementsEnabled !== false) loadAnnouncements();
   });
   versions.loadInstalled();
   accounts.load();
