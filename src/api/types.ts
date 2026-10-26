@@ -121,6 +121,41 @@ export interface UpdateInfo {
   canInstall: boolean;
 }
 
+export interface GameDirInfo {
+  current: string;
+  /** 启动器所在目录旁边的 .minecraft（装在不能写的位置时是备用位置） */
+  recommended: string;
+  /** 老版本默认放的位置 */
+  legacy: string;
+  legacyHasData: boolean;
+}
+
+export interface DirStats {
+  exists: boolean;
+  empty: boolean;
+  files: number;
+  bytes: number;
+}
+
+export interface MigrateProgress {
+  stage: "scanning" | "moving" | "copying" | "verifying" | "cleaning";
+  bytes: number;
+  totalBytes: number;
+  files: number;
+  totalFiles: number;
+}
+
+export interface MigrateReport {
+  /** false = 只改了位置，没搬文件 */
+  moved: boolean;
+  /** true = 同盘直接移动 */
+  renamed: boolean;
+  bytes: number;
+  files: number;
+  /** 已复制成功但旧目录里没能删掉的东西 */
+  leftover: string[];
+}
+
 export interface UpdateProgress {
   downloaded: number;
   total: number | null;

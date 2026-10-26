@@ -146,6 +146,7 @@ pub async fn resource_install(
     version_id: String,
     plan: InstallPlan,
 ) -> Result<DownloadReport> {
+    state.ensure_not_migrating()?;
     let t = target(&state, &version_id, kind).await?;
     std::fs::create_dir_all(&t.dir)?;
     let settings = state.settings.read().await.clone();

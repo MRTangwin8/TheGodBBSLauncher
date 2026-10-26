@@ -88,6 +88,15 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
         : [],
     }),
     quick_open_folder: () => undefined,
+    game_dir_info: () => ({
+      current: "C:\Users\Steve\AppData\Roaming\GodBBSLauncher\.minecraft",
+      recommended: "C:\Users\Steve\GodBBSLauncher\.minecraft",
+      legacy: "C:\Users\Steve\AppData\Roaming\GodBBSLauncher\.minecraft",
+      legacyHasData: true,
+    }),
+    dir_stats: () => (String(args?.path ?? "").includes("AppData") ? { exists: true, empty: false, files: 14236, bytes: 2_900_000_000 } : { exists: false, empty: false, files: 0, bytes: 0 }),
+    game_dir_migrate: () => ({ moved: true, renamed: true, bytes: 0, files: 8, leftover: [] }),
+    game_dir_migrate_cancel: () => undefined,
     quick_run_program: () => undefined,
     // 预览默认"已是最新"，免得弹窗盖住截图；地址加 ?mockUpdate 可以看到有更新时的样子
     check_update: () => {

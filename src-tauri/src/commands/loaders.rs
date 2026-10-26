@@ -37,6 +37,7 @@ pub async fn install_loader(
     name: Option<String>,
 ) -> Result<String> {
     let state: &AppState = &state;
+    state.ensure_not_migrating()?;
     if !state.installing.lock().await.insert(job_id.clone()) {
         return Err(Error::Other("这个加载器已经在安装了，别急".into()));
     }

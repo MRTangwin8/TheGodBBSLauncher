@@ -120,6 +120,7 @@ async fn launch_auth(state: &AppState) -> Result<(LaunchAuth, Option<String>)> {
 /// `server`：启动后直接进这个服务器（来自首页的快捷按钮）；留空就是普通启动
 pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id: String, server: Option<String>) -> Result<LaunchResult> {
     let state: &AppState = &state;
+    state.ensure_not_migrating()?;
     let settings = state.settings.read().await.clone();
     let platform = Platform::current();
     let game = GameDir::new(settings.game_dir.clone());

@@ -6,6 +6,8 @@ import type { JavaInstall, MemoryInfo, ProbeResult, RulesInfo, Settings } from "
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
 import { checkForUpdate } from "../update";
+import GameDirDialog from "../components/GameDirDialog.vue";
+import type { GameDirInfo } from "../api/types";
 import { announcementsLoading, announcementsNote, loadAnnouncements, restoreAnnouncements } from "../announcements";
 
 const store = useSettingsStore();
@@ -21,11 +23,24 @@ const memory = ref<MemoryInfo | null>(null);
 
 watch(() => store.settings, (s) => (form.value = s ? { ...s } : null), { immediate: true });
 
+const dirInfo = ref<GameDirInfo | null>(null);
+const dirDialog = ref(false);
+async function showDirDialog() {
+  dirInfo.value = await api.gameDirInfo();
+  dirDialog.value = true;
+}
+async function openGameDir() {
+  if (form.value) await api.quickOpenFolder(form.value.gameDir).catch((e) => (message.value = { ok: false, text: `${e}` }));
+}
+// 老版本默认放在 AppData 里：提醒一下可以搬到启动器旁边
+const suggestMove = ref(false);
+
 const rules = ref<RulesInfo | null>(null);
 const rulesBusy = ref(false);
 const rulesMsg = ref<{ ok: boolean; text: string } | null>(null);
 
 onMounted(async () => {
+  api.gameDirInfo().then((i) => (suggestMove.value = i.legacyHasData && i.current !== i.recommended)).catch(() => {});
   memory.value = await api.memoryInfo();
   rules.value = await api.crashRulesInfo();
   await scanJava(false);
@@ -151,8 +166,13 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
       <div class="row">
         <label>游戏目录</label>
         <div class="field">
-          <input v-model="form.gameDir" class="input wide" />
-          <div class="muted hint">libraries / assets 在所有版本间共享，每个版本的存档以后会做隔离</div>
+          <div class="dirline">
+            <code class="dirpath">{{ form.gameDir }}</code>
+            <button class="btn small" @click="showDirDialog">更改 / 迁移…</button>
+            <button class="btn small" @click="openGameDir">打开文件夹</button>
+          </div>
+          <div class="muted hint">默认放在启动器旁边的 .minecraft 里，卸载启动器不会删它。libraries / assets 在所有版本间共享</div>
+          <div v-if="suggestMove" class="hint"><a @click="showDirDialog">你的游戏数据不在启动器旁边，可以一键迁移过去 »</a></div>
         </div>
       </div>
       <div class="row">
@@ -298,6 +318,7 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
       <p class="muted hint">检查更新和获取公告都只会向 GitHub 读取公开内容（GitHub 能看到你的网络地址），不会上传任何其他信息。公告只在启动时获取一次；更新不会自动安装，点了「立即更新」才会。</p>
     </div>
   </div>
+  <GameDirDialog v-if="dirDialog && dirInfo" :info="dirInfo" @close="dirDialog = false" />
 </template>
 
 <style scoped>
@@ -308,6 +329,8 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
 .wide { flex: 1; min-width: 300px; }
 .narrow { width: 90px; }
 .hint { width: 100%; font-size: 12px; }
+.dirline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dirpath { word-break: break-all; padding: 2px 6px; background: var(--bg-box-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .probe { display: flex; gap: 12px; }
 .ok { color: var(--grass); }
 .about p { margin: 6px 0; line-height: 1.7; }

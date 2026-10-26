@@ -11,6 +11,7 @@ pub mod announce;
 pub mod auth;
 pub mod crash;
 pub mod meta;
+pub mod migrate;
 pub mod mirror;
 pub mod modpack;
 pub mod resources;

@@ -54,6 +54,7 @@ pub async fn modpack_preview(state: State<'_, AppState>, path: String) -> Result
 #[tauri::command]
 pub async fn modpack_import(app: AppHandle, state: State<'_, AppState>, job_id: String, path: String, name: String) -> Result<String> {
     let state: &AppState = &state;
+    state.ensure_not_migrating()?;
     let name = name.trim().to_string();
     validate_version_name(&name)?;
     let game = GameDir::new(state.settings.read().await.game_dir.clone());

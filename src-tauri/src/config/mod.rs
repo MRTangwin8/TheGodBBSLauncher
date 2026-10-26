@@ -139,6 +139,10 @@ impl Default for Settings {
 impl Settings {
     /// 来自界面或磁盘的值都不可信：把按钮自定义里不合格的部分修正或丢掉
     pub fn sanitized(mut self) -> Self {
+        // 游戏目录必须是绝对路径：相对路径会跟着启动时的工作目录跑，装出一堆找不到的文件
+        if self.game_dir.as_os_str().is_empty() || !self.game_dir.is_absolute() {
+            self.game_dir = default_game_dir();
+        }
         self.buttons = self.buttons.sanitized();
         let mut dismissed: Vec<String> = Vec::new();
         for id in self.dismissed_announcements.iter().filter_map(|id| crate::engine::announce::clean_announce_id(id)) {
@@ -152,11 +156,44 @@ impl Settings {
     }
 }
 
+/// 游戏目录的默认位置：启动器所在目录下的 `.minecraft`，这样用户一眼就能找到，和启动器放在一起。
+/// 启动器目录不适合放游戏数据时（只读、系统目录、macOS 的 .app 包里、AppImage 的临时挂载点）退回到用户数据目录。
 pub fn default_game_dir() -> PathBuf {
-    dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("GodBBSLauncher")
-        .join(".minecraft")
+    launcher_game_dir().unwrap_or_else(fallback_game_dir)
+}
+
+/// 启动器目录下的 `.minecraft`；这个位置不合适就返回 None
+pub fn launcher_game_dir() -> Option<PathBuf> {
+    launcher_dir_for(&std::env::current_exe().ok()?, dir_writable)
+}
+
+/// 旧版本的默认位置（用户数据目录）。老用户的游戏文件还在这里，设置里会提示他们迁移
+pub fn legacy_game_dir() -> PathBuf {
+    dirs::data_dir().unwrap_or_else(|| PathBuf::from(".")).join("GodBBSLauncher").join(".minecraft")
+}
+
+/// 启动器目录不能用时的兜底：本机用户数据目录（不会随账号漫游同步）
+fn fallback_game_dir() -> PathBuf {
+    dirs::data_local_dir().or_else(dirs::data_dir).unwrap_or_else(|| PathBuf::from(".")).join("GodBBSLauncher").join(".minecraft")
+}
+
+/// 可执行文件所在目录下的 `.minecraft`，目录不合适就返回 None。`writable` 用来探测目录能不能写，方便测试。
+fn launcher_dir_for(exe: &Path, writable: impl Fn(&Path) -> bool) -> Option<PathBuf> {
+    let dir = exe.parent()?;
+    let lower = dir.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
+    let unsuitable = lower.contains(".app/contents") // macOS 应用包：更新会整个替换，里面不能放数据
+        || lower.contains("/program files") // 普通权限写不了；写得了也不该往里放几个 GB
+        || lower.contains("/windowsapps/")
+        || ["/usr/", "/opt/", "/snap/", "/nix/", "/tmp/.mount_"].iter().any(|p| lower.starts_with(p)); // Linux 系统目录、AppImage 挂载点
+    (!unsuitable && writable(dir)).then(|| dir.join(".minecraft"))
+}
+
+/// 这个目录能不能创建文件：真的建一个临时文件试一下，比看权限位可靠
+pub fn dir_writable(dir: &Path) -> bool {
+    let probe = dir.join(format!(".godbbs-write-test-{}", std::process::id()));
+    let ok = std::fs::OpenOptions::new().write(true).create_new(true).open(&probe).is_ok();
+    let _ = std::fs::remove_file(&probe);
+    ok
 }
 
 /// 旧版本用过的应用标识符（mcbbs.me 不是本项目的域名，已改用 co.mcbbs.*）
@@ -266,6 +303,53 @@ mod tests {
         for key in ["title", "width", "height", "minWidth", "minHeight", "devtools"] {
             assert_eq!(windows[0][key], base["app"]["windows"][0][key], "{key} 和 tauri.conf.json 不一致");
         }
+    }
+
+    #[test]
+    fn game_dir_defaults_next_to_the_launcher_when_that_is_safe() {
+        let ok = |_: &Path| true;
+        let no = |_: &Path| false;
+        let dir = |exe: &str, w: bool| launcher_dir_for(Path::new(exe), |d| if w { ok(d) } else { no(d) });
+        // Windows 普通安装 / 自定义安装目录
+        assert_eq!(dir("D:/games/Minecraft/神权论坛启动器/godbbs-launcher.exe", true), Some(PathBuf::from("D:/games/Minecraft/神权论坛启动器/.minecraft")));
+        assert!(dir("C:/Users/me/AppData/Local/神权论坛启动器/godbbs-launcher.exe", true).is_some());
+        // 目录不可写（比如 MSI 默认装进 Program Files，普通权限写不了）
+        assert_eq!(dir("D:/games/app/godbbs-launcher.exe", false), None);
+        // 就算写得了，也不往系统目录和应用包里放游戏数据
+        for exe in [
+            "C:/Program Files/神权论坛启动器/godbbs-launcher.exe",
+            "C:/Program Files (x86)/x/godbbs-launcher.exe",
+            "C:/Program Files/WindowsApps/x/godbbs-launcher.exe",
+            "/Applications/神权论坛启动器.app/Contents/MacOS/godbbs-launcher",
+            "/Users/me/Apps/神权论坛启动器.app/Contents/MacOS/godbbs-launcher",
+            "/usr/bin/godbbs-launcher",
+            "/opt/godbbs/godbbs-launcher",
+            "/tmp/.mount_GodBBSabc123/usr/bin/godbbs-launcher",
+        ] {
+            assert_eq!(dir(exe, true), None, "{exe}");
+        }
+        // Linux 解压到家目录的绿色版可以用
+        assert_eq!(dir("/home/me/games/godbbs/godbbs-launcher", true), Some(PathBuf::from("/home/me/games/godbbs/.minecraft")));
+    }
+
+    #[test]
+    fn default_game_dir_is_absolute_and_relative_paths_are_replaced() {
+        assert!(default_game_dir().is_absolute());
+        assert!(legacy_game_dir().ends_with("GodBBSLauncher/.minecraft") || legacy_game_dir().ends_with("GodBBSLauncher\\.minecraft"));
+        for bad in ["", "relative/path", ".minecraft"] {
+            let s = Settings { game_dir: PathBuf::from(bad), ..Settings::default() }.sanitized();
+            assert!(s.game_dir.is_absolute(), "{bad:?} 应该被替换成默认位置");
+        }
+        let keep = if cfg!(windows) { "D:/games/mc" } else { "/data/mc" };
+        assert_eq!(Settings { game_dir: PathBuf::from(keep), ..Settings::default() }.sanitized().game_dir, PathBuf::from(keep));
+    }
+
+    #[test]
+    fn dir_writable_leaves_no_trace() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(dir_writable(dir.path()));
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0, "探测用的临时文件要删掉");
+        assert!(!dir_writable(&dir.path().join("不存在的目录")));
     }
 
     #[test]

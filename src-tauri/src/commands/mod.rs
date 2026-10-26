@@ -5,6 +5,7 @@ pub mod announce;
 pub mod buttons;
 pub mod crash;
 pub mod game;
+pub mod gamedir;
 pub mod java;
 pub mod loaders;
 pub mod modpack;
@@ -14,7 +15,7 @@ pub mod versions;
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use tokio::sync::{oneshot, Mutex, RwLock};
@@ -48,6 +49,9 @@ pub struct AppState {
     pub java_cache: Mutex<Option<Vec<JavaInstall>>>,
     pub games: Mutex<HashMap<String, RunningGame>>,
     pub crash_rules: RwLock<Arc<RuleSet>>,
+    /// 正在迁移游戏目录：这期间不能启动游戏、安装任何东西
+    pub migrating: AtomicBool,
+    pub migrate_cancel: AtomicBool,
 }
 
 impl AppState {
@@ -67,7 +71,17 @@ impl AppState {
             java_cache: Mutex::new(None),
             games: Mutex::new(HashMap::new()),
             crash_rules,
+            migrating: AtomicBool::new(false),
+            migrate_cancel: AtomicBool::new(false),
         }
+    }
+
+    /// 启动 / 安装类命令开头调用：迁移游戏目录时拒绝
+    pub fn ensure_not_migrating(&self) -> crate::engine::Result<()> {
+        if self.migrating.load(Ordering::SeqCst) {
+            return Err(crate::engine::Error::Other("正在迁移游戏目录，等迁移完成再操作".into()));
+        }
+        Ok(())
     }
 
     pub fn runtime_dir(&self) -> PathBuf {

@@ -35,6 +35,7 @@ pub async fn list_installed_versions(state: State<'_, AppState>) -> Result<Vec<I
 
 #[tauri::command]
 pub async fn install_version(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<DownloadReport> {
+    state.ensure_not_migrating()?;
     if !state.installing.lock().await.insert(id.clone()) {
         return Err(Error::Other(format!("{id} 已经在安装了，别急")));
     }

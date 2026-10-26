@@ -5,10 +5,14 @@ import type {
   AccountList,
   CrashAnalysis,
   DeviceCode,
+  DirStats,
   DownloadReport,
   ExportEntry,
   ExportOptions,
   ExportSummary,
+  GameDirInfo,
+  MigrateProgress,
+  MigrateReport,
   ModpackPreview,
   GameExit,
   GameLog,
@@ -119,6 +123,10 @@ export const api = {
 
   /** server：启动后直接进这个服务器（可选） */
   launchGame: (versionId: string, server?: string | null) => call<LaunchResult>("launch_game", { versionId, server: server ?? null }),
+  gameDirInfo: () => call<GameDirInfo>("game_dir_info"),
+  dirStats: (path: string) => call<DirStats>("dir_stats", { path }),
+  gameDirMigrate: (to: string, moveFiles: boolean) => call<MigrateReport>("game_dir_migrate", { to, moveFiles }),
+  gameDirMigrateCancel: () => call<void>("game_dir_migrate_cancel"),
   quickOpenFolder: (path: string) => call<void>("quick_open_folder", { path }),
   quickRunProgram: (path: string) => call<void>("quick_run_program", { path }),
   killGame: (runId: string) => call<void>("kill_game", { runId }),
@@ -127,4 +135,5 @@ export const api = {
 export const onInstallProgress = (cb: (p: InstallProgress) => void) => on("install-progress", cb);
 export const onGameLog = (cb: (p: GameLog) => void) => on("game-log", cb);
 export const onUpdateProgress = (cb: (p: UpdateProgress) => void) => on("update-progress", cb);
+export const onMigrateProgress = (cb: (p: MigrateProgress) => void) => on("migrate-progress", cb);
 export const onGameExit = (cb: (p: GameExit) => void) => on("game-exit", cb);

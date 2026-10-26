@@ -221,3 +221,8 @@ cd src-tauri && cargo clippy && cargo test
 待办候选（见 docs/STATUS.md）：应用内安装更新（需要签名密钥）、插件系统、实例存档管理、服务器列表等。
 
 更新检测：`engine/update.rs` 读 GitHub Releases 列表（不用 `/releases/latest`，它不返回预发布），自己比较版本号；`src/update.ts` 管启动时的静默检查和"跳过此版本"。接口返回的版本号、网址都按不可信数据处理，发布页网址由仓库地址和标签自己拼。
+
+### 游戏目录
+- 默认是 `<启动器所在目录>/.minecraft`（`config::default_game_dir`），不可写的位置会退回用户数据目录；`Settings::sanitized` 会把空值和相对路径换成默认值。
+- 迁移在 `engine/migrate.rs`：同盘改名，跨盘复制 + 核对，写入新设置后才删旧的；迁移期间 `AppState::ensure_not_migrating` 会拦住启动和所有安装类命令，新增这类命令要加上这一行。
+- NSIS / MSI 卸载和更新不会递归删除安装目录，所以游戏数据放里面是安全的。
