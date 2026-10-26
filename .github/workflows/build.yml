@@ -61,8 +61,31 @@ jobs:
         working-directory: src-tauri
         run: cargo test --locked
 
+      # 配了更新签名密钥（仓库 Secrets）就同时生成应用内更新包和 .sig 签名；
+      # 没配（比如 fork 来的 PR 读不到 Secrets）就只打普通安装包
       - name: 打包
-        run: npx tauri build --ci
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            npx tauri build --ci --config src-tauri/tauri.updater.conf.json
+          else
+            echo "没有配置更新签名密钥：只打普通安装包，不生成应用内更新包"
+            npx tauri build --ci
+          fi
+
+      # 配了签名密钥却没生成 .sig，说明更新包的命名或配置不对：直接让构建失败，别悄悄发出不能更新的版本
+      - name: 核对更新签名文件
+        if: env.TAURI_SIGNING_PRIVATE_KEY != ''
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          cd src-tauri/target/release/bundle
+          find . -name '*.sig' | sort
+          [ -n "$(find . -name '*.sig')" ] || { echo "没有找到 .sig 签名文件"; exit 1; }
 
       # 每个安装包的 SHA256 / MD5 打到日志里，同时写进本次运行的摘要页，方便核对下载的文件
       - name: 产物校验值
@@ -106,12 +129,23 @@ jobs:
         run: |
           mkdir -p "$GITHUB_WORKSPACE/release"
           cd src-tauri/target/release/bundle
-          for f in nsis/*.exe msi/*.msi dmg/*.dmg deb/*.deb rpm/*.rpm appimage/*.AppImage; do
+          # 安装包，加上 Windows / Linux 的应用内更新签名（安装包本身就是更新包）
+          for f in nsis/*.exe msi/*.msi dmg/*.dmg deb/*.deb rpm/*.rpm appimage/*.AppImage nsis/*.exe.sig appimage/*.AppImage.sig; do
             [ -f "$f" ] || continue
             name=$(basename "$f")
             name=${name//神权论坛启动器/GodBBSLauncher}
             cp "$f" "$GITHUB_WORKSPACE/release/$name"
           done
+          # macOS 的更新包 .app.tar.gz 文件名里没有版本和架构，按本机架构补上，不然两个 Mac 包会重名
+          if [ -d macos ]; then
+            ver=$(node -p "require('../../../tauri.conf.json').version") # 相对当前目录，Windows 路径里的反斜杠会让绝对路径出错
+            case "$(uname -m)" in arm64|aarch64) arch=aarch64 ;; *) arch=x64 ;; esac
+            for f in macos/*.app.tar.gz macos/*.app.tar.gz.sig; do
+              [ -f "$f" ] || continue
+              ext=${f#macos/*.app}
+              cp "$f" "$GITHUB_WORKSPACE/release/GodBBSLauncher_${ver}_${arch}.app${ext}"
+            done
+          fi
           ls -la "$GITHUB_WORKSPACE/release"
           [ -n "$(ls -A "$GITHUB_WORKSPACE/release")" ]
 
@@ -130,11 +164,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      # 先 checkout 再下载：checkout 会清掉工作区里没跟踪的文件，顺序反了 release/ 就没了
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           pattern: release-*
           path: release
           merge-multiple: true
+
+      # 应用内更新的清单：各平台更新包的网址和签名。没有签名文件（没配密钥）就不生成
+      - name: 生成应用内更新清单
+        run: node scripts/make-latest-json.mjs release "${{ github.ref_name }}" "${{ github.repository }}"
 
       # 发布前再算一遍最终附件（文件名已换成英文）的校验值
       - name: 发布文件校验值

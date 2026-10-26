@@ -1,6 +1,6 @@
 [package]
 name = "godbbs-launcher"
-version = "0.3.0"
+version = "0.3.1"
 description = "神权论坛启动器（MCBBS 纪念版）— 跨平台 Minecraft Java 版启动器"
 authors = ["MRTangwin8"]
 edition = "2021"
@@ -38,6 +38,10 @@ base64 = "0.22"
 rand = "0.8"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+
+# 应用内更新只有桌面端有
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
 
 [dev-dependencies]
 tempfile = "3"

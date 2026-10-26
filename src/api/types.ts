@@ -66,6 +66,13 @@ export interface UpdateInfo {
   notes: string;
   published: string | null;
   prerelease: boolean;
+  /** 能不能在应用内直接安装（打包时带了更新签名公钥才行） */
+  canInstall: boolean;
+}
+
+export interface UpdateProgress {
+  downloaded: number;
+  total: number | null;
 }
 
 /** 自定义配色的四个基础色（#rrggbb） */

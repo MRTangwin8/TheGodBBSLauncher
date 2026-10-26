@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use tauri::State;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use tauri::{AppHandle, Emitter, State};
+use tauri_plugin_updater::UpdaterExt;
 
 use super::AppState;
 use crate::config::{self, Settings};
@@ -90,6 +93,79 @@ pub async fn theme_import(state: State<'_, AppState>, path: PathBuf) -> Result<S
 
 /// 检查 GitHub 上有没有新版本。只做查询，不下载也不安装；是否提示由前端按设置决定
 #[tauri::command]
-pub async fn check_update(state: State<'_, AppState>) -> Result<UpdateInfo> {
-    update::check(&state.client, env!("CARGO_PKG_VERSION")).await
+pub async fn check_update(app: AppHandle, state: State<'_, AppState>) -> Result<UpdateInfo> {
+    let mut info = update::check(&state.client, env!("CARGO_PKG_VERSION")).await?;
+    info.can_install = updater_enabled(&app);
+    Ok(info)
+}
+
+/// 打包时有没有写进更新签名公钥。没有就不能在应用内更新：装的东西没法验证来源
+fn updater_enabled(app: &AppHandle) -> bool {
+    app.config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|c| c.get("pubkey"))
+        .and_then(|k| k.as_str())
+        .is_some_and(|k| !k.trim().is_empty())
+}
+
+pub const UPDATE_PROGRESS_EVENT: &str = "update-progress";
+
+#[derive(Clone, serde::Serialize)]
+struct UpdateProgress {
+    downloaded: u64,
+    total: Option<u64>,
+}
+
+static INSTALLING: AtomicBool = AtomicBool::new(false);
+
+/// 下载并安装用户确认过的版本，装完重启。
+/// 更新清单只从本仓库对应标签的 Release 里取，安装包必须通过内置公钥的签名校验，校验不过不会安装。
+#[tauri::command]
+pub async fn install_update(app: AppHandle, version: String) -> Result<()> {
+    if !updater_enabled(&app) {
+        return Err(Error::Other("这个版本没有内置更新签名密钥，不能在应用内更新，请前往发布页下载安装".into()));
+    }
+    let tag = update::release_tag(&version)?;
+    if INSTALLING.swap(true, Ordering::SeqCst) {
+        return Err(Error::Other("更新正在进行中".into()));
+    }
+    let result = do_install(&app, &tag, version.trim().trim_start_matches(['v', 'V'])).await;
+    INSTALLING.store(false, Ordering::SeqCst);
+    result?;
+    app.restart()
+}
+
+async fn do_install(app: &AppHandle, tag: &str, version: &str) -> Result<()> {
+    let fail = |what: &str, e: &dyn std::fmt::Display| Error::Other(format!("{what}：{e}"));
+    let manifest = format!("https://github.com/{}/releases/download/{tag}/latest.json", update::REPO);
+    let url = manifest.parse().map_err(|e| fail("更新地址不合法", &e))?;
+    let updater = app
+        .updater_builder()
+        .endpoints(vec![url])
+        .map_err(|e| fail("更新地址不合法", &e))?
+        .build()
+        .map_err(|e| fail("初始化更新失败", &e))?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| fail("读取更新清单失败（这个版本可能没有发布应用内更新包）", &e))?
+        .ok_or_else(|| Error::Other("已经是最新版".into()))?;
+    // 确认装的就是弹窗里问过的版本，不被清单里别的版本顶替
+    if update.version != version {
+        return Err(Error::Other(format!("更新清单里的版本是 {}，和要安装的 {version} 不一致，已取消", update.version)));
+    }
+    let mut downloaded = 0u64;
+    let handle = app.clone();
+    update
+        .download_and_install(
+            move |chunk, total| {
+                downloaded += chunk as u64;
+                let _ = handle.emit(UPDATE_PROGRESS_EVENT, UpdateProgress { downloaded, total });
+            },
+            || {},
+        )
+        .await
+        .map_err(|e| fail("下载或安装失败", &e))
 }

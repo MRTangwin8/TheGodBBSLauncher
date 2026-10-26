@@ -14,6 +14,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             let config_dir = app.path().app_config_dir()?;
             let data_dir = app.path().app_data_dir()?;
             // 标识符从 me.mcbbs.godbbs 改成了 co.mcbbs.godbbs：把旧目录搬过来（Windows / macOS 上两者是同一个目录）
@@ -39,6 +41,7 @@ pub fn run() {
             commands::settings::theme_preview,
             commands::settings::theme_import,
             commands::settings::check_update,
+            commands::settings::install_update,
             commands::versions::get_version_manifest,
             commands::versions::list_installed_versions,
             commands::versions::install_version,

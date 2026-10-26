@@ -34,6 +34,7 @@ import type {
   Settings,
   ThemePreview,
   UpdateInfo,
+  UpdateProgress,
   VersionManifest,
 } from "./types";
 import { mock } from "./mock";
@@ -58,6 +59,8 @@ export const api = {
   themePreview: (path: string) => call<ThemePreview>("theme_preview", { path }),
   themeImport: (path: string) => call<Settings>("theme_import", { path }),
   checkUpdate: () => call<UpdateInfo>("check_update"),
+  /** 下载并安装这个版本，装完会自己重启；失败会抛错 */
+  installUpdate: (version: string) => call<void>("install_update", { version }),
   probeMirrors: () => call<ProbeResult[]>("probe_mirrors"),
   getVersionManifest: (force = false) => call<VersionManifest>("get_version_manifest", { force }),
   listInstalledVersions: () => call<InstalledVersion[]>("list_installed_versions"),
@@ -117,4 +120,5 @@ export const api = {
 
 export const onInstallProgress = (cb: (p: InstallProgress) => void) => on("install-progress", cb);
 export const onGameLog = (cb: (p: GameLog) => void) => on("game-log", cb);
+export const onUpdateProgress = (cb: (p: UpdateProgress) => void) => on("update-progress", cb);
 export const onGameExit = (cb: (p: GameExit) => void) => on("game-exit", cb);

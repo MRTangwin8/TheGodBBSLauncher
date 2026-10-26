@@ -80,6 +80,19 @@ pub struct UpdateInfo {
     pub notes: String,
     pub published: Option<String>,
     pub prerelease: bool,
+    /// 能不能在应用内直接安装；没配置更新签名密钥时只能去发布页下载。由命令层填写
+    pub can_install: bool,
+}
+
+/// 把用户确认过的版本号变成发布标签（v0.3.0），用来拼更新清单的网址。
+/// 只放行能解析的版本号和安全字符，免得被塞进路径或参数。
+pub fn release_tag(version: &str) -> Result<String> {
+    let v = version.trim().trim_start_matches(['v', 'V']);
+    let safe = !v.is_empty() && v.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-');
+    if !safe || parse_version(v).is_none() {
+        return Err(Error::Other(format!("版本号不合法：{version}")));
+    }
+    Ok(format!("v{v}"))
 }
 
 /// 从发布列表里挑出版本号最高的（跳过草稿和看不懂版本号的），和当前版本比较
@@ -92,7 +105,7 @@ fn pick_latest(releases: Vec<GhRelease>, current: &str) -> UpdateInfo {
         .max_by(|a, b| a.0.cmp(&b.0));
     let current = current.trim().trim_start_matches(['v', 'V']).to_string();
     let Some((version, release)) = best else {
-        return UpdateInfo { current, latest: None, has_update: false, url: None, notes: String::new(), published: None, prerelease: false };
+        return UpdateInfo { current, latest: None, has_update: false, url: None, notes: String::new(), published: None, prerelease: false, can_install: false };
     };
     let has_update = cur.map(|c| version > c).unwrap_or(false);
     let tag = release.tag_name.trim().to_string();
@@ -105,6 +118,7 @@ fn pick_latest(releases: Vec<GhRelease>, current: &str) -> UpdateInfo {
         notes: clip(release.body.as_deref().unwrap_or("")),
         published: release.published_at,
         prerelease: release.prerelease,
+        can_install: false,
     }
 }
 
@@ -186,6 +200,15 @@ mod tests {
             assert!(info.latest.is_none() && info.url.is_none(), "{tag} 应该被丢弃");
         }
         assert!(parse_version("v1.0.0-beta.1").is_some());
+    }
+
+    #[test]
+    fn release_tag_accepts_only_clean_versions() {
+        assert_eq!(release_tag("0.3.0").unwrap(), "v0.3.0");
+        assert_eq!(release_tag(" v1.2.3-beta.1 ").unwrap(), "v1.2.3-beta.1");
+        for bad in ["", "latest", "0.3", "0.3.0/../x", "0.3.0?a=1", "0.3.0#x", "0.3.0+meta", "../0.3.0", "0.3.0 0.4.0"] {
+            assert!(release_tag(bad).is_err(), "{bad:?} 应该被拒绝");
+        }
     }
 
     #[test]

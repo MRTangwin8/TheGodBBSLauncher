@@ -84,7 +84,11 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
         notes: has ? ["## 更新内容", "- 资源中心新增整合包分类", "- 启动时检查更新，有新版本会提示", "- CI 输出安装包的 SHA256 / MD5"].join(String.fromCharCode(10)) : "",
         published: "2026-10-26T00:00:00Z",
         prerelease: true,
+        canInstall: has,
       };
+    },
+    install_update: () => {
+      throw "浏览器预览模式不能在应用内更新";
     },
     account_skin: () => null,
     probe_mirrors: () => [{ source: "official", millis: 812 }, { source: "bmclapi", millis: 96 }],

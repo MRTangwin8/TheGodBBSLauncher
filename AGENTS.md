@@ -162,6 +162,16 @@ cd src-tauri && cargo clippy && cargo test
   - Release 附件名不支持中文，workflow 会把文件名里的中文产品名换成 `GodBBSLauncher`。
 - 版本号要同时改 `tauri.conf.json`、`Cargo.toml`、`package.json` 三处（`Cargo.lock` 和 `package-lock.json` 里的本项目版本也要跟着改），再打同名标签。设置页「关于」里的版本号是运行时读取的，不用改。
 
+### 应用内更新与签名密钥
+- 用户同意更新后，`install_update` 命令从**对应标签的 Release** 里取 `latest.json`，下载安装包，用内置公钥校验签名，通过才安装，然后重启。不用 `releases/latest/download`，因为我们的发布是预发布，那个地址取不到。
+- 更新签名密钥是 Tauri 自己的格式（minisign，`npx tauri signer generate` 生成），**不是 GPG 密钥**：
+  - 私钥放在 GitHub 仓库的 Secrets：`TAURI_SIGNING_PRIVATE_KEY`（密钥文件的内容）和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`；**绝不能进仓库、日志或聊天**；
+  - 公钥写进 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`；这个字段为空时应用内更新自动关闭（`canInstall = false`），更新弹窗只给"前往下载"。
+- 私钥丢了，已经装好的用户就没法再应用内更新，只能手动装一个带新公钥的版本，所以要备份。
+- CI 里有 `TAURI_SIGNING_PRIVATE_KEY` 才会加 `src-tauri/tauri.updater.conf.json` 生成更新包和 `.sig`；fork 来的 PR 读不到 Secrets，就只打普通安装包。
+- 发布时 `scripts/make-latest-json.mjs` 按文件名后缀把各平台更新包和签名拼成 `latest.json`（Windows 用 NSIS 安装包，macOS 用 `.app.tar.gz`，Linux 用 AppImage）。改了发布附件的命名规则，要同步改脚本里的 `PLATFORMS` 和对应测试。
+- Linux 用 deb / rpm 装的版本不能应用内更新，失败时弹窗会提示改用"前往下载"。
+
 ### Windows 环境注意事项
 - Git Bash 里可能找不到 cargo，先 `export PATH="$HOME/.cargo/bin:$PATH"`。
 - 杀毒或索引会锁文件，导致 cargo 偶尔报 `os error 32` 或 `can't find crate`。重试即可，也可以用 `-j 2` 降低并发。
