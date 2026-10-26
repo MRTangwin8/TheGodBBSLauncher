@@ -192,6 +192,7 @@ cd src-tauri && cargo clippy && cargo test
 - CI 里有 `TAURI_SIGNING_PRIVATE_KEY` 才会加 `src-tauri/tauri.updater.conf.json` 生成更新包和 `.sig`；fork 来的 PR 读不到 Secrets，就只打普通安装包。
 - 发布时 `scripts/make-latest-json.mjs` 按文件名后缀把各平台更新包和签名拼成 `latest.json`（Windows 用 NSIS 安装包，macOS 用 `.app.tar.gz`，Linux 用 AppImage）。改了发布附件的命名规则，要同步改脚本里的 `PLATFORMS` 和对应测试。
 - Linux 用 deb / rpm 装的版本不能应用内更新，失败时弹窗会提示改用"前往下载"。
+- Windows 的更新流程：插件用 `/P /UPDATE /R` 启动 NSIS 安装包后**自己 `exit(0)`**（所以 `install_update` 里的 `app.restart()` 在 Windows 上执行不到），重启由安装包的 `/R` 完成。整个空窗期（卸载旧版、装新版）在慢机器上要 15~30 秒，界面里要提前告诉用户，别让人以为没起来而手动再开。排查是不是安装包拉起来的：新进程命令行末尾会多一个空格（`"…\godbbs-launcher.exe" `），手动启动没有。
 
 ### Windows 环境注意事项
 - Git Bash 里可能找不到 cargo，先 `export PATH="$HOME/.cargo/bin:$PATH"`。

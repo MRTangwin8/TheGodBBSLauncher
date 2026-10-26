@@ -84,12 +84,12 @@ function dismiss() {
         <div v-if="installing" class="progress">
           <div class="xp-bar"><div :style="{ width: (downloadDone ? 100 : percent) + '%' }" /></div>
           <p class="muted small">
-            <template v-if="downloadDone">下载完成，正在安装，完成后启动器会自动重启…</template>
+            <template v-if="downloadDone">下载完成。启动器马上会关闭，安装窗口走完（大约十几秒到半分钟）后会自动重新打开，期间请不要手动再启动。</template>
             <template v-else-if="progress">正在下载 {{ formatBytes(progress.downloaded) }}<template v-if="progress.total"> / {{ formatBytes(progress.total) }}（{{ percent }}%）</template></template>
             <template v-else>正在连接…</template>
           </p>
         </div>
-        <p v-else-if="info.canInstall" class="muted small">点「立即更新」会下载新版本、校验签名、安装并自动重启启动器；你的设置、账号和游戏都不受影响。</p>
+        <p v-else-if="info.canInstall" class="muted small">点「立即更新」会下载新版本、校验签名，然后启动器会先关闭、装好后自动重新打开（需要十几秒，期间不用操作）；你的设置、账号和游戏都不受影响。</p>
         <p v-else class="muted small">点「前往下载」会用系统浏览器打开发布页，从那里选择适合你系统的安装包；核对文件的 SHA256 / MD5 请看发布页。</p>
         <p v-if="error" class="error-text small">{{ error }}<template v-if="info.canInstall"> 也可以改用「前往下载」手动安装。</template></p>
       </div>
