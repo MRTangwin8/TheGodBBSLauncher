@@ -54,6 +54,8 @@ export interface Settings {
   skippedUpdate: string | null;
   announcementsEnabled: boolean;
   dismissedAnnouncements: string[];
+  /** 做完（或跳过）首次启动引导 */
+  onboarded: boolean;
   buttons: Buttons;
   customPalette: CustomPalette;
   tweaks: Tweaks;

@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from "vue";
 import { api, inTauri } from "../api";
 import { getVersion } from "@tauri-apps/api/app";
+import { open } from "@tauri-apps/plugin-dialog";
 import type { JavaInstall, MemoryInfo, ProbeResult, RulesInfo, Settings } from "../api/types";
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
@@ -25,8 +26,21 @@ watch(() => store.settings, (s) => (form.value = s ? { ...s } : null), { immedia
 
 const dirInfo = ref<GameDirInfo | null>(null);
 const dirDialog = ref(false);
+const dirInitial = ref<string | undefined>();
 async function showDirDialog() {
+  dirInitial.value = undefined;
   dirInfo.value = await api.gameDirInfo();
+  dirDialog.value = true;
+}
+async function pickGameDir() {
+  if (!inTauri) {
+    message.value = { ok: false, text: "浏览器预览模式不能选择文件夹" };
+    return;
+  }
+  const chosen = await open({ multiple: false, directory: true });
+  if (typeof chosen !== "string") return;
+  dirInfo.value = await api.gameDirInfo();
+  dirInitial.value = chosen;
   dirDialog.value = true;
 }
 async function openGameDir() {
@@ -168,6 +182,7 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
         <div class="field">
           <div class="dirline">
             <code class="dirpath">{{ form.gameDir }}</code>
+            <button class="btn small" @click="pickGameDir">选择文件夹…</button>
             <button class="btn small" @click="showDirDialog">更改 / 迁移…</button>
             <button class="btn small" @click="openGameDir">打开文件夹</button>
           </div>
@@ -318,7 +333,7 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
       <p class="muted hint">检查更新和获取公告都只会向 GitHub 读取公开内容（GitHub 能看到你的网络地址），不会上传任何其他信息。公告只在启动时获取一次；更新不会自动安装，点了「立即更新」才会。</p>
     </div>
   </div>
-  <GameDirDialog v-if="dirDialog && dirInfo" :info="dirInfo" @close="dirDialog = false" />
+  <GameDirDialog v-if="dirDialog && dirInfo" :info="dirInfo" :initial="dirInitial" @close="dirDialog = false" />
 </template>
 
 <style scoped>

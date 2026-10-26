@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { inTauri } from "./api";
 import { useSettingsStore } from "./stores/settings";
 import { useVersionsStore } from "./stores/versions";
@@ -10,6 +10,7 @@ import ProgressFloat from "./components/ProgressFloat.vue";
 import ModpackImportDialog from "./components/ModpackImportDialog.vue";
 import ThemeImportDialog from "./components/ThemeImportDialog.vue";
 import UpdateDialog from "./components/UpdateDialog.vue";
+import OnboardingDialog from "./components/OnboardingDialog.vue";
 import { checkForUpdate, pendingUpdate, skipUpdate } from "./update";
 import { loadAnnouncements } from "./announcements";
 import { useLauncher } from "./composables/useLauncher";
@@ -23,6 +24,7 @@ const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const modpack = useModpackStore();
 const launcher = useLauncher();
+const onboardClosed = ref(false);
 
 // Ctrl+Enter（macOS 是 ⌘+Enter）直接启动当前选中的版本。在输入框、弹窗里不触发，免得误启动
 function onKey(e: KeyboardEvent) {
@@ -72,5 +74,6 @@ onMounted(() => {
   <ProgressFloat />
   <ModpackImportDialog v-if="modpack.importPath" :path="modpack.importPath" @close="modpack.importPath = null" />
   <ThemeImportDialog v-if="pendingThemeImport" :path="pendingThemeImport" @close="pendingThemeImport = null" />
-  <UpdateDialog v-if="pendingUpdate" :info="pendingUpdate" @close="pendingUpdate = null" @skip="skipUpdate" />
+  <OnboardingDialog v-if="settings.settings && !settings.settings.onboarded && !onboardClosed" @close="onboardClosed = true" />
+  <UpdateDialog v-if="pendingUpdate && settings.settings?.onboarded" :info="pendingUpdate" @close="pendingUpdate = null" @skip="skipUpdate" />
 </template>

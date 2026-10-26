@@ -47,6 +47,8 @@ pub struct Settings {
     pub auto_check_update: bool,
     /// 用户选了"跳过此版本"的版本号（不带 v）
     pub skipped_update: Option<String>,
+    /// 做完（或跳过）首次启动引导。老版本的设置文件里没有这个字段，读取时按"已完成"处理，不打扰老用户
+    pub onboarded: bool,
     /// 启动时和运行期间定期从 GitHub 拉公告
     pub announcements_enabled: bool,
     /// 用户关掉的公告 id（最多记 200 个）
@@ -127,6 +129,7 @@ impl Default for Settings {
             last_version: None,
             auto_check_update: true,
             skipped_update: None,
+            onboarded: false,
             announcements_enabled: true,
             dismissed_announcements: Vec::new(),
             custom_palette: CustomPalette::default(),
@@ -233,11 +236,13 @@ impl Settings {
 
 /// 读不到或解析失败都回退默认值，不让坏配置挡住启动
 pub fn load(path: &Path) -> Settings {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|s| serde_json::from_str::<Settings>(&s).ok())
-        .unwrap_or_default()
-        .sanitized()
+    let text = std::fs::read_to_string(path).ok();
+    let mut settings = text.as_deref().and_then(|s| serde_json::from_str::<Settings>(s).ok()).unwrap_or_default();
+    // 设置文件是旧版本写的（没有 onboarded 字段）：说明不是新用户，不弹引导
+    if text.as_deref().and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok()).is_some_and(|v| v.get("onboarded").is_none()) {
+        settings.onboarded = true;
+    }
+    settings.sanitized()
 }
 
 pub fn save(path: &Path, settings: &Settings) -> std::io::Result<()> {
@@ -283,6 +288,19 @@ pub fn auto_memory_mb(total_mb: u64) -> u32 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn onboarding_is_skipped_for_settings_files_from_older_versions() {
+        let dir = std::env::temp_dir().join(format!("godbbs-onboard-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        assert!(!load(&path).onboarded, "没有设置文件 = 新用户");
+        std::fs::write(&path, r#"{"concurrency": 32}"#).unwrap();
+        assert!(load(&path).onboarded, "老文件没有这个字段 = 老用户");
+        std::fs::write(&path, r#"{"onboarded": false}"#).unwrap();
+        assert!(!load(&path).onboarded);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     use super::*;
 
     /// macOS 的窗口配置（原生红绿灯 + 覆盖式标题栏）在 Windows 上没法真机试，

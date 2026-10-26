@@ -41,6 +41,8 @@ let settings: Settings = {
   skippedUpdate: null,
   announcementsEnabled: true,
   dismissedAnnouncements: [],
+  // 预览默认不弹首次引导；地址加 ?mockOnboard 可以看到
+  onboarded: !location.search.includes("mockOnboard"),
   buttons: { launchLabel: "", launchStyle: "stone", launchColor: "", launchSound: false, launchShortcut: true, navOrder: [], navHidden: [], quick: [] },
   customPalette: { accent: "#5e9c35", surface: "#fbf2db", text: "#3d2f1f", wood: "#6b4a2b" },
   tweaks: { radius: null, cardOpacity: null, cardBlur: null, bgBlur: 0, bgDim: 0, fontSize: 13, font: "", animations: true },
