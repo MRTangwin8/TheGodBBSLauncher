@@ -1,6 +1,7 @@
 //! 更新检测：读 GitHub Releases 列表，和当前版本比较。
 //! 不用 `/releases/latest`：它只返回正式版，而我们的版本目前都是预发布，会一直 404。
 //! 接口返回的内容当作不可信数据：版本号必须能解析，下载页网址由仓库地址和标签自己拼，不用接口给的链接。
+//! 不登录的 API 每个 IP 每小时只有 60 次，共用出口的网络很容易用完；被限流时改读发布页的 Atom 订阅，它不占 API 配额。
 
 use std::cmp::Ordering;
 
@@ -149,13 +150,70 @@ pub async fn check(client: &reqwest::Client, current: &str) -> Result<UpdateInfo
         .await?;
     let status = resp.status();
     if status.as_u16() == 403 || status.as_u16() == 429 {
-        return Err(Error::Other("GitHub 暂时限制了请求次数，过一会儿再检查更新".into()));
+        return match from_feed(client).await {
+            Ok(releases) => Ok(pick_latest(releases, current)),
+            Err(_) => Err(Error::Other("GitHub 暂时限制了请求次数，过一会儿再检查更新".into())),
+        };
     }
     if !status.is_success() {
         return Err(Error::Other(format!("检查更新失败：GitHub 返回 {status}")));
     }
     let releases: Vec<GhRelease> = resp.json().await.map_err(|_| Error::Other("检查更新失败：GitHub 返回的内容看不懂".into()))?;
     Ok(pick_latest(releases, current))
+}
+
+/// 备用来源：发布页的 Atom 订阅。草稿不会出现在里面；订阅不区分预发布，统一按预发布显示（我们目前的发布都是预发布）
+async fn from_feed(client: &reqwest::Client) -> Result<Vec<GhRelease>> {
+    let resp = client.get(format!("https://github.com/{REPO}/releases.atom")).send().await?;
+    if !resp.status().is_success() {
+        return Err(Error::Other(format!("发布订阅返回 {}", resp.status())));
+    }
+    Ok(parse_feed(&resp.text().await?))
+}
+
+fn parse_feed(xml: &str) -> Vec<GhRelease> {
+    xml.split("<entry>")
+        .skip(1)
+        .filter_map(|entry| {
+            let entry = entry.split("</entry>").next()?;
+            // <id>tag:github.com,2008:Repository/123/v0.3.5</id>，标签是最后一段；后面还要过 parse_version
+            let tag = between(entry, "<id>", "</id>")?.rsplit('/').next()?.to_string();
+            let updated = between(entry, "<updated>", "</updated>").map(str::to_string);
+            let body = between(entry, "<content type=\"html\">", "</content>").map(|html| html_to_text(&unescape(html)));
+            Some(GhRelease { tag_name: tag, body, draft: false, prerelease: true, published_at: updated })
+        })
+        .collect()
+}
+
+fn between<'a>(s: &'a str, start: &str, end: &str) -> Option<&'a str> {
+    let rest = &s[s.find(start)? + start.len()..];
+    Some(&rest[..rest.find(end)?])
+}
+
+fn unescape(s: &str) -> String {
+    s.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'").replace("&amp;", "&")
+}
+
+/// 更新说明只按纯文本显示：去掉标签，段落和表格行换行
+fn html_to_text(html: &str) -> String {
+    let mut out = String::new();
+    let mut rest = html;
+    while let Some(i) = rest.find('<') {
+        out.push_str(&rest[..i]);
+        let Some(j) = rest[i..].find('>') else { break };
+        let tag = &rest[i + 1..i + j];
+        let name = tag.trim_start_matches('/').split([' ', '/']).next().unwrap_or("").to_ascii_lowercase();
+        if tag.starts_with('/') && matches!(name.as_str(), "p" | "tr" | "li" | "h1" | "h2" | "h3" | "h4" | "pre") || name == "br" {
+            out.push('\n');
+        } else if tag.starts_with('/') && matches!(name.as_str(), "td" | "th") {
+            out.push_str("  ");
+        }
+        rest = &rest[i + j + 1..];
+    }
+    out.push_str(rest);
+    let text = unescape(&out);
+    let lines: Vec<&str> = text.lines().map(str::trim_end).filter(|l| !l.trim().is_empty()).collect();
+    lines.join("\n")
 }
 
 #[cfg(test)]
@@ -217,6 +275,30 @@ mod tests {
         for bad in ["", "latest", "0.3", "0.3.0/../x", "0.3.0?a=1", "0.3.0#x", "0.3.0+meta", "../0.3.0", "0.3.0 0.4.0"] {
             assert!(release_tag(bad).is_err(), "{bad:?} 应该被拒绝");
         }
+    }
+
+    #[test]
+    fn feed_fallback_reads_tags_and_plain_notes() {
+        let xml = r#"<feed><entry>
+    <id>tag:github.com,2008:Repository/1/v0.3.5</id>
+    <updated>2026-10-27T18:19:43Z</updated>
+    <title>神权论坛启动器 v0.3.5</title>
+    <content type="html">&lt;table&gt;&lt;tr&gt;&lt;td&gt;Windows&lt;/td&gt;&lt;td&gt;&lt;code&gt;*.msi&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;p&gt;macOS 提示&quot;已损坏&quot;时 &amp;amp; 重试&lt;script&gt;x&lt;/script&gt;&lt;/p&gt;</content>
+  </entry><entry>
+    <id>tag:github.com,2008:Repository/1/v0.3.4</id><updated>2026-10-27T12:54:20Z</updated>
+  </entry><entry>
+    <id>tag:github.com,2008:Repository/1/../../evil</id>
+  </entry></feed>"#;
+        let releases = parse_feed(xml);
+        assert_eq!(releases.len(), 3);
+        let info = pick_latest(releases, "0.3.4");
+        assert_eq!(info.latest.as_deref(), Some("0.3.5"));
+        assert!(info.has_update);
+        assert_eq!(info.published.as_deref(), Some("2026-10-27T18:19:43Z"));
+        assert!(!info.notes.contains('<'), "说明里不能留 HTML 标签：{}", info.notes);
+        assert!(info.notes.contains("Windows  *.msi") && info.notes.contains("\"已损坏\"时 & 重试"), "{}", info.notes);
+        assert!(parse_feed("<html>出错页面</html>").is_empty());
     }
 
     #[test]

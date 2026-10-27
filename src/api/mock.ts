@@ -128,6 +128,17 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       return args!.enabled ? f.replace(/\.disabled$/, "") : `${f}.disabled`;
     },
     local_resource_delete: () => undefined,
+    mod_updates: () => [
+      {
+        filename: "sodium-fabric-0.8.13.jar", enabled: true, projectId: "AANobbMI", title: "Sodium", current: "0.8.13",
+        latest: {
+          source: "modrinth", id: "mockSodium", projectId: "AANobbMI", name: "Sodium 0.8.14", versionNumber: "0.8.14",
+          gameVersions: ["1.21.1"], loaders: ["fabric"], published: "2026-10-20T00:00:00Z", releaseType: "beta",
+          file: { url: "https://cdn.modrinth.com/mock.jar", filename: "sodium-fabric-0.8.14.jar", sha1: null, size: 2100000 }, dependencies: [],
+        },
+      },
+    ],
+    resource_install: () => ({ total: 1, downloaded: 1, skipped: 0, failed: [] }),
     // 预览默认"已是最新"，免得弹窗盖住截图；地址加 ?mockUpdate 可以看到有更新时的样子
     check_update: () => {
       const has = location.search.includes("mockUpdate");

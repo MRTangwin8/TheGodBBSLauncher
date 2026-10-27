@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use super::{modrinth, ResourceKind};
+use super::{modrinth, ResourceKind, ResourceVersion};
 use crate::engine::download::sha1_file;
+use crate::engine::loader::LoaderKind;
 use crate::engine::{Error, Result};
 
 const DISABLED: &str = ".disabled";
@@ -93,6 +94,63 @@ pub async fn list(client: &reqwest::Client, dir: &Path, kind: ResourceKind) -> V
     list
 }
 
+/// 一个可以更新的模组
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModUpdate {
+    pub filename: String,
+    pub enabled: bool,
+    pub project_id: String,
+    pub title: String,
+    /// 现在装的版本号
+    pub current: String,
+    pub latest: ResourceVersion,
+}
+
+/// latest 是不是 current 的更新：文件不同、发布得更晚，并且新文件名是个普通文件名
+fn is_update(current: &ResourceVersion, current_sha1: &str, latest: &ResourceVersion) -> bool {
+    let Some(file) = &latest.file else { return false };
+    let same_file = file.sha1.as_deref().is_some_and(|h| h.eq_ignore_ascii_case(current_sha1));
+    // Modrinth 的时间都是 RFC 3339 UTC，按字符串比较即可；作者给旧游戏版本补发的旧分支不算更新
+    !same_file && latest.id != current.id && latest.published > current.published && safe_path(Path::new("."), &file.filename).is_ok()
+}
+
+/// 检查 mods 文件夹里能在 Modrinth 上识别的模组有没有新版本（按这个版本的游戏版本和加载器筛选）
+pub async fn check_updates(
+    client: &reqwest::Client,
+    dir: &Path,
+    game_version: Option<&str>,
+    loader: Option<LoaderKind>,
+) -> Result<Vec<ModUpdate>> {
+    let list = scan(dir, ResourceKind::Mod);
+    let by_file = hashes(dir, &list).await;
+    let sha1s: Vec<String> = by_file.values().cloned().collect();
+    let current = modrinth::identify_versions(client, &sha1s).await?;
+    let known: Vec<String> = sha1s.iter().filter(|h| current.contains_key(*h)).cloned().collect();
+    let latest = modrinth::latest_versions(client, &known, game_version, loader).await?;
+    let mut out: Vec<ModUpdate> = list
+        .iter()
+        .filter_map(|r| {
+            let h = by_file.get(&r.filename)?;
+            let (cur, new) = (current.get(h)?, latest.get(h)?);
+            is_update(cur, h, new).then(|| ModUpdate {
+                filename: r.filename.clone(),
+                enabled: r.enabled,
+                project_id: cur.project_id.clone(),
+                title: String::new(),
+                current: cur.version_number.clone(),
+                latest: new.clone(),
+            })
+        })
+        .collect();
+    let ids: Vec<String> = out.iter().map(|u| u.project_id.clone()).collect();
+    let titles = modrinth::titles(client, &ids).await.unwrap_or_default();
+    for u in &mut out {
+        u.title = titles.get(&u.project_id).cloned().unwrap_or_else(|| u.filename.clone());
+    }
+    Ok(out)
+}
+
 /// 已安装的 Modrinth 项目：project_id → 文件名列表
 pub async fn installed_projects(client: &reqwest::Client, dir: &Path, kind: ResourceKind) -> HashMap<String, Vec<String>> {
     let list = scan(dir, kind);
@@ -151,6 +209,34 @@ mod tests {
         assert!(!d.join("A.jar").exists());
         assert!(delete(d, "../outside.jar").is_err());
         assert!(set_enabled(d, "sub/x.jar", true).is_err());
+    }
+
+    fn ver(id: &str, published: &str, filename: &str, sha1: &str) -> ResourceVersion {
+        ResourceVersion {
+            source: super::super::ResourceSource::Modrinth,
+            id: id.into(),
+            project_id: "P".into(),
+            name: id.into(),
+            version_number: id.into(),
+            game_versions: vec![],
+            loaders: vec![],
+            published: published.into(),
+            release_type: "release".into(),
+            file: Some(super::super::ResFile { url: "https://cdn.modrinth.com/x".into(), filename: filename.into(), sha1: Some(sha1.into()), size: 1 }),
+            dependencies: vec![],
+        }
+    }
+
+    #[test]
+    fn only_newer_different_files_count_as_updates() {
+        let cur = ver("a", "2026-01-01T00:00:00Z", "m-1.jar", "aaa");
+        assert!(is_update(&cur, "aaa", &ver("b", "2026-02-01T00:00:00Z", "m-2.jar", "bbb")));
+        assert!(!is_update(&cur, "AAA", &ver("a", "2026-01-01T00:00:00Z", "m-1.jar", "aaa")), "已经是最新");
+        assert!(!is_update(&cur, "aaa", &ver("c", "2025-12-01T00:00:00Z", "m-0.jar", "ccc")), "发布更早的不算更新");
+        assert!(!is_update(&cur, "aaa", &ver("d", "2026-03-01T00:00:00Z", "../evil.jar", "ddd")), "文件名带路径的不要");
+        let mut no_file = ver("e", "2026-03-01T00:00:00Z", "m.jar", "eee");
+        no_file.file = None;
+        assert!(!is_update(&cur, "aaa", &no_file));
     }
 
     #[test]

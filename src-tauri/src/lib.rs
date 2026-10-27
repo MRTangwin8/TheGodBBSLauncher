@@ -78,6 +78,7 @@ pub fn run() {
             commands::resources::local_resources,
             commands::resources::local_resource_toggle,
             commands::resources::local_resource_delete,
+            commands::resources::mod_updates,
             commands::instance::instance_info,
             commands::instance::instance_save,
             commands::instance::world_list,

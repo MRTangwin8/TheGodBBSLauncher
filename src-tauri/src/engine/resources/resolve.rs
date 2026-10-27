@@ -277,7 +277,9 @@ pub async fn execute(
     }
     let report = downloader.download_all(tasks, on_progress).await;
     if report.failed.is_empty() {
-        for old in plan.items.iter().flat_map(|i| &i.replaces) {
+        // 新旧文件同名时，下载已经原地覆盖了，不能再删
+        let new_files: Vec<&str> = plan.items.iter().map(|i| i.file.filename.as_str()).collect();
+        for old in plan.items.iter().flat_map(|i| &i.replaces).filter(|old| !new_files.contains(&old.as_str())) {
             let _ = local::delete(dir, old);
         }
     }

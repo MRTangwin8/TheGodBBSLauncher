@@ -233,6 +233,37 @@ pub async fn identify(client: &reqwest::Client, sha1s: &[String]) -> Result<Hash
     Ok(map.into_iter().map(|(h, v)| (h, (v.project_id, v.version_number))).collect())
 }
 
+/// 按 SHA1 识别本地文件对应的完整版本信息：sha1 → 版本（含发布时间、文件哈希）。检查模组更新用
+pub async fn identify_versions(client: &reqwest::Client, sha1s: &[String]) -> Result<HashMap<String, ResourceVersion>> {
+    if sha1s.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let body = json!({"hashes": sha1s, "algorithm": "sha1"});
+    let map: HashMap<String, MrVersion> = send_json(client, &format!("{API}/version_files"), Some(&body)).await?;
+    Ok(map.into_iter().map(|(h, v)| (h, v.into())).collect())
+}
+
+/// 每个文件所属项目在指定游戏版本、加载器下的最新版本：sha1 → 版本。一次请求查完整个 mods 文件夹
+pub async fn latest_versions(
+    client: &reqwest::Client,
+    sha1s: &[String],
+    game_version: Option<&str>,
+    loader: Option<LoaderKind>,
+) -> Result<HashMap<String, ResourceVersion>> {
+    if sha1s.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let mut body = json!({"hashes": sha1s, "algorithm": "sha1"});
+    if let Some(v) = game_version {
+        body["game_versions"] = json!([v]);
+    }
+    if let Some(l) = loader {
+        body["loaders"] = json!(loader_names(l));
+    }
+    let map: HashMap<String, MrVersion> = send_json(client, &format!("{API}/version_files/update"), Some(&body)).await?;
+    Ok(map.into_iter().map(|(h, v)| (h, v.into())).collect())
+}
+
 /// 按 SHA1 找到 Modrinth 上对应的文件：sha1 → (下载地址, sha512)。导出 mrpack 用
 pub async fn identify_files(client: &reqwest::Client, sha1s: &[String]) -> Result<HashMap<String, (String, Option<String>)>> {
     if sha1s.is_empty() {

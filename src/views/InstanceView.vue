@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api, inTauri } from "../api";
-import type { InstanceInfo, InstanceSettings, JavaInstall, LocalResource, MemoryInfo, World, WorldBackup } from "../api/types";
+import type { InstallPlan, InstanceInfo, InstanceSettings, JavaInstall, LocalResource, MemoryInfo, ModUpdate, World, WorldBackup } from "../api/types";
 import { useGameStore } from "../stores/game";
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
@@ -134,6 +134,81 @@ async function toggleMod(m: LocalResource) {
     m.enabled = !m.enabled;
   } catch (e) {
     fail(e);
+  }
+}
+
+// 模组更新：只认得 Modrinth 上的模组，按这个版本的游戏版本和加载器找最新版
+const updates = ref<ModUpdate[] | null>(null);
+const picked = ref(new Set<string>());
+const checking = ref(false);
+const updating = ref(false);
+const unknownCount = computed(() => (mods.value ?? []).filter((m) => !m.projectId).length);
+const updateFor = computed(() => new Map((updates.value ?? []).map((u) => [u.filename, u])));
+
+async function checkUpdates() {
+  checking.value = true;
+  try {
+    updates.value = await api.modUpdates(id.value);
+    // 默认勾选正式版，测试版让人自己决定
+    picked.value = new Set(updates.value.filter((u) => u.latest.releaseType === "release").map((u) => u.filename));
+  } catch (e) {
+    fail(e);
+  } finally {
+    checking.value = false;
+  }
+}
+
+function togglePick(u: ModUpdate) {
+  const s = new Set(picked.value);
+  if (s.has(u.filename)) s.delete(u.filename);
+  else s.add(u.filename);
+  picked.value = s;
+}
+
+async function applyUpdates() {
+  const chosen = (updates.value ?? []).filter((u) => picked.value.has(u.filename) && u.latest.file);
+  if (!chosen.length) return;
+  const plan: InstallPlan = {
+    items: chosen.map((u) => ({
+      source: u.latest.source,
+      projectId: u.projectId,
+      title: u.title,
+      versionId: u.latest.id,
+      versionNumber: u.latest.versionNumber,
+      // 原来禁用着的，新版也保持禁用
+      file: { ...u.latest.file!, filename: u.enabled ? u.latest.file!.filename : `${u.latest.file!.filename}.disabled` },
+      requiredBy: null,
+      replaces: [u.filename],
+      compat: null,
+      note: null,
+      alternative: null,
+    })),
+    alreadyInstalled: [],
+    unresolved: [],
+    optional: [],
+    incompatible: [],
+  };
+  const jobId = `更新 ${chosen.length} 个模组 → ${id.value}`;
+  const job = versions.startJob(jobId);
+  updating.value = true;
+  try {
+    const r = await api.resourceInstall(jobId, "mod", id.value, plan);
+    job.report = r;
+    job.status = r.failed.length ? "failed" : "done";
+    if (r.failed.length) {
+      job.error = `${r.failed.length} 个文件下载失败：${r.failed[0].reason}`;
+      message.value = { ok: false, text: `${r.failed.length} 个模组没更新成功，旧版本保留着。` };
+    } else {
+      message.value = { ok: true, text: `已更新 ${chosen.length} 个模组。` };
+    }
+  } catch (e) {
+    job.status = "failed";
+    job.error = String(e);
+    fail(e);
+  } finally {
+    updating.value = false;
+    updates.value = null;
+    await loadMods();
   }
 }
 
@@ -302,11 +377,35 @@ function fullTime(unix: number) {
         <div class="box-body bar">
           <input v-model="modFilter" class="input grow" placeholder="搜索已装的模组…" />
           <button class="btn small" :disabled="modsBusy" @click="loadMods">刷新</button>
+          <button class="btn small" :disabled="checking || updating || !mods?.length" @click="checkUpdates">{{ checking ? "检查中…" : "检查更新" }}</button>
           <button class="btn small" @click="openFolder(sub('mods'))">打开模组文件夹</button>
           <RouterLink :to="{ path: '/resources', query: { version: id } }" class="btn small primary">下载模组</RouterLink>
         </div>
         <div v-if="version && !version.loader" class="box-body">
           <div class="mod-tip">【版主提示】这个版本没有装模组加载器（Fabric / Forge 等），放进去的模组不会生效。到「下载中心」装一个带加载器的版本吧。</div>
+        </div>
+        <div v-if="updates" class="box-body updates">
+          <template v-if="updates.length">
+            <div class="line">
+              <b>发现 {{ updates.length }} 个模组可以更新</b>
+              <span class="muted small grow">新版本按这个版本的游戏版本和加载器挑选；测试版默认不勾。</span>
+              <button class="btn small" @click="updates = null">收起</button>
+              <button class="btn small primary" :disabled="!picked.size || updating || running" :title="running ? '先退出游戏' : ''" @click="applyUpdates">
+                {{ updating ? "更新中…" : `更新选中（${picked.size}）` }}
+              </button>
+            </div>
+            <label v-for="u in updates" :key="u.filename" class="check up-row">
+              <input type="checkbox" :checked="picked.has(u.filename)" @change="togglePick(u)" />
+              <b>{{ u.title }}</b>
+              <span class="muted small">{{ u.current }} → </span><span class="ok-text small">{{ u.latest.versionNumber }}</span>
+              <span v-if="u.latest.releaseType !== 'release'" class="tag pre-tag">{{ u.latest.releaseType === "beta" ? "测试版" : "开发版" }}</span>
+            </label>
+          </template>
+          <div v-else class="line">
+            <span class="ok-text">已识别的模组都是最新的。</span>
+            <button class="btn small" @click="updates = null">收起</button>
+          </div>
+          <div v-if="unknownCount" class="muted small">还有 {{ unknownCount }} 个模组在 Modrinth 上认不出来（比如从别处下载的），没法检查更新。</div>
         </div>
         <table class="thread-table">
           <thead>
@@ -318,6 +417,7 @@ function fullTime(unix: number) {
                 <b>{{ m.title ?? m.filename.replace(/\.disabled$/, "") }}</b>
                 <span v-if="m.version" class="muted small ver">{{ m.version }}</span>
                 <span v-if="!m.enabled" class="tag off-tag">已禁用</span>
+                <span v-if="updateFor.get(m.filename)" class="tag new-tag">可更新</span>
                 <div v-if="m.title" class="muted small break">{{ m.filename }}</div>
               </td>
               <td class="num muted">{{ formatBytes(m.size) }}</td>
@@ -407,6 +507,10 @@ function fullTime(unix: number) {
 tr.off b { color: var(--text-muted); text-decoration: line-through; }
 .tag { margin-left: 6px; }
 .off-tag { background: var(--text-muted); }
+.new-tag { background: var(--grass); }
+.pre-tag { background: var(--gold); }
+.updates { display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--border); }
+.up-row { gap: 8px; }
 .sub-title { border-top: 1px solid var(--border); }
 .tag.ld-fabric { background: #b39b72; }
 .tag.ld-quilt { background: #8e5fb4; }

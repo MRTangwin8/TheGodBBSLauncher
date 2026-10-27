@@ -24,6 +24,7 @@ import type {
   InstallPlan,
   LocalCompat,
   LocalResource,
+  ModUpdate,
   ResourceKind,
   ResourceSource,
   ResourceVersion,
@@ -107,6 +108,7 @@ export const api = {
   resourceInstall: (jobId: string, kind: ResourceKind, versionId: string, plan: InstallPlan) =>
     call<DownloadReport>("resource_install", { jobId, kind, versionId, plan }),
   localResources: (versionId: string, kind: ResourceKind) => call<LocalResource[]>("local_resources", { versionId, kind }),
+  modUpdates: (versionId: string) => call<ModUpdate[]>("mod_updates", { versionId }),
   localResourceToggle: (versionId: string, kind: ResourceKind, filename: string, enabled: boolean) =>
     call<string>("local_resource_toggle", { versionId, kind, filename, enabled }),
   localResourceDelete: (versionId: string, kind: ResourceKind, filename: string) =>

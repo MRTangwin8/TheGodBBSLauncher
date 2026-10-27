@@ -10,7 +10,7 @@ use crate::engine::install::{GameDir, Stage};
 use crate::engine::loader::{self, LoaderKind};
 use crate::engine::meta::version::base_minecraft_version;
 use crate::engine::meta::VersionJson;
-use crate::engine::resources::local::{self, LocalResource};
+use crate::engine::resources::local::{self, LocalResource, ModUpdate};
 use crate::engine::resources::compat::{check_jar, CompatReport, GameEnv, RuntimeJar};
 use crate::engine::resources::resolve::{self, Checker, InstallPlan, Target};
 use crate::engine::resources::{ResourceApi, ResourceKind, ResourceSource, ResourceVersion, SearchPage, SearchQuery};
@@ -162,6 +162,13 @@ pub async fn resource_install(
 pub async fn local_resources(state: State<'_, AppState>, version_id: String, kind: ResourceKind) -> Result<Vec<LocalResource>> {
     let t = target(&state, &version_id, kind).await?;
     Ok(local::list(&state.client, &t.dir, kind).await)
+}
+
+/// 检查已安装模组的更新（只认得 Modrinth 上的模组）
+#[tauri::command]
+pub async fn mod_updates(state: State<'_, AppState>, version_id: String) -> Result<Vec<ModUpdate>> {
+    let t = target(&state, &version_id, ResourceKind::Mod).await?;
+    within(SEARCH_TIMEOUT, local::check_updates(&state.client, &t.dir, t.game_version.as_deref(), t.loader)).await
 }
 
 #[tauri::command]

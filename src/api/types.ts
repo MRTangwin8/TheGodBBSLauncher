@@ -421,6 +421,17 @@ export interface LocalResource {
   version: string | null;
 }
 
+/** 可以更新的模组（只认得 Modrinth 上的） */
+export interface ModUpdate {
+  filename: string;
+  enabled: boolean;
+  projectId: string;
+  title: string;
+  /** 现在装的版本号 */
+  current: string;
+  latest: ResourceVersion;
+}
+
 export type PackFormat = "modrinth" | "curseforge" | "mcbbs";
 
 export interface ModpackInfo {
