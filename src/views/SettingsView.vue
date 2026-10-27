@@ -107,7 +107,7 @@ async function save() {
   try {
     await store.save({
       ...form.value,
-      concurrency: Math.min(256, Math.max(1, Number(form.value.concurrency) || 64)),
+      concurrency: Math.min(256, Math.max(1, Number(form.value.concurrency) || 8)),
       javaPath: form.value.javaPath || null,
       memoryMb: optNumber(form.value.memoryMb),
       windowWidth: optNumber(form.value.windowWidth),
@@ -220,7 +220,7 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
         <label>最大并发</label>
         <div class="field">
           <input v-model.number="form.concurrency" type="number" min="1" max="256" class="input narrow" />
-          <span class="muted hint">默认 64，网络差可以调低</span>
+          <span class="muted hint">默认 8，网络好可以调高</span>
         </div>
       </div>
       <div class="row">

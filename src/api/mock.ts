@@ -22,7 +22,7 @@ const manifest: VersionManifest = {
 let settings: Settings = {
   gameDir: "C:\\Users\\Steve\\AppData\\Roaming\\GodBBSLauncher\\.minecraft",
   downloadSource: "auto",
-  concurrency: 64,
+  concurrency: 8,
   javaPath: null,
   memoryMb: null,
   jvmArgs: "",
@@ -69,6 +69,8 @@ const modpackPage = {
   ],
 };
 
+let instanceSettings: Record<string, unknown> = {};
+
 export async function mock<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   await new Promise((r) => setTimeout(r, 200));
   const unsupported = () => {
@@ -101,6 +103,31 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     game_dir_migrate: () => ({ moved: true, renamed: true, bytes: 0, files: 8, leftover: [] }),
     game_dir_migrate_cancel: () => undefined,
     quick_run_program: () => undefined,
+    instance_info: () => ({
+      settings: { isolated: false, javaPath: null, memoryMb: null, jvmArgs: "", gameArgs: "", ...instanceSettings },
+      modpack: null,
+      gameDir: "C:\\Users\\Steve\\GodBBSLauncher\\.minecraft\\versions\\" + String(args?.versionId ?? ""),
+      globalIsolate: settings.isolateVersions,
+      playTimeSecs: 45000,
+      lastPlayed: 1792850000,
+    }),
+    instance_save: () => {
+      instanceSettings = args!.settings as Record<string, unknown>;
+      return table.instance_info();
+    },
+    world_list: () => [
+      { folder: "新的世界", size: 48_000_000, modified: Math.floor(Date.now() / 1000) - 7200, hasIcon: true },
+      { folder: "生存_1", size: 312_000_000, modified: 1792700000, hasIcon: false },
+    ],
+    world_backups: () => [{ file: "生存_1_1792700100.zip", world: "生存_1", size: 120_000_000, created: 1792700100 }],
+    world_backup: () => ({ file: `${args!.world}_${Math.floor(Date.now() / 1000)}.zip`, world: args!.world, size: 20_000_000, created: Math.floor(Date.now() / 1000) }),
+    world_restore: unsupported,
+    world_backup_delete: () => undefined,
+    local_resource_toggle: () => {
+      const f = String(args!.filename);
+      return args!.enabled ? f.replace(/\.disabled$/, "") : `${f}.disabled`;
+    },
+    local_resource_delete: () => undefined,
     // 预览默认"已是最新"，免得弹窗盖住截图；地址加 ?mockUpdate 可以看到有更新时的样子
     check_update: () => {
       const has = location.search.includes("mockUpdate");

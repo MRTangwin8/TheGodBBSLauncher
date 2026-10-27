@@ -31,6 +31,9 @@ regex = "1"
 toml = "0.8"
 sha2 = "0.10"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# 第三方 JDK（Azul Zulu）的 Linux 包是 tar.gz
+flate2 = "1"
+tar = "0.4"
 uuid = { version = "1", features = ["v4"] }
 md-5 = "0.10"
 aes-gcm = "0.10"

@@ -465,3 +465,37 @@ export interface ExportSummary {
   linked: number;
   bundled: number;
 }
+
+/** 版本管理 → 管理：这个版本自己的设置，空着的跟随全局 */
+export interface InstanceSettings {
+  isolated: boolean;
+  javaPath: string | null;
+  memoryMb: number | null;
+  /** 一行文本，写法和全局设置一样 */
+  jvmArgs: string;
+  gameArgs: string;
+}
+
+export interface InstanceInfo {
+  settings: InstanceSettings;
+  modpack: { format: string; name: string; version: string } | null;
+  /** 这个版本运行时用的游戏目录（存档、模组都在这里） */
+  gameDir: string;
+  globalIsolate: boolean;
+  playTimeSecs: number;
+  lastPlayed: number | null;
+}
+
+export interface World {
+  folder: string;
+  size: number;
+  modified: number | null;
+  hasIcon: boolean;
+}
+
+export interface WorldBackup {
+  file: string;
+  world: string;
+  size: number;
+  created: number;
+}

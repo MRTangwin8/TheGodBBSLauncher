@@ -57,7 +57,7 @@ async function launch(id: string) {
           <td>
             <span v-if="v.loader" class="tag" :class="'ld-' + v.loader">{{ loaderLabel[v.loader] }}</span>
             <span v-else class="tag" :class="v.kind">{{ kindLabel[v.kind ?? ""] ?? v.kind ?? "自定义" }}</span>
-            <b>{{ v.id }}</b>
+            <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="name" title="管理这个版本：Java、内存、模组、存档"><b>{{ v.id }}</b></RouterLink>
             <span v-if="!v.hasJar" class="error-text"> （缺少 client.jar）</span>
             <span v-if="game.running.some((r) => r.versionId === v.id)" class="playing">● 游戏中</span>
           </td>
@@ -79,6 +79,7 @@ async function launch(id: string) {
             >
               补全文件
             </button>
+            <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="btn small">管理</RouterLink>
             <button class="btn small" :disabled="game.running.some((r) => r.versionId === v.id)" @click="rename(v.id)">重命名</button>
             <button class="btn small" @click="exportFor = v.id">导出</button>
           </td>
@@ -95,6 +96,7 @@ async function launch(id: string) {
 <style scoped>
 .actions { display: flex; gap: 6px; justify-content: flex-end; }
 .playing { color: var(--grass); font-size: 12px; margin-left: 6px; }
+.name { color: var(--text); }
 .tag.ld-fabric { background: #b39b72; }
 .tag.ld-quilt { background: #8e5fb4; }
 .tag.ld-forge { background: #3e4b61; }

@@ -178,7 +178,7 @@ jobs:
       - name: 生成应用内更新清单
         run: node scripts/make-latest-json.mjs release "${{ github.ref_name }}" "${{ github.repository }}"
 
-      # 发布前再算一遍最终附件（文件名已换成英文）的校验值：打到日志、写进摘要页，并放进 Release 介绍
+      # 发布前再算一遍最终附件（文件名已换成英文）的校验值：打到日志、写进构建摘要页
       - name: 发布文件校验值
         working-directory: release
         run: |
@@ -196,8 +196,6 @@ jobs:
       - name: 生成 Release 介绍
         run: |
           {
-            echo "非官方粉丝作品。"
-            echo
             echo "| 系统 | 下载 |"
             echo "|---|---|"
             echo "| Windows | \`*_x64-setup.exe\`（推荐）或 \`*.msi\` |"
@@ -206,8 +204,6 @@ jobs:
             echo "| Linux | \`*.AppImage\` / \`*.deb\` / \`*.rpm\` |"
             echo
             echo "安装包暂未签名：Windows 可能弹出 SmartScreen，点「更多信息 → 仍要运行」；macOS 提示\"已损坏\"时在终端执行 \`xattr -cr /Applications/神权论坛启动器.app\`。"
-            echo
-            cat "$RUNNER_TEMP/checksums.md"
           } > "$RUNNER_TEMP/release-notes.md"
           cat "$RUNNER_TEMP/release-notes.md"
 

@@ -6,6 +6,7 @@ pub mod buttons;
 pub mod crash;
 pub mod game;
 pub mod gamedir;
+pub mod instance;
 pub mod java;
 pub mod loaders;
 pub mod modpack;

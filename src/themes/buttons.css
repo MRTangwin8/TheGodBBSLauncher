@@ -1,25 +1,45 @@
 /*
  * 启动按钮的自定义样式（主题中心 → 启动按钮）。
  * 默认的「石头 + 跟随配色」不覆盖任何东西，保持各布局原来的样子；
- * 用 :root 抬高优先级，盖过各组件里的 scoped 样式。
+ * 选择器写成 :root[data-layout][data-theme] .ui-launch.ui-launch…，优先级要高过
+ * 各组件里的 scoped 样式和 layouts.css 里现代布局对 .btn.primary 的覆盖，否则三种样式在现代布局下长得一样。
  */
 
 /* 扁平 / 胶囊：纯色底，没有石头按钮的立体边 */
-:root .ui-launch.ui-flat,
-:root .ui-launch.ui-pill {
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-flat,
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-pill {
   background: var(--launch-color, var(--grass));
   border: 1px solid color-mix(in srgb, var(--launch-color, var(--grass)) 70%, #000);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--launch-color, var(--grass)) 35%, transparent);
   color: var(--launch-fg, #fff);
   text-shadow: none;
 }
-:root .ui-launch.ui-flat { border-radius: 6px; }
-:root .ui-launch.ui-pill { border-radius: 999px; }
-:root .ui-launch.ui-flat:active:not(:disabled),
-:root .ui-launch.ui-pill:active:not(:disabled) { box-shadow: none; transform: translateY(1px); }
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-flat { border-radius: 6px; }
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-pill { border-radius: 999px; }
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-flat:hover:not(:disabled),
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-pill:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--launch-color, var(--grass)) 88%, #000);
+}
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-flat:active:not(:disabled),
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-pill:active:not(:disabled) { box-shadow: none; transform: translateY(1px); }
+
+/* 现代布局把普通按钮都改成了扁平的，石头样式的 .btn（主题中心里的预览）要把立体边补回来 */
+:root[data-layout="modern"][data-theme] .btn.ui-launch.ui-stone {
+  background: linear-gradient(var(--grass-light), var(--grass));
+  border: 2px solid var(--grass-dark);
+  border-radius: 4px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.25), 0 3px 8px color-mix(in srgb, var(--grass-dark) 35%, transparent);
+  color: #fff;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+/* 盖住现代布局 .btn.primary:hover 的纯色底；自定义颜色时 --launch-color 有值，跟着它走 */
+:root[data-layout="modern"][data-theme] .btn.ui-launch.ui-stone:hover:not(:disabled) {
+  background: linear-gradient(color-mix(in srgb, var(--launch-color, var(--grass)) 78%, #fff), var(--launch-color, var(--grass)));
+  filter: brightness(1.08);
+}
 
 /* 石头 + 自定义颜色：还是那个立体按钮，只换颜色 */
-:root .ui-launch.ui-stone.ui-colored {
+:root[data-layout][data-theme] .ui-launch.ui-launch.ui-stone.ui-colored {
   background: linear-gradient(color-mix(in srgb, var(--launch-color) 78%, #fff), var(--launch-color));
   border-color: color-mix(in srgb, var(--launch-color) 45%, #000);
   color: var(--launch-fg, #fff);

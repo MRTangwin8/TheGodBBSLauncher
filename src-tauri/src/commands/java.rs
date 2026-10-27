@@ -36,7 +36,7 @@ pub async fn ensure_java(
         .as_ref()
         .and_then(|j| j.component.clone())
         .unwrap_or_else(|| "jre-legacy".into());
-    let path = java::install_runtime(downloader, &state.client, &state.runtime_dir(), &component, &platform, on_progress).await?;
+    let path = java::install_runtime(downloader, &state.client, &state.runtime_dir(), major, &component, &platform, on_progress).await?;
     *state.java_cache.lock().await = None;
     Ok(path)
 }

@@ -13,5 +13,9 @@ export const navItems = [
 
 export default createRouter({
   history: createWebHashHistory(),
-  routes: navItems.map((n) => ({ path: n.path, component: n.component, meta: { title: n.name } })),
+  routes: [
+    ...navItems.map((n) => ({ path: n.path, component: n.component, meta: { title: n.name } })),
+    // 不在导航栏里的子页面
+    { path: "/versions/:id", component: () => import("./views/InstanceView.vue"), meta: { title: "版本管理" } },
+  ],
 });

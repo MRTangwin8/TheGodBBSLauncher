@@ -112,7 +112,7 @@ impl Default for Settings {
         Self {
             game_dir: default_game_dir(),
             download_source: SourcePref::Auto,
-            concurrency: 64,
+            concurrency: 8,
             java_path: None,
             memory_mb: None,
             jvm_args: String::new(),

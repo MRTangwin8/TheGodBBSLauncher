@@ -164,8 +164,11 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         return Err(Error::Other(format!("{} 个文件补全失败，例如 {}：{}", report.failed.len(), f.path, f.reason)));
     }
 
-    // Java
-    let java_path = match &settings.java_path {
+    // 单版本设置：专用 Java / 内存、强制隔离、最少内存、追加参数
+    let inst = instance::load(&game, &version.id);
+
+    // Java：版本自己的 → 全局设置的 → 自动选择
+    let java_path = match inst.java_path.as_ref().or(settings.java_path.as_ref()) {
         Some(p) => p.clone(),
         None => ensure_java(state, &version, &downloader, reporter(Stage::Java)).await?,
     };
@@ -179,8 +182,6 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         None => None,
     };
 
-    // 单版本设置（整合包实例）：强制隔离、最少内存、追加参数
-    let inst = instance::load(&game, &version.id);
     let server_args = match server.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         Some(addr) => {
             let mc = crate::engine::meta::version::base_minecraft_version(&game.versions(), &version_id).await?;
@@ -189,7 +190,7 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         None => Vec::new(),
     };
     let game_dir = instance::game_dir(&game, &version.id, settings.isolate_versions);
-    let memory = settings.memory_mb.unwrap_or_else(|| auto_memory_mb(total_memory_mb()));
+    let memory = inst.memory_mb.or(settings.memory_mb).unwrap_or_else(|| auto_memory_mb(total_memory_mb()));
     let opts = LaunchOptions {
         java: java_path,
         game_dir,

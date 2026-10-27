@@ -51,7 +51,7 @@ async fn main() {
             println!("没有合适的 Java {major}，下载 Mojang {component}…");
             let client = http_client();
             let dl = Downloader::new(client.clone(), mirror::Source::Official, 64);
-            java::install_runtime(&dl, &client, &runtime, &component, &platform, Arc::new(|_| {})).await.expect("下载 Java 失败")
+            java::install_runtime(&dl, &client, &runtime, major, &component, &platform, Arc::new(|_| {})).await.expect("下载 Java 失败")
         }
     };
     println!("使用 Java：{}", java_path.display());

@@ -15,6 +15,7 @@ pub mod migrate;
 pub mod mirror;
 pub mod modpack;
 pub mod resources;
+pub mod saves;
 pub mod theme;
 pub mod update;
 pub(crate) mod http;

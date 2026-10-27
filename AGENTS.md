@@ -39,8 +39,9 @@ src-tauri/src/
     download/         并发下载器（断点续传、SHA1、重试、镜像回退）
     mirror/           官方 / BMCLAPI 改写与测速
     install/          原版安装、已安装版本列表（InstalledVersion）
-    instance.rs       每个版本的实例配置（游玩时长、最后游玩、整合包来源）
-    java/             扫描本机 Java、下载 Mojang runtime
+    instance.rs       每个版本的实例配置（专用 Java / 内存 / 参数、游玩时长、整合包来源）
+    saves.rs          存档列表、备份成 zip、从备份恢复（解压前校验路径）
+    java/             扫描本机 Java、下载 Mojang runtime；官方缺的平台从 Azul Zulu 下载（zulu.rs，只认 cdn.azul.com + SHA256）
     launch/           拼启动参数、natives、log4j 日志解析
     loader/           Fabric / Quilt（meta profile）、Forge / NeoForge（安装器 processors）
     auth/             微软设备码、离线、外置登录（authlib-injector）、皮肤、加密存储

@@ -55,7 +55,7 @@ async fn main() {
         Some(j) => j.path.clone(),
         None => {
             let comp = vanilla.java_version.as_ref().and_then(|j| j.component.clone()).unwrap_or_else(|| "jre-legacy".into());
-            java::install_runtime(&downloader, &client, &game.root.join("runtime"), &comp, &platform, Arc::new(|_| {})).await.unwrap()
+            java::install_runtime(&downloader, &client, &game.root.join("runtime"), major, &comp, &platform, Arc::new(|_| {})).await.unwrap()
         }
     };
 
