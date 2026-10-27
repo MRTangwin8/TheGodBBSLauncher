@@ -315,7 +315,10 @@ mod tests {
         assert!(window.decorations, "红绿灯需要保留系统窗口边框");
         assert_eq!(window.title_bar_style, TitleBarStyle::Overlay);
         assert!(window.hidden_title);
-        assert!(window.traffic_light_position.is_some());
+        // Tauri 的 y 不是红绿灯离顶边的距离，而是「标题栏容器高度 - 按钮高度」，按钮在容器里还保持系统默认的离底距离（约 7~9pt），
+        // 实际顶边距约等于 y - 8。写 12 时红绿灯几乎贴着窗口顶边，20 才落到 layouts.css 留出的 y 12~24
+        let pos = window.traffic_light_position.expect("要给红绿灯定位");
+        assert!((18.0..=22.0).contains(&pos.y), "红绿灯 y = {}，会贴顶或压住标题", pos.y);
         // 和主配置里的窗口尺寸保持一致，免得两处改漏
         let base: serde_json::Value = serde_json::from_str(include_str!("../../tauri.conf.json")).unwrap();
         for key in ["title", "width", "height", "minWidth", "minHeight", "devtools"] {
