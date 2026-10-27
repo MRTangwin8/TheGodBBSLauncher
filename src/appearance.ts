@@ -41,8 +41,16 @@ const systemIsDark = ref(systemDark.matches);
 systemDark.addEventListener("change", () => (systemIsDark.value = systemDark.matches));
 
 export async function reloadBackground() {
+  const path = useSettingsStore().settings?.backgroundImage ?? null;
+  if (!path) {
+    backgroundUrl.value = null;
+    return;
+  }
   try {
-    backgroundUrl.value = await api.backgroundImage();
+    // 直接带上路径：这时设置可能还没写完，后端读到的会是旧值
+    const url = await api.backgroundImage(path);
+    // 读图期间又换了图（或恢复了默认），丢掉这次的结果
+    if ((useSettingsStore().settings?.backgroundImage ?? null) === path) backgroundUrl.value = url;
   } catch {
     backgroundUrl.value = null;
   }

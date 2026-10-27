@@ -22,7 +22,9 @@ pub struct GameDirInfo {
     pub recommended: String,
     /// 老版本默认放的位置（%APPDATA%/GodBBSLauncher/.minecraft）
     pub legacy: String,
-    /// 现在用的正是老位置、而且里面有数据：界面会建议迁到启动器旁边
+    /// 现在用的正是老位置：界面会建议迁到启动器旁边
+    pub current_is_legacy: bool,
+    /// 现在用的不是老位置，但老位置里还留着游戏数据（比如手动改过路径没搬）：界面会建议把它迁到现在的目录
     pub legacy_has_data: bool,
 }
 
@@ -43,11 +45,13 @@ fn has_data(dir: &std::path::Path) -> bool {
 pub async fn game_dir_info(state: State<'_, AppState>) -> Result<GameDirInfo> {
     let current = state.settings.read().await.game_dir.clone();
     let legacy = config::legacy_game_dir();
-    let legacy_has_data = has_data(&legacy) && migrate::is_inside(&legacy, &current) && migrate::is_inside(&current, &legacy);
+    let current_is_legacy = migrate::is_inside(&legacy, &current) && migrate::is_inside(&current, &legacy);
+    let legacy_has_data = !current_is_legacy && has_data(&legacy);
     Ok(GameDirInfo {
         current: current.display().to_string(),
         recommended: config::default_game_dir().display().to_string(),
         legacy: legacy.display().to_string(),
+        current_is_legacy,
         legacy_has_data,
     })
 }
@@ -76,8 +80,9 @@ impl Drop for Migrating<'_> {
 }
 
 /// 换游戏目录。`move_files` 为 true 时把旧目录的内容搬过去；false 只改位置（旧数据留在原处）。
+/// `from_legacy`：搬的不是当前游戏目录，而是老版本默认位置里留下的数据（只允许这一个来源）。
 #[tauri::command]
-pub async fn game_dir_migrate(app: AppHandle, state: State<'_, AppState>, to: String, move_files: bool) -> Result<Report> {
+pub async fn game_dir_migrate(app: AppHandle, state: State<'_, AppState>, to: String, move_files: bool, from_legacy: Option<bool>) -> Result<Report> {
     let state: &AppState = &state;
     let to = PathBuf::from(to.trim());
     if !to.is_absolute() {
@@ -94,7 +99,7 @@ pub async fn game_dir_migrate(app: AppHandle, state: State<'_, AppState>, to: St
     if !state.installing.lock().await.is_empty() {
         return Err(Error::Other("还有下载 / 安装任务在进行，等它们完成再换目录".into()));
     }
-    let from = state.settings.read().await.game_dir.clone();
+    let from = if from_legacy == Some(true) { config::legacy_game_dir() } else { state.settings.read().await.game_dir.clone() };
     if migrate::is_inside(&from, &to) && migrate::is_inside(&to, &from) {
         return Err(Error::Other("新位置和现在的一样".into()));
     }

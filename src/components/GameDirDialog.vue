@@ -9,12 +9,14 @@ import { formatBytes } from "../utils";
 
 // 更改游戏目录：默认把现有内容搬过去；也可以只改位置（旧数据留在原处）。
 // 后端保证：新位置确认没问题之前，旧数据一个字节都不动。
-const props = defineProps<{ info: GameDirInfo; initial?: string }>();
+// fromLegacy：把老版本默认位置（AppData）里留下的数据搬进现在的游戏目录，目标固定
+const props = defineProps<{ info: GameDirInfo; initial?: string; fromLegacy?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const game = useGameStore();
 const settings = useSettingsStore();
 
-const target = ref(props.initial ?? props.info.recommended);
+const source = computed(() => (props.fromLegacy ? props.info.legacy : props.info.current));
+const target = ref(props.fromLegacy ? props.info.current : (props.initial ?? props.info.recommended));
 const moveFiles = ref(true);
 const mine = ref<DirStats | null>(null);
 const dest = ref<DirStats | null>(null);
@@ -37,13 +39,12 @@ const percent = computed(() => {
   const p = progress.value;
   return p?.totalBytes ? Math.min(100, Math.round((p.bytes / p.totalBytes) * 100)) : 0;
 });
-const sameAsCurrent = computed(() => norm(target.value) === norm(props.info.current));
+const sameAsCurrent = computed(() => norm(target.value) === norm(source.value));
 const hasOld = computed(() => !!mine.value?.exists && !mine.value.empty);
 const blocked = computed(() => {
   if (game.running.length) return "游戏还在运行，先退出游戏再更改目录。";
   if (!target.value.trim()) return "请选择新位置。";
   if (sameAsCurrent.value) return "新位置和现在的一样。";
-  if (moveFiles.value && hasOld.value && dest.value?.exists && !dest.value.empty) return "新位置不是空文件夹。请选一个空文件夹（或新建一个），或者改选「只改位置」。";
   return "";
 });
 
@@ -52,7 +53,7 @@ function norm(p: string) {
 }
 
 async function refresh() {
-  mine.value = await api.dirStats(props.info.current).catch(() => null);
+  mine.value = await api.dirStats(source.value).catch(() => null);
   dest.value = target.value.trim() ? await api.dirStats(target.value.trim()).catch(() => null) : null;
 }
 
@@ -76,7 +77,7 @@ async function run() {
   progress.value = null;
   unlisten = await onMigrateProgress((p) => (progress.value = p));
   try {
-    report.value = await api.gameDirMigrate(target.value.trim(), moveFiles.value && hasOld.value);
+    report.value = await api.gameDirMigrate(target.value.trim(), props.fromLegacy || (moveFiles.value && hasOld.value), props.fromLegacy);
     await settings.load();
   } catch (e) {
     error.value = `${e}`;
@@ -96,7 +97,7 @@ function dismiss() {
   <div class="mask" @click.self="dismiss">
     <div class="dialog box" role="dialog" aria-modal="true" aria-label="更改游戏目录">
       <div class="box-title">
-        更改游戏目录
+        {{ fromLegacy ? "迁移旧位置的游戏数据" : "更改游戏目录" }}
         <a v-if="!busy" class="extra close" @click="dismiss">×</a>
       </div>
       <div class="box-body">
@@ -113,25 +114,29 @@ function dismiss() {
         </template>
         <template v-else>
           <div class="path-row">
-            <span class="label muted">现在</span>
-            <span class="break">{{ info.current }}</span>
+            <span class="label muted">{{ fromLegacy ? "旧位置" : "现在" }}</span>
+            <span class="break">{{ source }}</span>
             <span v-if="mine?.exists" class="muted small">（{{ mine.files }} 个文件，{{ formatBytes(mine.bytes) }}）</span>
           </div>
           <div class="path-row">
             <span class="label muted">改到</span>
-            <input v-model="target" class="input grow" :disabled="busy" @change="refresh" />
-            <button class="btn small" :disabled="busy" @click="pick">选择…</button>
+            <span v-if="fromLegacy" class="break">{{ target }}<span class="muted small">（现在的游戏目录）</span></span>
+            <template v-else>
+              <input v-model="target" class="input grow" :disabled="busy" @change="refresh" />
+              <button class="btn small" :disabled="busy" @click="pick">选择…</button>
+            </template>
           </div>
-          <p v-if="target !== info.recommended" class="small">
+          <p v-if="!fromLegacy && target !== info.recommended" class="small">
             <a @click="target = info.recommended; refresh()">用推荐位置（启动器旁边）</a>
           </p>
           <p v-if="dest?.exists && !dest.empty && !moveFiles" class="muted small">这个文件夹里已经有 {{ dest.files }} 个文件，启动器会直接使用它。</p>
 
-          <div v-if="hasOld" class="choice">
+          <p v-if="fromLegacy" class="muted small">只会搬进去和现在目录里不重名的东西，重名的话会停下来，不覆盖任何文件。</p>
+          <div v-if="hasOld && !fromLegacy" class="choice">
             <label><input v-model="moveFiles" type="radio" :value="true" :disabled="busy" /> 把现有内容搬过去（推荐）</label>
             <label><input v-model="moveFiles" type="radio" :value="false" :disabled="busy" /> 只改位置，不搬文件（旧文件留在原处，新位置从头开始）</label>
           </div>
-          <p v-if="hasOld && moveFiles" class="muted small">
+          <p v-if="hasOld && (moveFiles || fromLegacy)" class="muted small">
             同一个磁盘上会直接移动，几 GB 也是瞬间；跨磁盘要复制，可能要几分钟，期间不能启动游戏和下载。复制完核对无误才会删旧文件，中途取消或出错，旧文件不会受影响。
           </p>
 
@@ -155,7 +160,7 @@ function dismiss() {
           <span class="grow" />
           <button v-if="busy" class="btn" @click="api.gameDirMigrateCancel()">取消迁移</button>
           <button v-else class="btn" @click="dismiss">关闭</button>
-          <button class="btn primary" :disabled="busy || !!blocked" @click="run">{{ busy ? "迁移中…" : moveFiles && hasOld ? "开始迁移" : "确定" }}</button>
+          <button class="btn primary" :disabled="busy || !!blocked" @click="run">{{ busy ? "迁移中…" : fromLegacy || (moveFiles && hasOld) ? "开始迁移" : "确定" }}</button>
         </template>
       </div>
     </div>

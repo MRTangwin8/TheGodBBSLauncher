@@ -129,6 +129,9 @@ export interface GameDirInfo {
   recommended: string;
   /** 老版本默认放的位置 */
   legacy: string;
+  /** 现在用的正是老位置 */
+  currentIsLegacy: boolean;
+  /** 现在用的不是老位置，但老位置里还留着游戏数据 */
   legacyHasData: boolean;
 }
 

@@ -56,7 +56,7 @@ const title = computed(() => (route.meta.title as string) ?? "");
           </Transition>
         </RouterView>
         <footer class="footer">
-          <p>神权论坛启动器 · 非官方粉丝纪念作品，与 MCBBS / Mojang Studios / Microsoft 无关</p>
+          <p>神权论坛启动器 · 与 MCBBS / Mojang Studios / Microsoft 无关</p>
           <p class="muted">Minecraft 游戏文件全部从官方源或 BMCLAPI 镜像下载，本程序不分发任何游戏文件</p>
         </footer>
       </div>

@@ -95,7 +95,7 @@ watch(collapsed, (v) => {
           </Transition>
         </RouterView>
         <footer class="footer">
-          神权论坛启动器 · 非官方粉丝纪念作品，与 MCBBS / Mojang Studios / Microsoft 无关 · 游戏文件全部来自官方源或镜像
+          神权论坛启动器 · 与 MCBBS / Mojang Studios / Microsoft 无关 · 游戏文件全部来自官方源或镜像
         </footer>
       </main>
     </div>

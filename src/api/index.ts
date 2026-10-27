@@ -59,7 +59,8 @@ function on<T>(event: string, cb: (payload: T) => void): Promise<UnlistenFn> {
 export const api = {
   getSettings: () => call<Settings>("get_settings"),
   saveSettings: (settings: Settings) => call<void>("save_settings", { settings }),
-  backgroundImage: () => call<string | null>("background_image"),
+  /** path：刚选的图片路径（不传就用已保存的设置） */
+  backgroundImage: (path?: string | null) => call<string | null>("background_image", { path: path ?? null }),
   themeExport: (path: string, name: string, author: string) => call<void>("theme_export", { path, name, author }),
   themePreview: (path: string) => call<ThemePreview>("theme_preview", { path }),
   themeImport: (path: string) => call<Settings>("theme_import", { path }),
@@ -125,7 +126,8 @@ export const api = {
   launchGame: (versionId: string, server?: string | null) => call<LaunchResult>("launch_game", { versionId, server: server ?? null }),
   gameDirInfo: () => call<GameDirInfo>("game_dir_info"),
   dirStats: (path: string) => call<DirStats>("dir_stats", { path }),
-  gameDirMigrate: (to: string, moveFiles: boolean) => call<MigrateReport>("game_dir_migrate", { to, moveFiles }),
+  /** fromLegacy：把老版本默认位置里留下的数据搬到 to，而不是搬当前游戏目录 */
+  gameDirMigrate: (to: string, moveFiles: boolean, fromLegacy = false) => call<MigrateReport>("game_dir_migrate", { to, moveFiles, fromLegacy }),
   gameDirMigrateCancel: () => call<void>("game_dir_migrate_cancel"),
   quickOpenFolder: (path: string) => call<void>("quick_open_folder", { path }),
   quickRunProgram: (path: string) => call<void>("quick_run_program", { path }),

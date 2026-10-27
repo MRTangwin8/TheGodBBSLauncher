@@ -3,6 +3,7 @@
 //! 原则：**新位置确认没问题之前，旧数据一个字节都不动**。
 //! - 同一个盘：直接改名，几 GB 也是瞬间完成；中途失败就改回去。
 //! - 跨盘：先复制，再核对文件数和总大小，写入新设置（`commit`）之后才删旧的；复制时可以取消，取消或失败都会清掉复制出来的部分。
+//! - 新位置可以已经有东西（比如启动器自己的文件），只要和要搬的东西不重名；撤销时只删我们搬进去的。
 //! - 旧目录里个别文件删不掉（被占用 / 杀毒软件）不算失败，列在报告里让用户自己处理。
 
 use std::fs;
@@ -81,13 +82,45 @@ fn check(from: &Path, to: &Path) -> Result<()> {
     if is_inside(from, to) {
         return Err(Error::Other("旧的游戏目录不能在新位置里面，请换一个不包含它的位置".into()));
     }
-    if to.exists() {
-        let empty = to.is_dir() && fs::read_dir(to).map(|mut d| d.next().is_none()).unwrap_or(false);
-        if !empty {
-            return Err(Error::Other(format!("新位置不是空文件夹：{}。请选一个空文件夹，或者选「只改位置，不搬文件」", to.display())));
-        }
+    if to.exists() && !to.is_dir() {
+        return Err(Error::Other(format!("新位置是一个文件，不是文件夹：{}", to.display())));
+    }
+    // 新位置里已经有东西没关系，只要不和要搬的东西重名（绝不覆盖）
+    let clash: Vec<String> = names(from)?.into_iter().filter(|n| to.join(n).exists()).map(|n| n.to_string_lossy().to_string()).collect();
+    if !clash.is_empty() {
+        let shown = clash.iter().take(5).cloned().collect::<Vec<_>>().join("、");
+        return Err(Error::Other(format!(
+            "新位置里已经有同名的东西：{shown}{}。为了不覆盖任何文件，请选一个空文件夹，或者选「只改位置，不搬文件」",
+            if clash.len() > 5 { " 等" } else { "" }
+        )));
     }
     Ok(())
+}
+
+/// 目录第一层的名字
+fn names(dir: &Path) -> Result<Vec<std::ffi::OsString>> {
+    fs::read_dir(dir)
+        .map_err(|e| io_err("读不了文件夹", dir, e))?
+        .map(|e| e.map(|e| e.file_name()).map_err(|e| io_err("读不了文件夹", dir, e)))
+        .collect()
+}
+
+/// 只统计 `dir` 里这些名字（我们搬进去的部分），不碰新位置原有的东西
+fn scan_names(dir: &Path, list: &[std::ffi::OsString]) -> Result<(u64, u64)> {
+    let (mut files, mut bytes) = (0u64, 0u64);
+    for n in list {
+        let p = dir.join(n);
+        let meta = fs::symlink_metadata(&p).map_err(|e| io_err("读不了文件信息", &p, e))?;
+        if meta.is_dir() {
+            let (f, b) = scan(&p)?;
+            files += f;
+            bytes += b;
+        } else {
+            files += 1;
+            bytes += meta.len();
+        }
+    }
+    Ok((files, bytes))
 }
 
 fn io_err(what: &str, path: &Path, e: io::Error) -> Error {
@@ -134,16 +167,17 @@ fn top_level(dir: &Path) -> Result<Vec<PathBuf>> {
 /// - `commit`：新位置准备好之后、删旧数据之前调用，用来写入新的设置；失败会撤销整个迁移
 pub fn migrate(from: &Path, to: &Path, force_copy: bool, on_progress: &dyn Fn(&Progress) -> bool, commit: &dyn Fn() -> Result<()>) -> Result<Report> {
     check(from, to)?;
+    let moving = names(from)?;
     let created_to = !to.exists();
     fs::create_dir_all(to).map_err(|e| io_err("没法创建新位置", to, e))?;
-    // 出任何问题都把新位置恢复成迁移前的样子：我们建的就整个删掉，原来就有的空文件夹就清空
+    // 出任何问题都把新位置恢复成迁移前的样子：只删我们搬进去的名字（check 保证它们原来不存在），我们建的文件夹再删掉
     let undo = || {
+        for n in &moving {
+            let p = to.join(n);
+            let _ = if p.is_dir() { fs::remove_dir_all(&p) } else { fs::remove_file(&p) };
+        }
         if created_to {
-            let _ = fs::remove_dir_all(to);
-        } else if let Ok(entries) = top_level(to) {
-            for p in entries {
-                let _ = if p.is_dir() { fs::remove_dir_all(&p) } else { fs::remove_file(&p) };
-            }
+            let _ = fs::remove_dir(to);
         }
     };
 
@@ -230,7 +264,7 @@ fn copy_all(from: &Path, to: &Path, on_progress: &dyn Fn(&Progress) -> bool, com
 
     p.stage = Stage::Verifying;
     on_progress(&p);
-    let (new_files, new_bytes) = scan(to)?;
+    let (new_files, new_bytes) = scan_names(to, &names(from)?)?;
     if (new_files, new_bytes) != (total_files, total_bytes) {
         return Err(Error::Other(format!("复制完核对对不上（应有 {total_files} 个文件 / {total_bytes} 字节，实际 {new_files} 个 / {new_bytes} 字节），已撤销，旧目录没有改动")));
     }
@@ -375,11 +409,31 @@ mod tests {
         assert!(msg(&t.path().join("a/../b")).contains(".."));
         assert!(msg(Path::new("relative/path")).contains("完整路径"));
         let full = t.path().join("full");
-        fs::create_dir_all(&full).unwrap();
-        fs::write(full.join("别的启动器的文件"), b"x").unwrap();
-        assert!(msg(&full).contains("不是空文件夹"));
+        fs::create_dir_all(full.join("versions")).unwrap();
+        assert!(msg(&full).contains("同名") && msg(&full).contains("versions"), "重名的绝不覆盖");
         assert_eq!(stats(&from).0, 4, "校验不通过时旧目录原封不动");
         assert!(migrate(&t.path().join("没有这个"), &t.path().join("n"), false, &quiet, &ok).is_err());
+    }
+
+    #[test]
+    fn merges_into_a_folder_that_already_has_other_files() {
+        for force_copy in [false, true] {
+            let t = tempfile::tempdir().unwrap();
+            let (from, to) = (t.path().join("a"), t.path().join("launcher"));
+            sample(&from);
+            fs::create_dir_all(&to).unwrap();
+            fs::write(to.join("godbbs-launcher.exe"), b"exe").unwrap();
+            // 提交失败：只撤掉搬进去的，启动器自己的文件原样留着
+            assert!(migrate(&from, &to, force_copy, &quiet, &|| Err(Error::Other("x".into()))).is_err());
+            assert_eq!(fs::read(to.join("godbbs-launcher.exe")).unwrap(), b"exe");
+            assert_eq!(fs::read_dir(&to).unwrap().count(), 1, "force_copy={force_copy}");
+            assert_eq!(stats(&from), (4, 14_105));
+            // 再来一次成功的
+            let r = migrate(&from, &to, force_copy, &quiet, &ok).unwrap();
+            assert!(r.leftover.is_empty());
+            assert!(to.join("versions/1.21.1/saves/世界/level.dat").is_file() && to.join("godbbs-launcher.exe").is_file());
+            assert!(!from.exists());
+        }
     }
 
     #[test]

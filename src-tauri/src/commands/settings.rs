@@ -26,11 +26,17 @@ pub async fn save_settings(state: State<'_, AppState>, settings: Settings) -> Re
     Ok(())
 }
 
-/// 自定义背景图，以 data URL 返回（不用开放 asset 协议）；没设置或读不到返回 None
+/// 自定义背景图，以 data URL 返回（不用开放 asset 协议）；没设置或读不到返回 None。
+/// `path`：前端刚选的图片。不传就读已保存的设置——刚选完图时设置可能还没写完，读到的是旧值，所以前端会把路径带过来
 #[tauri::command]
-pub async fn background_image(state: State<'_, AppState>) -> Result<Option<String>> {
+pub async fn background_image(state: State<'_, AppState>, path: Option<PathBuf>) -> Result<Option<String>> {
     use base64::Engine;
-    let Some(path) = state.settings.read().await.background_image.clone() else { return Ok(None) };
+    let Some(path) = (match path {
+        Some(p) => Some(p),
+        None => state.settings.read().await.background_image.clone(),
+    }) else {
+        return Ok(None);
+    };
     let mime = match path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).as_deref() {
         Some("png") => "image/png",
         Some("jpg" | "jpeg") => "image/jpeg",

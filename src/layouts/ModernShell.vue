@@ -55,7 +55,7 @@ const title = computed(() => (route.meta.title as string) ?? "");
             <div :key="r.path" class="page"><component :is="Component" /></div>
           </Transition>
         </RouterView>
-        <footer class="footer">非官方粉丝纪念作品，与 MCBBS / Mojang Studios / Microsoft 无关 · 游戏文件来自官方源或镜像</footer>
+        <footer class="footer">与 MCBBS / Mojang Studios / Microsoft 无关 · 游戏文件来自官方源或镜像</footer>
       </main>
     </div>
   </div>
