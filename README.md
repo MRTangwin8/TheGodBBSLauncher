@@ -15,7 +15,7 @@
 | macOS（Intel 芯片） | `*_x64.dmg` | 不清楚是哪种芯片：点左上角苹果菜单 →「关于本机」查看 |
 | Linux | `*.AppImage` | 也提供 `.deb` / `.rpm`。需要 webkit2gtk 4.1 |
 
-目前处于**预发布阶段**，安装包还没有代码签名：
+目前处于**预发布阶段**，安装包还没有代码签名（Windows 版正在申请免费签名，见[代码签名](#代码签名--code-signing)）：
 - **Windows**：SmartScreen 可能拦截，点「更多信息 → 仍要运行」。
 - **macOS**：提示"已损坏，无法打开"时，在终端执行 `xattr -cr /Applications/神权论坛启动器.app`。
 
@@ -146,6 +146,17 @@ src/
   api/         前后端通信，以及浏览器预览用的假数据
   themes/      配色与布局样式
 ```
+
+## 代码签名 / Code signing
+
+Windows 安装包计划使用 [SignPath.io](https://about.signpath.io) 提供的免费代码签名，证书由 [SignPath Foundation](https://signpath.org) 颁发。目前还在申请中，申请通过之前发布的安装包都没有签名。
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org) (application in progress; releases published before approval are unsigned).
+
+- 只有本仓库 GitHub Actions 从公开源码构建出的安装包才会送去签名，不签本地构建或第三方修改版。 / Only installers built by this repository's GitHub Actions from the public source code are submitted for signing.
+- 提交者与审核者（Committers and reviewers）：[MRTangwin8](https://github.com/MRTangwin8)
+- 发布批准者（Approvers）：[MRTangwin8](https://github.com/MRTangwin8)
+- 隐私说明 / Privacy policy：[docs/PRIVACY.md](docs/PRIVACY.md)。启动器不收集任何用户数据；除了启动时检查更新和获取公告（都可以在设置里关掉），只在使用对应功能时连接文中列出的服务。 / The launcher collects no user data. Apart from the update check and announcements fetched at startup (both can be turned off in settings), it only connects to the services listed in the privacy policy when the user uses the corresponding feature.
 
 ## 致谢
 
