@@ -101,20 +101,25 @@ pub async fn theme_import(state: State<'_, AppState>, path: PathBuf) -> Result<S
 /// 检查 GitHub 上有没有新版本。只做查询，不下载也不安装；是否提示由前端按设置决定
 #[tauri::command]
 pub async fn check_update(app: AppHandle, state: State<'_, AppState>) -> Result<UpdateInfo> {
+    if crate::edition::STORE {
+        return Err(Error::Other("微软商店版由商店负责更新，打开 Microsoft Store 的「库」就能看到".into()));
+    }
     let mut info = update::check(&state.client, env!("CARGO_PKG_VERSION")).await?;
     info.can_install = updater_enabled(&app);
     Ok(info)
 }
 
-/// 打包时有没有写进更新签名公钥。没有就不能在应用内更新：装的东西没法验证来源
+/// 打包时有没有写进更新签名公钥。没有就不能在应用内更新：装的东西没法验证来源。商店版一律不在应用内更新
 fn updater_enabled(app: &AppHandle) -> bool {
-    app.config()
-        .plugins
-        .0
-        .get("updater")
-        .and_then(|c| c.get("pubkey"))
-        .and_then(|k| k.as_str())
-        .is_some_and(|k| !k.trim().is_empty())
+    !crate::edition::STORE
+        && app
+            .config()
+            .plugins
+            .0
+            .get("updater")
+            .and_then(|c| c.get("pubkey"))
+            .and_then(|k| k.as_str())
+            .is_some_and(|k| !k.trim().is_empty())
 }
 
 pub const UPDATE_PROGRESS_EVENT: &str = "update-progress";

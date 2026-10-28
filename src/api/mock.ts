@@ -54,7 +54,7 @@ const installed: InstalledVersion[] = [
 ];
 const accounts: AccountList = {
   accounts: [
-    { id: "a1", kind: "microsoft", name: "Notch", uuid: "069a79f444e94726a5befca90e38aaf5" },
+    { id: "a1", kind: "microsoft", name: "神权玩家", uuid: "0a1b2c3d4e5f40718293a4b5c6d7e8f9" },
     { id: "a2", kind: "offline", name: "Steve", uuid: "5627dd98e6be3c21b8a8e92344183641" },
     { id: "a3", kind: "yggdrasil", name: "Alex", uuid: "x", server: "https://littleskin.cn/api/yggdrasil", serverName: "LittleSkin" },
   ],
@@ -156,7 +156,10 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       return (mockServers = list);
     },
     server_ping: () => {
-      if (String(args!.address).startsWith("192.168")) throw new Error("连不上服务器：连接被拒绝");
+      // 地址里带 down 的模拟连不上，用来看出错时的样子
+      if (String(args!.address).includes("down")) throw new Error("连不上服务器：连接被拒绝");
+      if (String(args!.address).startsWith("192.168"))
+        return { version: "Fabric 1.21.1", protocol: 767, online: 3, max: 10, motd: "朋友们的周末小服", sample: ["Steve"], favicon: null, latencyMs: 8 };
       return { version: "Paper 1.21.1", protocol: 767, online: 12, max: 100, motd: "欢迎来到神权生存服\n今天也要好好挖矿", sample: ["Steve", "Alex"], favicon: null, latencyMs: 46 };
     },
     screenshot_list: () =>

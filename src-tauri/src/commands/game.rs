@@ -68,6 +68,7 @@ async fn launch_auth(state: &AppState) -> Result<(LaunchAuth, Option<String>)> {
     let (account, secret) = {
         let store = state.accounts.lock().await;
         let acc = store.selected().cloned().ok_or_else(|| Error::Other("还没有账号，先去「个人空间」添加一个吧".into()))?;
+        crate::edition::check_account_kind(acc.kind)?;
         let secret = store.secret(&acc.id)?;
         (acc, secret)
     };

@@ -5,6 +5,7 @@ import { api, inTauri } from "../api";
 import type { DeviceCode, Settings } from "../api/types";
 import { useAccountsStore } from "../stores/accounts";
 import { useSettingsStore } from "../stores/settings";
+import { isStore, storeBlocks } from "../edition";
 
 // 首次启动引导：选风格 → 登录账号 → 完成。每一步都能跳过，随时可以「跳过全部」。
 // 选的风格立刻生效（可以直接看到效果）；之后都能在「主题中心」「个人空间」里再改。
@@ -44,10 +45,10 @@ async function patch(p: Partial<Settings>) {
 type Mode = "microsoft" | "offline" | "yggdrasil";
 const mode = ref<Mode>("microsoft");
 const tabs: { key: Mode; label: string }[] = [
-  { key: "microsoft", label: "微软正版" },
-  { key: "offline", label: "离线账号" },
-  { key: "yggdrasil", label: "外置登录" },
-];
+  { key: "microsoft" as Mode, label: "微软正版" },
+  { key: "offline" as Mode, label: "离线账号" },
+  { key: "yggdrasil" as Mode, label: "外置登录" },
+].filter((t) => !storeBlocks(t.key));
 const offlineName = ref("");
 const ygg = ref({ server: "", username: "", password: "" });
 const device = ref<DeviceCode | null>(null);
@@ -150,6 +151,7 @@ const title = computed(() => ["欢迎来到神权论坛", "挑个喜欢的风格
           <div class="acc-body">
             <template v-if="mode === 'microsoft'">
               <p class="small">用微软账号登录，可以联机、使用正版皮肤。点下面的按钮后，在浏览器里输入验证码授权即可。</p>
+              <p v-if="isStore" class="small">微软商店版只能使用正版账号，需要这个微软账号购买了 Minecraft Java 版。</p>
               <template v-if="device">
                 <p>验证码：<b class="code">{{ device.userCode }}</b></p>
                 <button class="btn" @click="copyAndOpen">{{ copied ? "已复制，已打开浏览器" : "复制验证码并打开授权页面" }}</button>

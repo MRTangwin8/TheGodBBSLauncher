@@ -6,6 +6,7 @@ import type { DeviceCode } from "../api/types";
 import { kindLabel, useAccountsStore } from "../stores/accounts";
 import UserCard from "../components/UserCard.vue";
 import AccountAvatar from "../components/AccountAvatar.vue";
+import { isStore, storeBlocks } from "../edition";
 
 const store = useAccountsStore();
 onMounted(() => store.load());
@@ -99,11 +100,12 @@ async function remove(id: string, name: string) {
   await store.remove(id);
 }
 
+// 商店版只能用正版账号，不显示另外两种
 const tabs: { key: Mode; label: string }[] = [
-  { key: "microsoft", label: "微软正版" },
-  { key: "offline", label: "离线账号" },
-  { key: "yggdrasil", label: "外置登录" },
-];
+  { key: "microsoft" as Mode, label: "微软正版" },
+  { key: "offline" as Mode, label: "离线账号" },
+  { key: "yggdrasil" as Mode, label: "外置登录" },
+].filter((t) => !storeBlocks(t.key));
 </script>
 
 <template>
@@ -125,6 +127,7 @@ const tabs: { key: Mode; label: string }[] = [
                 <span class="tag" :class="'acc-' + a.kind">{{ kindLabel[a.kind] }}</span>
                 <b>{{ a.name }}</b>
                 <span v-if="a.id === store.selectedId" class="current-mark">✔ 当前</span>
+                <span v-if="storeBlocks(a.kind)" class="tag blocked">商店版不能用</span>
                 <div class="muted small">{{ a.serverName ?? (a.kind === "microsoft" ? "Microsoft 账号" : "仅限单机和离线服务器") }}</div>
               </td>
               <td class="num"><a class="del" @click.stop="remove(a.id, a.name)">删除</a></td>
@@ -138,6 +141,7 @@ const tabs: { key: Mode; label: string }[] = [
 
       <div class="box">
         <div class="box-title">添加账号</div>
+        <div v-if="isStore" class="box-body store-note">【版主提示】微软商店版只能使用正版账号：请用购买了 Minecraft Java 版的微软账号登录。</div>
         <div class="tabs">
           <a v-for="t in tabs" :key="t.key" :class="{ active: mode === t.key }" @click="mode = t.key">{{ t.label }}</a>
         </div>
@@ -203,6 +207,8 @@ const tabs: { key: Mode; label: string }[] = [
 .tag.acc-microsoft { background: #2f7d32; }
 .tag.acc-offline { background: #8b8b8b; }
 .tag.acc-yggdrasil { background: #7b6a9e; }
+.tag.blocked { background: var(--red); margin-left: 6px; }
+.store-note { padding-bottom: 0; color: var(--text-muted); }
 .tabs { display: flex; padding: 8px 12px 0; border-bottom: 1px solid var(--border); }
 .tabs a { padding: 4px 14px; border: 1px solid var(--border); border-bottom: none; margin-right: 4px; background: var(--bg-box-alt); color: var(--text); border-radius: 3px 3px 0 0; }
 .tabs a:hover { text-decoration: none; }

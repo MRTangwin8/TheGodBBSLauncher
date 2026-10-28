@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "typecheck": "vue-tsc --noEmit",
-    "test": "node --test tests/game.test.mjs tests/community.test.mjs tests/latest-json.test.mjs tests/buttons-logic.test.mjs",
+    "test": "node --test tests/game.test.mjs tests/community.test.mjs tests/latest-json.test.mjs tests/buttons-logic.test.mjs tests/msix.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

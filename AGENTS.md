@@ -32,6 +32,7 @@
 src-tauri/src/
   lib.rs              注册插件、AppState、所有 command（★ 冲突热点）
   config/mod.rs       全局 Settings（★ 冲突热点：加字段要同步前端）
+  edition.rs          发行版本：普通版 / 微软商店版（`--features store`）
   commands/           IPC 层，每个文件对应一个领域
     settings / versions / accounts / loaders / java / game / resources / modpack / crash
   engine/             纯逻辑，不依赖 Tauri
@@ -185,6 +186,15 @@ cd src-tauri && cargo clippy && cargo test
   - Linux 的 rpm 包名不能以中文开头，所以 `tauri.linux.conf.json` 把 productName 换成英文，菜单里显示的中文名由 `linux/app.desktop` 提供；
   - Release 附件名不支持中文，workflow 会把文件名里的中文产品名换成 `GodBBSLauncher`。
 - 版本号要同时改 `tauri.conf.json`、`Cargo.toml`、`package.json` 三处（`Cargo.lock` 和 `package-lock.json` 里的本项目版本也要跟着改），再打同名标签。设置页「关于」里的版本号是运行时读取的，不用改。
+
+### 微软商店版（MSIX）
+- 商店里的应用：「神权论坛启动器」，Store ID `9MWG9BBN60JB`，MSIX 类型。包标识（Name / Publisher / PublisherDisplayName）写在 `scripts/make-msix.mjs` 的 `IDENTITY`，必须和合作伙伴中心「产品标识」页一致。
+- 商店版 = 后端 `--features store` + 前端 `VITE_STORE=1`（`src/edition.ts`，浏览器预览加 `?mockStore`）：
+  - **只能用微软正版账号**：添加离线 / 外置账号和用它们启动都在后端拒绝（`edition::check_account_kind`）；正版身份在登录和刷新令牌时向 Minecraft 服务确认（查游戏档案）。
+  - **不在应用内更新**，由商店更新（商店政策）；`check_update` / `install_update` 都直接拒绝。
+  - 默认游戏目录放在 `~/GodBBSLauncher/.minecraft`：MSIX 往 AppData 写的东西会被重定向到应用私有目录，卸载时连存档一起删掉。
+- CI 在 Windows 上最后一步编商店版并用 `scripts/make-msix.mjs` 打成 `.msix`（产物 `godbbs-launcher-msix`）。包不签名，上传到合作伙伴中心后由微软签名，所以不进 GitHub Release。
+- 商店要求版本号四段、最后一段是 0：`0.3.7` → `0.3.7.0`，脚本自动转换；同一个版本号不能重复上传。
 
 ### 应用内更新与签名密钥
 - 用户同意更新后，`install_update` 命令从**对应标签的 Release** 里取 `latest.json`，下载安装包，用内置公钥校验签名，通过才安装，然后重启。不用 `releases/latest/download`，因为我们的发布是预发布，那个地址取不到。

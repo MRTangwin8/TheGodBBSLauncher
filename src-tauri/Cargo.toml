@@ -44,6 +44,10 @@ rand = "0.8"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 
+[features]
+# 微软商店版：只能用正版账号，不在应用内更新（见 src/edition.rs）
+store = []
+
 # 应用内更新只有桌面端有
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

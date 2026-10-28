@@ -175,8 +175,14 @@ pub fn legacy_game_dir() -> PathBuf {
     dirs::data_dir().unwrap_or_else(|| PathBuf::from(".")).join("GodBBSLauncher").join(".minecraft")
 }
 
-/// 启动器目录不能用时的兜底：本机用户数据目录（不会随账号漫游同步）
+/// 启动器目录不能用时的兜底：本机用户数据目录（不会随账号漫游同步）。
+/// 商店版（MSIX）往 AppData 写的东西会被重定向到应用私有目录，卸载时连存档一起删掉，所以改放用户主目录
 fn fallback_game_dir() -> PathBuf {
+    if crate::edition::STORE {
+        if let Some(home) = dirs::home_dir() {
+            return home.join("GodBBSLauncher").join(".minecraft");
+        }
+    }
     dirs::data_local_dir().or_else(dirs::data_dir).unwrap_or_else(|| PathBuf::from(".")).join("GodBBSLauncher").join(".minecraft")
 }
 

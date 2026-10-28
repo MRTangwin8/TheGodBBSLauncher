@@ -10,6 +10,7 @@ import { checkForUpdate } from "../update";
 import GameDirDialog from "../components/GameDirDialog.vue";
 import type { GameDirInfo } from "../api/types";
 import { announcementsLoading, announcementsNote, loadAnnouncements, restoreAnnouncements } from "../announcements";
+import { isStore } from "../edition";
 
 const store = useSettingsStore();
 const versions = useVersionsStore();
@@ -319,10 +320,11 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
   <div class="box">
     <div class="box-title">关于</div>
     <div class="box-body about">
-      <p><b>神权论坛启动器</b> {{ appVersion ? `v${appVersion}` : "（浏览器预览）" }} —— 献给 MCBBS（我的世界中文论坛）的一封情书。</p>
+      <p><b>神权论坛启动器</b> {{ appVersion ? `v${appVersion}` : "（浏览器预览）" }}<template v-if="isStore">（微软商店版）</template> —— 献给 MCBBS（我的世界中文论坛）的一封情书。</p>
       <p>本程序是<b>非官方粉丝纪念作品</b>，与 MCBBS、Mojang Studios、Microsoft 均无关联；界面元素全部为原创绘制，未使用任何官方 Logo 或图片素材。</p>
       <p>本程序不分发 Minecraft 游戏文件，所有文件均从 Mojang 官方服务器或 BMCLAPI 镜像下载。感谢 bangbang93 提供 BMCLAPI，感谢 MCIM 提供 Modrinth / CurseForge 镜像。</p>
-      <div class="update-row">
+      <p v-if="isStore" class="muted">商店版由 Microsoft Store 负责更新；只能使用正版 Minecraft 账号。</p>
+      <div v-else class="update-row">
         <button class="btn small" :disabled="checking" @click="manualCheck">{{ checking ? "检查中…" : "检查更新" }}</button>
         <label class="check">
           <input type="checkbox" :checked="store.settings?.autoCheckUpdate !== false" @change="setAutoCheck(($event.target as HTMLInputElement).checked)" />
@@ -339,7 +341,8 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
         <a v-if="store.settings?.dismissedAnnouncements?.length" @click="restoreAnnouncements()">重新显示已关闭的公告</a>
         <span v-if="announcementsNote" :class="announcementsNote.ok ? 'ok' : 'error-text'">{{ announcementsNote.text }}</span>
       </div>
-      <p class="muted hint">检查更新和获取公告都只会向 GitHub 读取公开内容（GitHub 能看到你的网络地址），不会上传任何其他信息。公告只在启动时获取一次；更新不会自动安装，点了「立即更新」才会。</p>
+      <p v-if="isStore" class="muted hint">获取公告只会向 GitHub 读取公开内容（GitHub 能看到你的网络地址），不会上传任何其他信息，只在启动时获取一次。</p>
+      <p v-else class="muted hint">检查更新和获取公告都只会向 GitHub 读取公开内容（GitHub 能看到你的网络地址），不会上传任何其他信息。公告只在启动时获取一次；更新不会自动安装，点了「立即更新」才会。</p>
     </div>
   </div>
   <GameDirDialog v-if="dirDialog && dirInfo" :info="dirInfo" :initial="dirInitial" :from-legacy="dirFromLegacy" @close="onDirClosed" />

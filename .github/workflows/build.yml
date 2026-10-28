@@ -57,6 +57,12 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy --locked --all-targets -- -D warnings
 
+      # 微软商店版只在 Windows 上打包，这里顺便检查一遍 store 功能的代码
+      - name: clippy（商店版）
+        if: runner.os == 'Windows'
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets --features store -- -D warnings
+
       - name: 单元测试
         working-directory: src-tauri
         run: cargo test --locked
@@ -158,6 +164,25 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+      # 微软商店版：只能用正版账号、不在应用内更新（src-tauri/src/edition.rs），打成 MSIX 上传到合作伙伴中心，由微软签名。
+      # 放在最后：它会覆盖 target/release 下的 exe，但不碰上面已经打好的安装包。MSIX 没签名不能直接安装，所以不放进 Release
+      - name: 微软商店版（MSIX）
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          VITE_STORE: "1"
+        run: |
+          npx tauri build --ci --features store --no-bundle
+          node scripts/make-msix.mjs src-tauri/target/release/godbbs-launcher.exe msix-out
+
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: godbbs-launcher-msix
+          path: msix-out/*.msix
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
@@ -214,3 +239,4 @@ jobs:
           generate_release_notes: true
           files: release/*
           body_path: ${{ runner.temp }}/release-notes.md
+

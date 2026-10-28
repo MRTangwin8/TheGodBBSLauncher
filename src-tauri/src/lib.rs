@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod edition;
 pub mod engine;
 
 use tauri::Manager;

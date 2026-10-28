@@ -19,6 +19,7 @@ pub async fn list_accounts(state: State<'_, AppState>) -> Result<AccountList> {
 
 #[tauri::command]
 pub async fn add_offline_account(state: State<'_, AppState>, name: String) -> Result<Account> {
+    crate::edition::check_account_kind(AccountKind::Offline)?;
     let name = name.trim().to_string();
     if !offline::is_valid_name(&name) {
         return Err(Error::Other("离线名字需要 3~16 位，只能用英文字母、数字和下划线".into()));
@@ -76,6 +77,7 @@ pub async fn add_yggdrasil_account(
     username: String,
     password: String,
 ) -> Result<Account> {
+    crate::edition::check_account_kind(AccountKind::Yggdrasil)?;
     let info = yggdrasil::resolve_server(&state.client, &server).await?;
     let session = yggdrasil::authenticate(&state.client, &info.api_root, &username, &password).await?;
     let account = Account {
