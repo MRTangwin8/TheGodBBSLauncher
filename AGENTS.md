@@ -41,6 +41,8 @@ src-tauri/src/
     install/          原版安装、已安装版本列表（InstalledVersion）
     instance.rs       每个版本的实例配置（专用 Java / 内存 / 参数、游玩时长、整合包来源）
     saves.rs          存档列表、备份成 zip、从备份恢复（解压前校验路径）
+    servers.rs        servers.dat（NBT，只改 name / ip，其余字段原样保留）、服务器状态查询（Server List Ping + SRV）
+    screenshots.rs    截图列表；图片经 screenshot_data 命令读成字节给界面，不开放本地文件协议
     java/             扫描本机 Java、下载 Mojang runtime；官方缺的平台从 Azul Zulu 下载（zulu.rs，只认 cdn.azul.com + SHA256）
     launch/           拼启动参数、natives、log4j 日志解析
     loader/           Fabric / Quilt（meta profile）、Forge / NeoForge（安装器 processors）
@@ -62,7 +64,7 @@ src/
     mock.ts           浏览器预览用的假数据（★ 冲突热点）
   layouts/            三种外壳：ClassicShell（默认）/ SidebarShell / ModernShell
   views/              每个路由一个页面
-  components/         通用组件；home/ 下是首页的两种形态（ForumHome / LaunchHome / QuickLaunch）
+  components/         通用组件；home/ 下是首页的两种形态（ForumHome / LaunchHome / QuickLaunch）；instance/ 下是版本管理页的服务器、截图两个标签
   composables/        useLauncher：首页启动逻辑，两种首页共用
   stores/             Pinia：settings / versions / accounts / game / modpack
   themes/

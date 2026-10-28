@@ -10,7 +10,7 @@ use crate::engine::install::{GameDir, Stage};
 use crate::engine::loader::{self, LoaderKind};
 use crate::engine::meta::version::base_minecraft_version;
 use crate::engine::meta::VersionJson;
-use crate::engine::resources::local::{self, LocalResource, ModUpdate};
+use crate::engine::resources::local::{self, LocalResource, UpdateCheck};
 use crate::engine::resources::compat::{check_jar, CompatReport, GameEnv, RuntimeJar};
 use crate::engine::resources::resolve::{self, Checker, InstallPlan, Target};
 use crate::engine::resources::{ResourceApi, ResourceKind, ResourceSource, ResourceVersion, SearchPage, SearchQuery};
@@ -164,11 +164,12 @@ pub async fn local_resources(state: State<'_, AppState>, version_id: String, kin
     Ok(local::list(&state.client, &t.dir, kind).await)
 }
 
-/// 检查已安装模组的更新（只认得 Modrinth 上的模组）
+/// 检查已安装模组的更新（Modrinth 和 CurseForge 上认得出的模组）。
+/// CurseForge 要每个项目查一次，模组多时比搜索慢，给两倍的时间
 #[tauri::command]
-pub async fn mod_updates(state: State<'_, AppState>, version_id: String) -> Result<Vec<ModUpdate>> {
+pub async fn mod_updates(state: State<'_, AppState>, version_id: String) -> Result<UpdateCheck> {
     let t = target(&state, &version_id, ResourceKind::Mod).await?;
-    within(SEARCH_TIMEOUT, local::check_updates(&state.client, &t.dir, t.game_version.as_deref(), t.loader)).await
+    within(SEARCH_TIMEOUT * 2, local::check_updates(&api(&state).await, &t.dir, t.game_version.as_deref(), t.loader)).await
 }
 
 #[tauri::command]

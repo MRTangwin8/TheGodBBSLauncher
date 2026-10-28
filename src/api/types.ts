@@ -421,7 +421,7 @@ export interface LocalResource {
   version: string | null;
 }
 
-/** 可以更新的模组（只认得 Modrinth 上的） */
+/** 可以更新的模组（Modrinth 或 CurseForge 上认得出的） */
 export interface ModUpdate {
   filename: string;
   enabled: boolean;
@@ -430,6 +430,12 @@ export interface ModUpdate {
   /** 现在装的版本号 */
   current: string;
   latest: ResourceVersion;
+}
+
+export interface UpdateCheck {
+  updates: ModUpdate[];
+  /** 两个平台都认不出的模组数 */
+  unknown: number;
 }
 
 export type PackFormat = "modrinth" | "curseforge" | "mcbbs";
@@ -509,4 +515,32 @@ export interface WorldBackup {
   world: string;
   size: number;
   created: number;
+}
+
+/** servers.dat 里的一个服务器 */
+export interface SavedServer {
+  name: string;
+  ip: string;
+  /** 游戏缓存的图标，PNG 的 base64（不带 data: 前缀） */
+  icon: string | null;
+  hidden: boolean;
+}
+
+/** 服务器状态查询结果；文字内容来自对方服务器，只当纯文本显示 */
+export interface ServerStatus {
+  version: string;
+  protocol: number;
+  online: number;
+  max: number;
+  motd: string;
+  sample: string[];
+  favicon: string | null;
+  latencyMs: number;
+}
+
+export interface Screenshot {
+  name: string;
+  size: number;
+  /** Unix 秒 */
+  modified: number;
 }

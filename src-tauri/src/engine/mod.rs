@@ -16,6 +16,8 @@ pub mod mirror;
 pub mod modpack;
 pub mod resources;
 pub mod saves;
+pub mod screenshots;
+pub mod servers;
 pub mod theme;
 pub mod update;
 pub(crate) mod http;

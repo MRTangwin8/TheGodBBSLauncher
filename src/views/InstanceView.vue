@@ -8,6 +8,8 @@ import { useGameStore } from "../stores/game";
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
 import { formatBytes, formatDuration, loaderLabel, timeAgo } from "../utils";
+import ScreenshotGallery from "../components/instance/ScreenshotGallery.vue";
+import ServerList from "../components/instance/ServerList.vue";
 
 // 版本管理 → 管理：单个版本的 Java / 内存 / 参数、模组、存档
 const route = useRoute();
@@ -20,13 +22,15 @@ const id = computed(() => String(route.params.id ?? ""));
 const version = computed(() => versions.installed.find((v) => v.id === id.value));
 const running = computed(() => game.running.some((r) => r.versionId === id.value));
 
-type Tab = "settings" | "mods" | "saves";
+type Tab = "settings" | "mods" | "saves" | "servers" | "screenshots";
 const tabs: { key: Tab; label: string }[] = [
   { key: "settings", label: "启动设置" },
   { key: "mods", label: "模组" },
   { key: "saves", label: "存档" },
+  { key: "servers", label: "服务器" },
+  { key: "screenshots", label: "截图" },
 ];
-const tab = ref<Tab>((["settings", "mods", "saves"] as const).find((t) => t === route.query.tab) ?? "settings");
+const tab = ref<Tab>(tabs.find((t) => t.key === route.query.tab)?.key ?? "settings");
 watch(tab, (t) => router.replace({ query: { tab: t } }));
 
 const info = ref<InstanceInfo | null>(null);
@@ -137,18 +141,20 @@ async function toggleMod(m: LocalResource) {
   }
 }
 
-// 模组更新：只认得 Modrinth 上的模组，按这个版本的游戏版本和加载器找最新版
+// 模组更新：先问 Modrinth，认不出的再问 CurseForge，按这个版本的游戏版本和加载器找最新版
 const updates = ref<ModUpdate[] | null>(null);
 const picked = ref(new Set<string>());
 const checking = ref(false);
 const updating = ref(false);
-const unknownCount = computed(() => (mods.value ?? []).filter((m) => !m.projectId).length);
+const unknownCount = ref(0);
 const updateFor = computed(() => new Map((updates.value ?? []).map((u) => [u.filename, u])));
 
 async function checkUpdates() {
   checking.value = true;
   try {
-    updates.value = await api.modUpdates(id.value);
+    const r = await api.modUpdates(id.value);
+    unknownCount.value = r.unknown;
+    updates.value = r.updates;
     // 默认勾选正式版，测试版让人自己决定
     picked.value = new Set(updates.value.filter((u) => u.latest.releaseType === "release").map((u) => u.filename));
   } catch (e) {
@@ -398,6 +404,7 @@ function fullTime(unix: number) {
               <input type="checkbox" :checked="picked.has(u.filename)" @change="togglePick(u)" />
               <b>{{ u.title }}</b>
               <span class="muted small">{{ u.current }} → </span><span class="ok-text small">{{ u.latest.versionNumber }}</span>
+              <span class="muted small">{{ u.latest.source === "curseforge" ? "CurseForge" : "Modrinth" }}</span>
               <span v-if="u.latest.releaseType !== 'release'" class="tag pre-tag">{{ u.latest.releaseType === "beta" ? "测试版" : "开发版" }}</span>
             </label>
           </template>
@@ -405,7 +412,7 @@ function fullTime(unix: number) {
             <span class="ok-text">已识别的模组都是最新的。</span>
             <button class="btn small" @click="updates = null">收起</button>
           </div>
-          <div v-if="unknownCount" class="muted small">还有 {{ unknownCount }} 个模组在 Modrinth 上认不出来（比如从别处下载的），没法检查更新。</div>
+          <div v-if="unknownCount" class="muted small">还有 {{ unknownCount }} 个模组在 Modrinth 和 CurseForge 上都认不出来（比如自己改过或从别处下载的），没法检查更新。</div>
         </div>
         <table class="thread-table">
           <thead>
@@ -431,6 +438,12 @@ function fullTime(unix: number) {
           </tbody>
         </table>
       </template>
+
+      <!-- 服务器 -->
+      <ServerList v-else-if="tab === 'servers'" :version-id="id" :game-dir="info.gameDir" :running="running" @message="(ok, text) => (message = { ok, text })" />
+
+      <!-- 截图 -->
+      <ScreenshotGallery v-else-if="tab === 'screenshots'" :version-id="id" :game-dir="info.gameDir" @message="(ok, text) => (message = { ok, text })" @open-folder="openFolder" />
 
       <!-- 存档 -->
       <template v-else>

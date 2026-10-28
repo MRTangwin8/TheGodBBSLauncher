@@ -15,6 +15,9 @@ import type {
   InstanceSettings,
   World,
   WorldBackup,
+  SavedServer,
+  ServerStatus,
+  Screenshot,
   MigrateProgress,
   MigrateReport,
   ModpackPreview,
@@ -24,7 +27,7 @@ import type {
   InstallPlan,
   LocalCompat,
   LocalResource,
-  ModUpdate,
+  UpdateCheck,
   ResourceKind,
   ResourceSource,
   ResourceVersion,
@@ -108,7 +111,7 @@ export const api = {
   resourceInstall: (jobId: string, kind: ResourceKind, versionId: string, plan: InstallPlan) =>
     call<DownloadReport>("resource_install", { jobId, kind, versionId, plan }),
   localResources: (versionId: string, kind: ResourceKind) => call<LocalResource[]>("local_resources", { versionId, kind }),
-  modUpdates: (versionId: string) => call<ModUpdate[]>("mod_updates", { versionId }),
+  modUpdates: (versionId: string) => call<UpdateCheck>("mod_updates", { versionId }),
   localResourceToggle: (versionId: string, kind: ResourceKind, filename: string, enabled: boolean) =>
     call<string>("local_resource_toggle", { versionId, kind, filename, enabled }),
   localResourceDelete: (versionId: string, kind: ResourceKind, filename: string) =>
@@ -144,6 +147,19 @@ export const api = {
   /** 世界已存在时会先自动备份一份，返回那份备份 */
   worldRestore: (versionId: string, file: string) => call<WorldBackup | null>("world_restore", { versionId, file }),
   worldBackupDelete: (versionId: string, file: string) => call<void>("world_backup_delete", { versionId, file }),
+  serverList: (versionId: string) => call<SavedServer[]>("server_list", { versionId }),
+  serverAdd: (versionId: string, name: string, address: string) => call<SavedServer[]>("server_add", { versionId, name, address }),
+  serverUpdate: (versionId: string, index: number, name: string, address: string) =>
+    call<SavedServer[]>("server_update", { versionId, index, name, address }),
+  serverRemove: (versionId: string, index: number) => call<SavedServer[]>("server_remove", { versionId, index }),
+  serverMove: (versionId: string, from: number, to: number) => call<SavedServer[]>("server_move", { versionId, from, to }),
+  serverPing: (address: string) => call<ServerStatus>("server_ping", { address }),
+  screenshotList: (versionId: string) => call<Screenshot[]>("screenshot_list", { versionId }),
+  /** 图片原始字节 */
+  screenshotData: (versionId: string, name: string) => call<ArrayBuffer>("screenshot_data", { versionId, name }),
+  screenshotOpen: (versionId: string, name: string) => call<void>("screenshot_open", { versionId, name }),
+  screenshotReveal: (versionId: string, name: string) => call<void>("screenshot_reveal", { versionId, name }),
+  screenshotDelete: (versionId: string, name: string) => call<void>("screenshot_delete", { versionId, name }),
   quickRunProgram: (path: string) => call<void>("quick_run_program", { path }),
   killGame: (runId: string) => call<void>("kill_game", { runId }),
 };

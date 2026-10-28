@@ -34,6 +34,8 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 # 第三方 JDK（Azul Zulu）的 Linux 包是 tar.gz
 flate2 = "1"
 tar = "0.4"
+# 服务器列表查 SRV 记录（_minecraft._tcp），和游戏一样用系统的 DNS 设置
+hickory-resolver = { version = "0.24", default-features = false, features = ["tokio-runtime", "system-config"] }
 uuid = { version = "1", features = ["v4"] }
 md-5 = "0.10"
 aes-gcm = "0.10"

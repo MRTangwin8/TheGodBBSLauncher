@@ -70,6 +70,27 @@ const modpackPage = {
 };
 
 let instanceSettings: Record<string, unknown> = {};
+let mockServers = [
+  { name: "神权生存服", ip: "play.example.com", icon: null, hidden: false },
+  { name: "朋友的小服", ip: "192.168.1.20:25570", icon: null, hidden: false },
+];
+
+/** 预览用的假截图：画一张渐变图 */
+async function mockShot(seed: number): Promise<ArrayBuffer> {
+  const c = document.createElement("canvas");
+  c.width = 320;
+  c.height = 180;
+  const g = c.getContext("2d")!;
+  const grad = g.createLinearGradient(0, 0, 320, 180);
+  grad.addColorStop(0, `hsl(${(seed * 67) % 360} 60% 60%)`);
+  grad.addColorStop(1, `hsl(${(seed * 67 + 120) % 360} 50% 35%)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 320, 180);
+  g.fillStyle = "#5d9b3a";
+  g.fillRect(0, 130, 320, 50);
+  const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), "image/png"));
+  return blob.arrayBuffer();
+}
 
 export async function mock<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   await new Promise((r) => setTimeout(r, 200));
@@ -123,21 +144,43 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     world_backup: () => ({ file: `${args!.world}_${Math.floor(Date.now() / 1000)}.zip`, world: args!.world, size: 20_000_000, created: Math.floor(Date.now() / 1000) }),
     world_restore: unsupported,
     world_backup_delete: () => undefined,
+    server_list: () => mockServers,
+    server_add: () => (mockServers = [...mockServers, { name: String(args!.name || "Minecraft 服务器"), ip: String(args!.address), icon: null, hidden: false }]),
+    server_update: () =>
+      (mockServers = mockServers.map((s, i) => (i === args!.index ? { ...s, name: String(args!.name), ip: String(args!.address) } : s))),
+    server_remove: () => (mockServers = mockServers.filter((_, i) => i !== args!.index)),
+    server_move: () => {
+      const list = [...mockServers];
+      const [s] = list.splice(args!.from as number, 1);
+      list.splice(args!.to as number, 0, s);
+      return (mockServers = list);
+    },
+    server_ping: () => {
+      if (String(args!.address).startsWith("192.168")) throw new Error("连不上服务器：连接被拒绝");
+      return { version: "Paper 1.21.1", protocol: 767, online: 12, max: 100, motd: "欢迎来到神权生存服\n今天也要好好挖矿", sample: ["Steve", "Alex"], favicon: null, latencyMs: 46 };
+    },
+    screenshot_list: () =>
+      Array.from({ length: 7 }, (_, i) => ({ name: `2026-10-2${i}_20.1${i}.0${i}.png`, size: 2_400_000 + i * 1000, modified: Math.floor(Date.now() / 1000) - i * 86400 })),
+    screenshot_data: () => mockShot(String(args!.name).length + Number(String(args!.name).slice(9, 10))),
+    screenshot_open: () => undefined,
+    screenshot_reveal: () => undefined,
+    screenshot_delete: () => undefined,
     local_resource_toggle: () => {
       const f = String(args!.filename);
       return args!.enabled ? f.replace(/\.disabled$/, "") : `${f}.disabled`;
     },
     local_resource_delete: () => undefined,
-    mod_updates: () => [
-      {
+    mod_updates: () => ({
+      unknown: 1,
+      updates: [{
         filename: "sodium-fabric-0.8.13.jar", enabled: true, projectId: "AANobbMI", title: "Sodium", current: "0.8.13",
         latest: {
           source: "modrinth", id: "mockSodium", projectId: "AANobbMI", name: "Sodium 0.8.14", versionNumber: "0.8.14",
           gameVersions: ["1.21.1"], loaders: ["fabric"], published: "2026-10-20T00:00:00Z", releaseType: "beta",
           file: { url: "https://cdn.modrinth.com/mock.jar", filename: "sodium-fabric-0.8.14.jar", sha1: null, size: 2100000 }, dependencies: [],
         },
-      },
-    ],
+      }],
+    }),
     resource_install: () => ({ total: 1, downloaded: 1, skipped: 0, failed: [] }),
     // 预览默认"已是最新"，免得弹窗盖住截图；地址加 ?mockUpdate 可以看到有更新时的样子
     check_update: () => {

@@ -26,6 +26,7 @@
 - 加载器一键安装：Fabric、Quilt、Forge、NeoForge。
 - Java 管理：自动扫描本机 Java（常见安装目录、各盘的 Program Files、Windows 注册表、scoop、JAVA_HOME / PATH），按游戏版本选择合适的；没有合适的就自动下载 Mojang 官方运行时，官方没有提供的平台（如 Apple 芯片和 Linux ARM 上的 Java 8）改从 Azul Zulu 下载并校验 SHA256。
 - 版本隔离：每个版本的存档、模组和设置可以互不影响。
+- 版本管理：每个版本单独的 Java / 内存 / 参数，模组启用禁用和一键更新（Modrinth / CurseForge），存档备份恢复，服务器列表（延迟、人数、一键加入），截图浏览。
 
 **账号**
 - 微软正版登录：在浏览器里完成授权，启动器全程接触不到你的密码。

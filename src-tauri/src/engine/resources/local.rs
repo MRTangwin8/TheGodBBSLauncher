@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use super::{modrinth, ResourceKind, ResourceVersion};
+use futures::StreamExt;
+
+use super::{curseforge, modrinth, ResourceApi, ResourceKind, ResourceVersion};
 use crate::engine::download::sha1_file;
 use crate::engine::loader::LoaderKind;
 use crate::engine::{Error, Result};
@@ -111,19 +113,51 @@ pub struct ModUpdate {
 fn is_update(current: &ResourceVersion, current_sha1: &str, latest: &ResourceVersion) -> bool {
     let Some(file) = &latest.file else { return false };
     let same_file = file.sha1.as_deref().is_some_and(|h| h.eq_ignore_ascii_case(current_sha1));
-    // Modrinth 的时间都是 RFC 3339 UTC，按字符串比较即可；作者给旧游戏版本补发的旧分支不算更新
+    // 两个平台的时间都是 RFC 3339 UTC，按字符串比较即可；作者给旧游戏版本补发的旧分支不算更新
     !same_file && latest.id != current.id && latest.published > current.published && safe_path(Path::new("."), &file.filename).is_ok()
 }
 
-/// 检查 mods 文件夹里能在 Modrinth 上识别的模组有没有新版本（按这个版本的游戏版本和加载器筛选）
-pub async fn check_updates(
-    client: &reqwest::Client,
-    dir: &Path,
-    game_version: Option<&str>,
-    loader: Option<LoaderKind>,
-) -> Result<Vec<ModUpdate>> {
+/// 检查结果：可更新的模组，以及两个平台都认不出的文件数
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCheck {
+    pub updates: Vec<ModUpdate>,
+    pub unknown: usize,
+}
+
+/// 检查 mods 文件夹里的模组有没有新版本（按这个版本的游戏版本和加载器筛选）。
+/// 先用 SHA1 问 Modrinth，认不出的再用指纹问 CurseForge；一边出错不影响另一边，两边都失败才报错
+pub async fn check_updates(api: &ResourceApi, dir: &Path, game_version: Option<&str>, loader: Option<LoaderKind>) -> Result<UpdateCheck> {
     let list = scan(dir, ResourceKind::Mod);
     let by_file = hashes(dir, &list).await;
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mr = modrinth_updates(&api.client, &list, &by_file, game_version, loader).await;
+    if let Ok((updates, known)) = &mr {
+        out.extend(updates.iter().cloned());
+        seen.extend(known.iter().cloned());
+    }
+    let rest: Vec<&LocalResource> = list.iter().filter(|r| r.size > 0 && !seen.contains(&r.filename)).collect();
+    let cf = curseforge_updates(api, dir, &rest, game_version, loader).await;
+    if let Ok((updates, known)) = &cf {
+        out.extend(updates.iter().cloned());
+        seen.extend(known.iter().cloned());
+    }
+    if let (Err(e), Err(_)) = (&mr, &cf) {
+        return Err(Error::Other(format!("检查模组更新失败：{e}")));
+    }
+    out.sort_by_key(|u| u.title.to_lowercase());
+    Ok(UpdateCheck { unknown: list.iter().filter(|r| !seen.contains(&r.filename)).count(), updates: out })
+}
+
+/// 返回 (可更新的, Modrinth 认得的文件名)
+async fn modrinth_updates(
+    client: &reqwest::Client,
+    list: &[LocalResource],
+    by_file: &HashMap<String, String>,
+    game_version: Option<&str>,
+    loader: Option<LoaderKind>,
+) -> Result<(Vec<ModUpdate>, Vec<String>)> {
     let sha1s: Vec<String> = by_file.values().cloned().collect();
     let current = modrinth::identify_versions(client, &sha1s).await?;
     let known: Vec<String> = sha1s.iter().filter(|h| current.contains_key(*h)).cloned().collect();
@@ -133,14 +167,7 @@ pub async fn check_updates(
         .filter_map(|r| {
             let h = by_file.get(&r.filename)?;
             let (cur, new) = (current.get(h)?, latest.get(h)?);
-            is_update(cur, h, new).then(|| ModUpdate {
-                filename: r.filename.clone(),
-                enabled: r.enabled,
-                project_id: cur.project_id.clone(),
-                title: String::new(),
-                current: cur.version_number.clone(),
-                latest: new.clone(),
-            })
+            is_update(cur, h, new).then(|| new_update(r, cur, new))
         })
         .collect();
     let ids: Vec<String> = out.iter().map(|u| u.project_id.clone()).collect();
@@ -148,7 +175,74 @@ pub async fn check_updates(
     for u in &mut out {
         u.title = titles.get(&u.project_id).cloned().unwrap_or_else(|| u.filename.clone());
     }
-    Ok(out)
+    let known_files = list.iter().filter(|r| by_file.get(&r.filename).is_some_and(|h| current.contains_key(h))).map(|r| r.filename.clone()).collect();
+    Ok((out, known_files))
+}
+
+/// 返回 (可更新的, CurseForge 认得的文件名)。CurseForge 没有"按文件查最新版"的接口，只能每个项目查一次文件列表
+async fn curseforge_updates(
+    api: &ResourceApi,
+    dir: &Path,
+    list: &[&LocalResource],
+    game_version: Option<&str>,
+    loader: Option<LoaderKind>,
+) -> Result<(Vec<ModUpdate>, Vec<String>)> {
+    if list.is_empty() {
+        return Ok((vec![], vec![]));
+    }
+    let paths: Vec<(String, PathBuf)> = list.iter().map(|r| (r.filename.clone(), dir.join(&r.filename))).collect();
+    let fps: Vec<(String, u32)> = tokio::task::spawn_blocking(move || {
+        paths.into_iter().filter_map(|(name, p)| Some((name, curseforge::fingerprint(&std::fs::read(p).ok()?)))).collect()
+    })
+    .await
+    .unwrap_or_default();
+    let matched = curseforge::match_fingerprints(api, &fps.iter().map(|(_, fp)| *fp).collect::<Vec<_>>()).await?;
+    // 文件名 → (项目 id, 当前文件 id)
+    let found: Vec<(String, u64, u64)> = fps.iter().filter_map(|(name, fp)| matched.get(fp).map(|(p, f)| (name.clone(), *p, *f))).collect();
+    if found.is_empty() {
+        return Ok((vec![], vec![]));
+    }
+    let current: HashMap<String, ResourceVersion> =
+        curseforge::files_by_ids(api, &found.iter().map(|(_, _, f)| *f).collect::<Vec<_>>()).await?.into_iter().map(|v| (v.id.clone(), v)).collect();
+    let mut projects: Vec<u64> = found.iter().map(|(_, p, _)| *p).collect();
+    projects.sort_unstable();
+    projects.dedup();
+    let latest: HashMap<String, ResourceVersion> = futures::stream::iter(projects)
+        .map(|p| async move {
+            let list = curseforge::versions(api, &p.to_string(), ResourceKind::Mod, game_version, loader).await.ok()?;
+            // 已按发布时间从新到旧排好；作者关了第三方下载的文件没有下载地址，跳过
+            list.into_iter().find(|v| v.file.is_some()).map(|v| (p.to_string(), v))
+        })
+        .buffer_unordered(4)
+        .filter_map(|x| async move { x })
+        .collect()
+        .await;
+    let mut out = Vec::new();
+    for (name, project, file_id) in &found {
+        let Some(r) = list.iter().find(|r| &r.filename == name) else { continue };
+        let (Some(cur), Some(new)) = (current.get(&file_id.to_string()), latest.get(&project.to_string())) else { continue };
+        let cur_sha1 = cur.file.as_ref().and_then(|f| f.sha1.clone()).unwrap_or_default();
+        if is_update(cur, &cur_sha1, new) {
+            out.push(new_update(r, cur, new));
+        }
+    }
+    let ids: Vec<String> = out.iter().map(|u| u.project_id.clone()).collect();
+    let titles = curseforge::titles(api, &ids).await.unwrap_or_default();
+    for u in &mut out {
+        u.title = titles.get(&u.project_id).cloned().unwrap_or_else(|| u.filename.clone());
+    }
+    Ok((out, found.into_iter().map(|(name, _, _)| name).collect()))
+}
+
+fn new_update(r: &LocalResource, cur: &ResourceVersion, new: &ResourceVersion) -> ModUpdate {
+    ModUpdate {
+        filename: r.filename.clone(),
+        enabled: r.enabled,
+        project_id: cur.project_id.clone(),
+        title: String::new(),
+        current: cur.version_number.clone(),
+        latest: new.clone(),
+    }
 }
 
 /// 已安装的 Modrinth 项目：project_id → 文件名列表
