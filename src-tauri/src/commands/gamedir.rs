@@ -93,11 +93,12 @@ pub async fn game_dir_migrate(app: AppHandle, state: State<'_, AppState>, to: St
     }
     let _guard = Migrating(state);
     state.migrate_cancel.store(false, Ordering::SeqCst);
+    // 先看任务登记、再看运行中的游戏：启动游戏时是先登记进 games 再撤掉任务登记的，这个顺序不会两头都漏掉
+    if state.busy.load(Ordering::SeqCst) > 0 || !state.installing.lock().await.is_empty() {
+        return Err(Error::Other("还有下载 / 安装 / 导入任务在进行（或者游戏正在启动），等它们完成再换目录".into()));
+    }
     if !state.games.lock().await.is_empty() {
         return Err(Error::Other("游戏还在运行，先关掉游戏再换目录".into()));
-    }
-    if !state.installing.lock().await.is_empty() {
-        return Err(Error::Other("还有下载 / 安装任务在进行，等它们完成再换目录".into()));
     }
     let from = if from_legacy == Some(true) { config::legacy_game_dir() } else { state.settings.read().await.game_dir.clone() };
     if migrate::is_inside(&from, &to) && migrate::is_inside(&to, &from) {

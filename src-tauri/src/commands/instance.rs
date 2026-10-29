@@ -61,6 +61,7 @@ pub async fn instance_info(state: State<'_, AppState>, version_id: String) -> Re
 
 #[tauri::command]
 pub async fn instance_save(state: State<'_, AppState>, version_id: String, settings: InstanceSettings) -> Result<InstanceInfo> {
+    state.ensure_not_migrating()?;
     let (game, _, global) = locate(&state, &version_id).await?;
     let mut cfg = instance::load(&game, &version_id);
     cfg.apply(settings)?;
@@ -82,7 +83,7 @@ pub async fn world_backups(state: State<'_, AppState>, version_id: String) -> Re
 
 #[tauri::command]
 pub async fn world_backup(state: State<'_, AppState>, version_id: String, world: String) -> Result<Backup> {
-    state.ensure_not_migrating()?;
+    let _task = state.begin_task()?;
     let (_, dir, _) = locate(&state, &version_id).await?;
     blocking(move || saves::backup(&dir, &world)).await
 }
@@ -99,7 +100,7 @@ async fn ensure_idle(state: &AppState, game: &GameDir, dir: &std::path::Path, gl
 /// 恢复会替换存档文件夹，用到同一个游戏目录的游戏都得先关掉
 #[tauri::command]
 pub async fn world_restore(state: State<'_, AppState>, version_id: String, file: String) -> Result<Option<Backup>> {
-    state.ensure_not_migrating()?;
+    let _task = state.begin_task()?;
     let (game, dir, global) = locate(&state, &version_id).await?;
     ensure_idle(&state, &game, &dir, global, "游戏还开着，先退出游戏再恢复存档").await?;
     blocking(move || saves::restore(&dir, &file)).await
@@ -107,6 +108,7 @@ pub async fn world_restore(state: State<'_, AppState>, version_id: String, file:
 
 #[tauri::command]
 pub async fn world_backup_delete(state: State<'_, AppState>, version_id: String, file: String) -> Result<()> {
+    state.ensure_not_migrating()?;
     let (_, dir, _) = locate(&state, &version_id).await?;
     saves::delete_backup(&dir, &file)
 }
@@ -219,6 +221,7 @@ pub async fn screenshot_reveal(app: AppHandle, state: State<'_, AppState>, versi
 
 #[tauri::command]
 pub async fn screenshot_delete(state: State<'_, AppState>, version_id: String, name: String) -> Result<()> {
+    state.ensure_not_migrating()?;
     let (_, dir, _) = locate(&state, &version_id).await?;
     screenshots::delete(&dir, &name)
 }

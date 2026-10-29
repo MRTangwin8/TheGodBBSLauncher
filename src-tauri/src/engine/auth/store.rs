@@ -62,6 +62,8 @@ impl AccountStore {
 
     /// 新增或更新（同类型、同 UUID、同服务器视为同一个账号），并设为当前账号
     pub fn upsert(&mut self, mut account: Account, secret: Option<&Secret>) -> Result<Account> {
+        // 先加密：失败时账号列表保持原样
+        let sealed = secret.map(|s| serde_json::to_string(s).map_err(Error::from).and_then(|j| self.vault.encrypt(&j))).transpose()?;
         if let Some(existing) = self
             .data
             .accounts
@@ -73,8 +75,8 @@ impl AccountStore {
         } else {
             self.data.accounts.push(account.clone());
         }
-        if let Some(s) = secret {
-            self.data.secrets.insert(account.id.clone(), self.vault.encrypt(&serde_json::to_string(s)?)?);
+        if let Some(blob) = sealed {
+            self.data.secrets.insert(account.id.clone(), blob);
         }
         self.data.selected = Some(account.id.clone());
         self.save()?;

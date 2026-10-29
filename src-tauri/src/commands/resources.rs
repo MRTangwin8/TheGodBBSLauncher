@@ -146,7 +146,7 @@ pub async fn resource_install(
     version_id: String,
     plan: InstallPlan,
 ) -> Result<DownloadReport> {
-    state.ensure_not_migrating()?;
+    let _task = state.begin_task()?;
     let t = target(&state, &version_id, kind).await?;
     std::fs::create_dir_all(&t.dir)?;
     let settings = state.settings.read().await.clone();
@@ -180,12 +180,14 @@ pub async fn local_resource_toggle(
     filename: String,
     enabled: bool,
 ) -> Result<String> {
+    state.ensure_not_migrating()?;
     let t = target(&state, &version_id, kind).await?;
     local::set_enabled(&t.dir, &filename, enabled)
 }
 
 #[tauri::command]
 pub async fn local_resource_delete(state: State<'_, AppState>, version_id: String, kind: ResourceKind, filename: String) -> Result<()> {
+    state.ensure_not_migrating()?;
     let t = target(&state, &version_id, kind).await?;
     local::delete(&t.dir, &filename)
 }

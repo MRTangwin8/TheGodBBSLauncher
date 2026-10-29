@@ -19,21 +19,33 @@ const KEY_USER: &str = "account-vault-key";
 
 pub struct Vault {
     cipher: Aes256Gcm,
+    /// 密钥没能存下来（只在内存里）：这时加密出来的令牌下次启动就解不开，干脆拒绝保存
+    unsaved: Option<String>,
 }
 
 impl Vault {
     pub fn from_key(key: &[u8; 32]) -> Self {
-        Self { cipher: Aes256Gcm::new(key.into()) }
+        Self { cipher: Aes256Gcm::new(key.into()), unsaved: None }
     }
 
     /// 从钥匙串取密钥，没有就生成一个。钥匙串不可用（比如 Linux 没装 Secret Service）时
     /// 退回到配置目录下的密钥文件，安全性会差一些。
     pub fn open(fallback_key_file: &Path) -> Self {
-        let key = keychain_key().unwrap_or_else(|| file_key(fallback_key_file));
-        Self::from_key(&key)
+        match keychain_key() {
+            Some(key) => Self::from_key(&key),
+            None => {
+                let (key, unsaved) = file_key(fallback_key_file);
+                Self { unsaved, ..Self::from_key(&key) }
+            }
+        }
     }
 
     pub fn encrypt(&self, plain: &str) -> Result<String> {
+        if let Some(reason) = &self.unsaved {
+            return Err(Error::Other(format!(
+                "系统钥匙串不可用，备用密钥文件也没能保存（{reason}），账号没法安全保存。请检查配置目录能否写入后重启启动器"
+            )));
+        }
         let mut nonce = [0u8; 12];
         rand::thread_rng().fill_bytes(&mut nonce);
         let ct = self
@@ -89,16 +101,45 @@ fn keychain_key() -> Option<[u8; 32]> {
     }
 }
 
-fn file_key(path: &Path) -> [u8; 32] {
+/// 读密钥文件，没有就生成并写入。返回的第二项是写入失败的原因（这时密钥只在内存里）。
+fn file_key(path: &Path) -> ([u8; 32], Option<String>) {
     if let Some(k) = std::fs::read_to_string(path).ok().and_then(|s| decode_key(&s)) {
-        return k;
+        restrict(path);
+        return (k, None);
     }
     let k = random_key();
+    let saved = write_key_file(path, &B64.encode(k)).and_then(|_| {
+        // 读回来核对一遍，确认下次启动能拿到同一个密钥
+        match std::fs::read_to_string(path).ok().and_then(|s| decode_key(&s)) {
+            Some(back) if back == k => Ok(()),
+            _ => Err(std::io::Error::other("写入后读回的内容不一致")),
+        }
+    });
+    (k, saved.err().map(|e| format!("{}：{e}", path.display())))
+}
+
+fn write_key_file(path: &Path, content: &str) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
+        std::fs::create_dir_all(parent)?;
     }
-    let _ = std::fs::write(path, B64.encode(k));
-    k
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut opts, 0o600);
+    std::io::Write::write_all(&mut opts.open(path)?, content.as_bytes())?;
+    restrict(path);
+    Ok(())
+}
+
+/// Unix 上只让自己读写密钥文件（旧版本写的文件可能是 0644）
+fn restrict(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(not(unix))]
+    let _ = path;
 }
 
 #[cfg(test)]
@@ -114,5 +155,34 @@ mod tests {
         let other = Vault::from_key(&[8u8; 32]);
         assert!(other.decrypt(&blob).is_err());
         assert!(v.decrypt("bm9wZQ==").is_err());
+    }
+
+    #[test]
+    fn key_file_is_reused_across_opens() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sub").join("account.key");
+        let (k1, err) = file_key(&path);
+        assert!(err.is_none());
+        let (k2, err) = file_key(&path);
+        assert!(err.is_none());
+        assert_eq!(k1, k2);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+    }
+
+    #[test]
+    fn unsaved_key_refuses_to_encrypt() {
+        let dir = tempfile::tempdir().unwrap();
+        // 父路径是个文件，密钥文件写不进去
+        let blocker = dir.path().join("blocker");
+        std::fs::write(&blocker, "x").unwrap();
+        let (key, err) = file_key(&blocker.join("account.key"));
+        assert!(err.is_some());
+        let v = Vault { unsaved: err, ..Vault::from_key(&key) };
+        let msg = v.encrypt("secret-token").unwrap_err().to_string();
+        assert!(msg.contains("没法安全保存"), "{msg}");
     }
 }

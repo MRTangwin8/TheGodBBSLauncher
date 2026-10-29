@@ -16,7 +16,7 @@ pub mod versions;
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use tokio::sync::{oneshot, Mutex, RwLock};
@@ -53,6 +53,16 @@ pub struct AppState {
     /// 正在迁移游戏目录：这期间不能启动游戏、安装任何东西
     pub migrating: AtomicBool,
     pub migrate_cancel: AtomicBool,
+    /// 正在进行、会写游戏目录的任务数（安装、导入、下载资源、启动前的准备……），见 `begin_task`
+    pub busy: AtomicUsize,
+}
+
+pub struct TaskGuard<'a>(&'a AppState);
+
+impl Drop for TaskGuard<'_> {
+    fn drop(&mut self) {
+        self.0.busy.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 impl AppState {
@@ -74,6 +84,7 @@ impl AppState {
             crash_rules,
             migrating: AtomicBool::new(false),
             migrate_cancel: AtomicBool::new(false),
+            busy: AtomicUsize::new(0),
         }
     }
 
@@ -83,6 +94,15 @@ impl AppState {
             return Err(crate::engine::Error::Other("正在迁移游戏目录，等迁移完成再操作".into()));
         }
         Ok(())
+    }
+
+    /// 会往游戏目录写东西的长任务开头调用；返回的守卫活着期间，迁移不会开始。
+    /// 这里先登记再看迁移标志，迁移那边先立标志再看登记数，两边不会同时放行。
+    pub fn begin_task(&self) -> crate::engine::Result<TaskGuard<'_>> {
+        self.busy.fetch_add(1, Ordering::SeqCst);
+        let guard = TaskGuard(self);
+        self.ensure_not_migrating()?;
+        Ok(guard)
     }
 
     pub fn runtime_dir(&self) -> PathBuf {

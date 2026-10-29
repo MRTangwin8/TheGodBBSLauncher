@@ -121,7 +121,8 @@ async fn launch_auth(state: &AppState) -> Result<(LaunchAuth, Option<String>)> {
 /// `server`：启动后直接进这个服务器（来自首页的快捷按钮）；留空就是普通启动
 pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id: String, server: Option<String>) -> Result<LaunchResult> {
     let state: &AppState = &state;
-    state.ensure_not_migrating()?;
+    // 补文件、下 Java 这段时间游戏还没登记进 games，靠它挡住迁移；返回前游戏已经登记
+    let _task = state.begin_task()?;
     let settings = state.settings.read().await.clone();
     let platform = Platform::current();
     let game = GameDir::new(settings.game_dir.clone());
