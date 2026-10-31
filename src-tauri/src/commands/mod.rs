@@ -57,6 +57,16 @@ pub struct AppState {
     pub busy: AtomicUsize,
 }
 
+/// 商店版（MSIX）往 AppData 写的文件会被重定向到应用私有目录：启动器自己读得到，
+/// 但 java.exe 按真实路径找 jli.dll 等文件时找不到（报「由于找不到 jli.dll，无法继续执行代码」）。
+/// 所以商店版和游戏目录一样放到用户主目录下
+fn runtime_dir_for(store: bool, data_dir: &std::path::Path, home: Option<PathBuf>) -> PathBuf {
+    match home {
+        Some(home) if store => home.join("GodBBSLauncher").join("runtime"),
+        _ => data_dir.join("runtime"),
+    }
+}
+
 pub struct TaskGuard<'a>(&'a AppState);
 
 impl Drop for TaskGuard<'_> {
@@ -105,8 +115,9 @@ impl AppState {
         Ok(guard)
     }
 
+    /// Java runtime 和 authlib-injector 放这里
     pub fn runtime_dir(&self) -> PathBuf {
-        self.data_dir.join("runtime")
+        runtime_dir_for(crate::edition::STORE, &self.data_dir, dirs::home_dir())
     }
 
     pub async fn source(&self) -> Source {
@@ -125,5 +136,19 @@ impl AppState {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn store_edition_keeps_runtime_out_of_appdata() {
+        let data = PathBuf::from("C:/Users/a/AppData/Roaming/co.mcbbs.godbbs");
+        let home = Some(PathBuf::from("C:/Users/a"));
+        assert_eq!(runtime_dir_for(false, &data, home.clone()), data.join("runtime"));
+        assert_eq!(runtime_dir_for(true, &data, home), PathBuf::from("C:/Users/a").join("GodBBSLauncher").join("runtime"));
+        assert_eq!(runtime_dir_for(true, &data, None), data.join("runtime"), "找不到主目录时退回数据目录");
     }
 }

@@ -193,6 +193,7 @@ cd src-tauri && cargo clippy && cargo test
   - **只能用微软正版账号**：添加离线 / 外置账号和用它们启动都在后端拒绝（`edition::check_account_kind`）；正版身份在登录和刷新令牌时向 Minecraft 服务确认（查游戏档案）。
   - **不在应用内更新**，由商店更新（商店政策）；`check_update` / `install_update` 都直接拒绝。
   - 默认游戏目录放在 `~/GodBBSLauncher/.minecraft`：MSIX 往 AppData 写的东西会被重定向到应用私有目录，卸载时连存档一起删掉。
+  - Java 运行时和 authlib-injector 也放在 `~/GodBBSLauncher/runtime`（`AppState::runtime_dir`）：重定向后的文件启动器自己读得到，但 java.exe 按真实路径找 `jli.dll` 时找不到，会弹「由于找不到 jli.dll，无法继续执行代码」。**游戏进程要用到的文件一律不要放进 AppData。**
 - CI 在 Windows 上最后一步编商店版并用 `scripts/make-msix.mjs` 打成 `.msix`（产物 `godbbs-launcher-msix`）。包不签名，上传到合作伙伴中心后由微软签名，所以不进 GitHub Release。
 - 商店要求版本号四段、最后一段是 0：`0.3.7` → `0.3.7.0`，脚本自动转换；同一个版本号不能重复上传。
 
