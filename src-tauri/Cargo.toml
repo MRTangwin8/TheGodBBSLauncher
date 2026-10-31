@@ -1,6 +1,6 @@
 [package]
 name = "godbbs-launcher"
-version = "0.3.7"
+version = "0.3.8"
 description = "神权论坛启动器（MCBBS 纪念版）— 跨平台 Minecraft Java 版启动器"
 authors = ["MRTangwin8"]
 edition = "2021"
