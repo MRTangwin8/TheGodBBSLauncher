@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "v
 import { api } from "../../api";
 import type { Screenshot } from "../../api/types";
 import { formatBytes, timeAgo } from "../../utils";
+import { errText, locale, t } from "../../i18n";
 
 // 版本管理 → 截图：screenshots 文件夹里的图片。图片经命令读成 blob 显示，滚到哪张才读哪张
 const props = defineProps<{ versionId: string; gameDir: string }>();
@@ -55,7 +56,7 @@ async function load() {
     shots.value = await api.screenshotList(props.versionId);
   } catch (e) {
     shots.value = [];
-    emit("message", false, `${e}`);
+    emit("message", false, errText(e));
   }
   observe();
 }
@@ -102,7 +103,7 @@ function onKey(e: KeyboardEvent) {
 }
 
 async function remove(s: Screenshot) {
-  if (!confirm(`删除截图「${s.name}」？\n文件会直接删掉，不进回收站。`)) return;
+  if (!confirm(t("shots.confirmDelete", { name: s.name }))) return;
   try {
     await api.screenshotDelete(props.versionId, s.name);
     if (urls[s.name]) URL.revokeObjectURL(urls[s.name]);
@@ -113,23 +114,23 @@ async function remove(s: Screenshot) {
     if (viewing.value !== null) viewing.value = shots.value.length ? Math.min(i, shots.value.length - 1) : null;
     if (viewing.value !== null) fetchImage(shots.value[viewing.value].name);
   } catch (e) {
-    emit("message", false, `${e}`);
+    emit("message", false, errText(e));
   }
 }
 
 function fullTime(secs: number) {
-  return new Date(secs * 1000).toLocaleString("zh-CN", { hour12: false });
+  return new Date(secs * 1000).toLocaleString(locale.value, { hour12: false });
 }
 </script>
 
 <template>
   <div class="box-body bar">
-    <span class="muted small grow">游戏里按 F2 截图，图片存在 <code>screenshots</code> 文件夹。点图片看大图，左右方向键切换。</span>
-    <button class="btn small" @click="load">刷新</button>
-    <button class="btn small" @click="emit('openFolder', folder)">打开截图文件夹</button>
+    <span class="muted small grow"><i18n-t keypath="shots.hint"><code>screenshots</code></i18n-t></span>
+    <button class="btn small" @click="load">{{ $t("common.refresh") }}</button>
+    <button class="btn small" @click="emit('openFolder', folder)">{{ $t("shots.openFolder") }}</button>
   </div>
-  <div v-if="!shots" class="box-body muted">正在读取截图…</div>
-  <div v-else-if="!shots.length" class="box-body muted">还没有截图</div>
+  <div v-if="!shots" class="box-body muted">{{ $t("shots.reading") }}</div>
+  <div v-else-if="!shots.length" class="box-body muted">{{ $t("shots.empty") }}</div>
   <template v-else>
     <div ref="grid" class="box-body grid">
       <figure v-for="(s, i) in visible" :key="s.name" :data-name="s.name" class="shot" :title="s.name" @click="open(i)">
@@ -139,22 +140,22 @@ function fullTime(secs: number) {
       </figure>
     </div>
     <div v-if="shots.length > shown" class="box-body more">
-      <button class="btn small" @click="more">再显示 {{ Math.min(PAGE, shots.length - shown) }} 张（共 {{ shots.length }} 张）</button>
+      <button class="btn small" @click="more">{{ $t("shots.more", { n: Math.min(PAGE, shots.length - shown), total: shots.length }) }}</button>
     </div>
   </template>
 
   <Teleport to="body">
     <div v-if="current" class="viewer" @click.self="viewing = null">
-      <button class="nav prev" title="上一张（←）" @click="step(-1)">‹</button>
+      <button class="nav prev" :title="$t('shots.prev')" @click="step(-1)">‹</button>
       <img v-if="urls[current.name]" :src="urls[current.name]" :alt="current.name" class="big" />
-      <div v-else class="big loading">正在读取…</div>
-      <button class="nav next" title="下一张（→）" @click="step(1)">›</button>
+      <div v-else class="big loading">{{ $t("instance.reading") }}</div>
+      <button class="nav next" :title="$t('shots.next')" @click="step(1)">›</button>
       <div class="viewer-bar">
         <span class="grow">{{ current.name }} · {{ formatBytes(current.size) }} · {{ fullTime(current.modified) }}</span>
-        <button class="btn small" @click="api.screenshotOpen(versionId, current.name).catch((e) => emit('message', false, `${e}`))">用看图程序打开</button>
-        <button class="btn small" @click="api.screenshotReveal(versionId, current.name).catch((e) => emit('message', false, `${e}`))">在文件夹中显示</button>
-        <button class="btn small" @click="remove(current)">删除</button>
-        <button class="btn small" @click="viewing = null">关闭</button>
+        <button class="btn small" @click="api.screenshotOpen(versionId, current.name).catch((e) => emit('message', false, errText(e)))">{{ $t("shots.openViewer") }}</button>
+        <button class="btn small" @click="api.screenshotReveal(versionId, current.name).catch((e) => emit('message', false, errText(e)))">{{ $t("shots.reveal") }}</button>
+        <button class="btn small" @click="remove(current)">{{ $t("common.delete") }}</button>
+        <button class="btn small" @click="viewing = null">{{ $t("common.close") }}</button>
       </div>
     </div>
   </Teleport>

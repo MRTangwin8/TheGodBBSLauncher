@@ -4,6 +4,8 @@
 
 > 非官方粉丝纪念作品，与 MCBBS、Mojang Studios、Microsoft 均无关联。界面素材全部原创绘制，没有使用任何官方 Logo 或图片。本程序不分发任何 Minecraft 游戏文件，所有文件都从 Mojang 官方服务器或 BMCLAPI 镜像下载。
 
+> **English:** GodBBS Launcher is a cross-platform Minecraft: Java Edition launcher styled after the classic MCBBS forum. The interface is available in English, 简体中文 and 日本語; it follows your system language by default (Chinese → Chinese, Japanese → Japanese, anything else → English) and can be switched under Settings or on the first-run screen.
+
 ## 下载
 
 到 [Releases](../../releases) 页面下载最新版本：
@@ -41,12 +43,16 @@
 - 中文社区资源入口，详见 [资源来源说明](docs/RESOURCES.md)。
 
 **崩溃分析**
-- 游戏崩溃后自动分析日志，用中文告诉你可能的原因和解决办法；也可以分析外部日志文件。
+- 游戏崩溃后自动分析日志，告诉你可能的原因和解决办法（分析结论目前只有中文）；也可以分析外部日志文件。
 - 规则库是 JSON 格式，可以在线更新。
 
 **更新提醒**
 - 启动时（可在「设置」里关闭）会向 GitHub 查询有没有新版本，有的话弹窗问你要不要去下载；可以选「以后再说」或「跳过此版本」，也能随时在「设置 → 关于」里手动检查。
 - 点「立即更新」会在应用内下载新版本、校验签名、安装并自动重启（设置、账号、游戏都不受影响）；也可以选「前往下载」去发布页自己选安装包。Linux 用 deb / rpm 安装的版本请用后一种方式。
+
+**多语言**
+- 界面支持简体中文、English、日本語。默认跟随系统语言：中文系统（含繁体）显示中文，日语系统显示日文，其他系统一律显示英文；可以在「设置 → 外观」或首次启动引导的右下角随时切换，立刻生效。
+- 启动、安装、登录相关的常见错误提示也会按界面语言显示；崩溃分析的结论、公告目前只有中文，详见 [开发状态](docs/STATUS.md)。
 
 **外观**
 - 三种布局：经典论坛（横幅 + 顶部导航）、木板侧栏、完全现代。

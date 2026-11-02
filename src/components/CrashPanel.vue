@@ -3,11 +3,11 @@ import { ref } from "vue";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { inTauri } from "../api";
 import type { CrashAnalysis } from "../api/types";
+import { t } from "../i18n";
 
 const props = defineProps<{ analysis: CrashAnalysis; title?: string }>();
 const openEvidence = ref<Set<string>>(new Set());
 
-const severityLabel = { error: "错误", warning: "可能", info: "提示" };
 
 function toggle(id: string) {
   const s = new Set(openEvidence.value);
@@ -23,7 +23,7 @@ function copyReport() {
   const lines = props.analysis.findings.flatMap((f) => [
     `【${f.title}】${f.description}`,
     ...f.solutions.map((s, i) => `  ${i + 1}. ${s}`),
-    f.evidence ? `  日志：${f.evidence}` : "",
+    f.evidence ? `  ${t("crash.logLine", { log: f.evidence })}` : "",
   ]);
   navigator.clipboard.writeText(lines.filter(Boolean).join("\n"));
 }
@@ -32,20 +32,20 @@ function copyReport() {
 <template>
   <div class="crash">
     <div class="crash-head">
-      <span class="crash-title">🔍 {{ title ?? "崩溃分析" }}</span>
-      <span v-if="analysis.exitCode !== null" class="muted">退出码 {{ analysis.exitCode }}</span>
-      <a v-if="analysis.findings.length" class="copy" @click="copyReport">复制诊断结果</a>
+      <span class="crash-title">🔍 {{ title ?? $t("crash.title") }}</span>
+      <span v-if="analysis.exitCode !== null" class="muted">{{ $t("crash.exitCode", { code: analysis.exitCode }) }}</span>
+      <a v-if="analysis.findings.length" class="copy" @click="copyReport">{{ $t("crash.copy") }}</a>
     </div>
 
     <div v-if="!analysis.findings.length" class="unknown">
-      <b>没能识别出具体原因。</b>
-      <span class="muted">可以把完整日志复制下来发给坛友求助；如果是新问题，欢迎补充到规则库里。</span>
+      <b>{{ $t("crash.unknown") }}</b>
+      <span class="muted">{{ $t("crash.unknownHint") }}</span>
     </div>
 
     <div v-for="(f, i) in analysis.findings" :key="f.id" class="floor" :class="f.severity">
       <div class="floor-head">
         <span class="floor-no">{{ i + 1 }}#</span>
-        <span class="sev">{{ severityLabel[f.severity] }}</span>
+        <span class="sev">{{ $t(`crash.severity.${f.severity}`) }}</span>
         <b>{{ f.title }}</b>
       </div>
       <p class="desc">{{ f.description }}</p>
@@ -53,13 +53,13 @@ function copyReport() {
         <li v-for="s in f.solutions" :key="s">{{ s }}</li>
       </ol>
       <div v-if="f.evidence" class="evidence">
-        <a @click="toggle(f.id)">{{ openEvidence.has(f.id) ? "收起日志依据" : "查看日志依据" }}</a>
+        <a @click="toggle(f.id)">{{ openEvidence.has(f.id) ? $t("crash.hideEvidence") : $t("crash.showEvidence") }}</a>
         <code v-if="openEvidence.has(f.id)">{{ f.evidence }}</code>
       </div>
     </div>
 
     <div v-if="analysis.files.length" class="files muted">
-      已分析：
+      {{ $t("crash.analyzed") }}
       <a v-for="p in analysis.files" :key="p" :title="p" @click="reveal(p)">{{ p.split(/[\\/]/).pop() }}</a>
     </div>
   </div>

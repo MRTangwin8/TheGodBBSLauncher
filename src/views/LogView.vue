@@ -4,6 +4,7 @@ import { useGameStore } from "../stores/game";
 import { api } from "../api";
 import type { CrashAnalysis } from "../api/types";
 import CrashPanel from "../components/CrashPanel.vue";
+import { errText, t } from "../i18n";
 
 const game = useGameStore();
 
@@ -20,7 +21,7 @@ async function analyzeFile(e: Event) {
     const result = await api.analyzeLogText(await file.text());
     fileAnalysis.value = { name: file.name, result };
   } catch (err) {
-    fileError.value = String(err);
+    fileError.value = errText(err);
   } finally {
     (e.target as HTMLInputElement).value = "";
   }
@@ -64,15 +65,15 @@ function copyAll() {
 const exitText = computed(() => {
   const r = run.value;
   if (!r || r.status === "running") return "";
-  if (r.killed) return "已手动结束";
-  return r.code === 0 ? "游戏已正常退出" : `游戏异常退出（退出码 ${r.code ?? "未知"}）`;
+  if (r.killed) return t("log.killed");
+  return r.code === 0 ? t("log.exitOk") : t("log.exitBad", { code: r.code ?? t("log.unknown") });
 });
 </script>
 
 <template>
   <div class="box">
     <div class="box-title">
-      游戏日志
+      {{ $t("nav.log") }}
       <span class="extra runs">
         <a
           v-for="r in game.runList"
@@ -86,33 +87,33 @@ const exitText = computed(() => {
     </div>
 
     <div class="tool-row">
-      <button class="btn small" @click="fileInput?.click()">📄 分析日志文件…</button>
-      <span class="muted">支持崩溃报告 crash-*.txt、latest.log、hs_err_pid*.log</span>
+      <button class="btn small" @click="fileInput?.click()">📄 {{ $t("log.analyzeFile") }}</button>
+      <span class="muted">{{ $t("log.analyzeHint") }}</span>
       <input ref="fileInput" type="file" accept=".log,.txt" hidden @change="analyzeFile" />
       <span v-if="fileError" class="error-text">{{ fileError }}</span>
     </div>
     <div v-if="fileAnalysis" class="file-analysis">
-      <CrashPanel :analysis="fileAnalysis.result" :title="`日志分析：${fileAnalysis.name}`" />
-      <a class="close-file" @click="fileAnalysis = null">关闭</a>
+      <CrashPanel :analysis="fileAnalysis.result" :title="$t('log.fileAnalysis', { name: fileAnalysis.name })" />
+      <a class="close-file" @click="fileAnalysis = null">{{ $t("common.close") }}</a>
     </div>
 
     <div v-if="!run" class="box-body muted">
-      还没有启动过游戏。去 <RouterLink to="/versions">版本管理</RouterLink> 点「启动」吧。
+      <i18n-t keypath="log.empty"><RouterLink to="/versions">{{ $t("nav.versions") }}</RouterLink></i18n-t>
     </div>
 
     <template v-else>
       <div class="toolbar">
         <span>
-          <b>{{ run.versionId }}</b> · 玩家 {{ run.player }} ·
-          <span v-if="run.status === 'running'" class="running">运行中</span>
+          <b>{{ run.versionId }}</b> · {{ $t("log.player", { name: run.player }) }} ·
+          <span v-if="run.status === 'running'" class="running">{{ $t("log.running") }}</span>
           <span v-else :class="run.code === 0 ? 'muted' : 'error-text'">{{ exitText }}</span>
         </span>
-        <input v-model="filter" class="input" placeholder="筛选日志…" />
-        <button class="btn" @click="copyAll">复制全部</button>
-        <button v-if="run.status === 'running'" class="btn" @click="game.kill(run.runId)">结束进程</button>
-        <button v-else class="btn" @click="game.clear(run.runId)">删帖</button>
+        <input v-model="filter" class="input" :placeholder="$t('log.filter')" />
+        <button class="btn" @click="copyAll">{{ $t("log.copyAll") }}</button>
+        <button v-if="run.status === 'running'" class="btn" @click="game.kill(run.runId)">{{ $t("launchHome.kill") }}</button>
+        <button v-else class="btn" @click="game.clear(run.runId)">{{ $t("progress.dismiss") }}</button>
       </div>
-      <CrashPanel v-if="run.analysis" :analysis="run.analysis" title="游戏崩溃了，版主帮你看了看" />
+      <CrashPanel v-if="run.analysis" :analysis="run.analysis" :title="$t('log.crashTitle')" />
       <div ref="box" class="log" @scroll="onScroll">
         <div v-for="(l, i) in lines" :key="i" :class="levelClass(l)">{{ l }}</div>
       </div>

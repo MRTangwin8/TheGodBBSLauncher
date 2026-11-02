@@ -40,6 +40,9 @@
   --font-pixel: "Consolas", "Cascadia Mono", "Courier New", monospace;
   color-scheme: light;
 }
+/* 日文界面：汉字用日文字形（<html lang> 由 i18n 设置）；现代布局保留 Segoe UI 打头 */
+:root:lang(ja) { --font: "Yu Gothic UI", "Meiryo UI", "Meiryo", "Hiragino Sans", "Noto Sans CJK JP", sans-serif; }
+:root[data-layout="modern"]:lang(ja) { --font: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", "Hiragino Sans", "Noto Sans CJK JP", sans-serif; }
 
 :root[data-theme="dark"] {
   --sky-top: #0f1a2b;

@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { browseCommunity, communitySites, type CommunitySite } from "../community";
 import ModernIcon from "./ModernIcon.vue";
+import { errText } from "../i18n";
 
 const sites = communitySites.map((site) => ({ ...site, domain: new URL(site.url).hostname }));
 const busy = ref<CommunitySite | null>(null);
@@ -13,7 +14,7 @@ async function open(site: CommunitySite) {
   try {
     await browseCommunity(site);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   } finally {
     busy.value = null;
   }
@@ -26,14 +27,14 @@ async function open(site: CommunitySite) {
     <section v-for="site in sites" :key="site.id" class="community-row">
       <ModernIcon name="resources" :size="28" />
       <div class="community-name">
-        <h2>{{ site.name }}</h2>
-        <span class="muted">{{ site.category }}</span>
+        <h2>{{ $t(`community.name.${site.id}`) }}</h2>
+        <span class="muted">{{ $t(`community.category.${site.id}`) }}</span>
         <span class="domain muted">{{ site.domain }}</span>
       </div>
       <div class="community-actions">
         <button class="btn primary" :disabled="busy !== null" @click="open(site.id)">
           <ModernIcon name="external" :size="16" />
-          {{ busy === site.id ? "打开中..." : "系统浏览器" }}
+          {{ busy === site.id ? $t("community.opening") : $t("community.systemBrowser") }}
         </button>
       </div>
     </section>

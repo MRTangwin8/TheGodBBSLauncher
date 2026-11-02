@@ -2,12 +2,9 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { api } from "../api";
 import type { Account, AccountKind, Skin } from "../api/types";
+import { t } from "../i18n";
 
-export const kindLabel: Record<AccountKind, string> = {
-  microsoft: "正版",
-  offline: "离线",
-  yggdrasil: "外置",
-};
+export const kindLabel = (kind: AccountKind) => t(`accountKind.${kind}`);
 
 export const useAccountsStore = defineStore("accounts", () => {
   const accounts = ref<Account[]>([]);

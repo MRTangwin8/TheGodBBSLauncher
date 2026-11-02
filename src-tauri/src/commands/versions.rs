@@ -37,7 +37,7 @@ pub async fn list_installed_versions(state: State<'_, AppState>) -> Result<Vec<I
 pub async fn install_version(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<DownloadReport> {
     let _task = state.begin_task()?;
     if !state.installing.lock().await.insert(id.clone()) {
-        return Err(Error::Other(format!("{id} 已经在安装了，别急")));
+        return Err(Error::coded("install.busy", &[("id", &id)], format!("{id} 已经在安装了，别急")));
     }
     let result = do_install(&app, &state, &id).await;
     state.installing.lock().await.remove(&id);

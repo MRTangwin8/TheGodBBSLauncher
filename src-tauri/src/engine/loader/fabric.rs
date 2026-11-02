@@ -48,7 +48,7 @@ pub async fn install(ctx: &LoaderContext<'_>, kind: LoaderKind, mc: &str, loader
     let url = format!("{}/versions/loader/{mc}/{loader}/profile/json", meta_base(kind));
     let text = fetch_text(ctx.client, &url, ctx.downloader.primary).await?;
     let profile: VersionJson =
-        serde_json::from_str(&text).map_err(|_| Error::Other(format!("{loader} 不支持 Minecraft {mc}")))?;
+        serde_json::from_str(&text).map_err(|_| Error::coded("loader.unsupported", &[("loader", &loader), ("mc", &mc)], format!("{loader} 不支持 Minecraft {mc}")))?;
     let id = profile.id.clone();
 
     let path = ctx.game.version_json(&id);
@@ -66,7 +66,7 @@ async fn download_libraries(ctx: &LoaderContext<'_>, profile: &VersionJson, plat
     let report = ctx.report.clone();
     let r = ctx.downloader.download_all(tasks, std::sync::Arc::new(move |p| report(Stage::Loader, p))).await;
     match r.failed.first() {
-        Some(f) => Err(Error::Other(format!("加载器库下载失败：{}：{}", f.path, f.reason))),
+        Some(f) => Err(Error::coded("loader.libs", &[("reason", &format!("{}：{}", f.path, f.reason))], format!("加载器库下载失败：{}：{}", f.path, f.reason))),
         None => Ok(()),
     }
 }

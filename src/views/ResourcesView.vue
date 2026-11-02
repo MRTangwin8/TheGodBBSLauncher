@@ -10,6 +10,7 @@ import ResourceDialog from "../components/ResourceDialog.vue";
 import CommunitySources from "../components/CommunitySources.vue";
 import ModpackVersionDialog from "../components/ModpackVersionDialog.vue";
 import { browseCommunity } from "../community";
+import { errText, locale, t } from "../i18n";
 
 const versions = useVersionsStore();
 const route = useRoute();
@@ -44,29 +45,24 @@ async function checkCompat() {
     const list = await api.localCompat(versionId.value);
     compat.value = Object.fromEntries(list.map((c) => [c.filename, c.report]));
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   } finally {
     checking.value = false;
   }
 }
 
-const kinds: { key: ResourceKind; label: string }[] = [
-  { key: "mod", label: "模组" },
-  { key: "resourcepack", label: "资源包" },
-  { key: "shader", label: "光影" },
-  { key: "modpack", label: "整合包" },
-];
+const kinds: ResourceKind[] = ["mod", "resourcepack", "shader", "modpack"];
 
 // 整合包自带游戏版本：不选安装目标、不按已装版本筛选，下载后走整合包导入
 const isModpack = computed(() => kind.value === "modpack");
-const placeholder = computed(() => ({ mod: "搜索模组…", resourcepack: "搜索资源包…", shader: "搜索光影…", modpack: "搜索整合包…" })[kind.value]);
+const placeholder = computed(() => t(`resources.search.${kind.value}`));
 
 async function openMemorial() {
   error.value = null;
   try {
     await browseCommunity("memorialResources");
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 }
 
@@ -99,7 +95,7 @@ watch([versionId, kind], async () => {
     target.value = await api.resourceTarget(versionId.value, kind.value);
     cfMirror.value = target.value.curseforgeViaMirror;
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
     return;
   }
   offset.value = 0;
@@ -136,7 +132,7 @@ async function search() {
       ? await api.klpbbsSearch(searchQuery)
       : await api.resourceSearch(source.value, searchQuery);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
     page.value = null;
   } finally {
     searching.value = false;
@@ -155,7 +151,7 @@ async function loadLocal() {
   try {
     local.value = await api.localResources(versionId.value, kind.value);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   } finally {
     localLoading.value = false;
   }
@@ -166,17 +162,17 @@ async function toggle(r: LocalResource) {
     r.filename = await api.localResourceToggle(versionId.value, kind.value, r.filename, !r.enabled);
     r.enabled = !r.enabled;
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 }
 
 async function remove(r: LocalResource) {
-  if (!confirm(`确定删除 ${r.title ?? r.filename} 吗？文件会被直接删除。`)) return;
+  if (!confirm(t("resources.confirmDelete", { name: r.title ?? r.filename }))) return;
   try {
     await api.localResourceDelete(versionId.value, kind.value, r.filename);
     local.value = local.value.filter((x) => x !== r);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 }
 
@@ -190,6 +186,7 @@ function openFolder() {
 }
 
 function formatCount(n: number) {
+  if (locale.value !== "zh-CN") return new Intl.NumberFormat(locale.value, { notation: "compact", maximumFractionDigits: 1 }).format(n);
   return n >= 10000 ? `${(n / 10000).toFixed(n >= 1e6 ? 0 : 1)} 万` : String(n);
 }
 </script>
@@ -197,38 +194,38 @@ function formatCount(n: number) {
 <template>
   <div class="box">
     <div class="box-title">
-      资源中心
+      {{ $t("nav.resources") }}
       <span v-if="tab !== 'community' && !isModpack && versions.installed.length" class="extra target">
-        安装到
+        {{ $t("resources.installTo") }}
         <select v-model="versionId" class="input small-select">
           <option v-for="v in versions.installed" :key="v.id" :value="v.id">
-            {{ v.id }}（{{ v.loader ? loaderLabel[v.loader] : "原版" }}{{ v.mcVersion && v.mcVersion !== v.id ? ` · ${v.mcVersion}` : "" }}）
+            {{ v.id }} ({{ v.loader ? loaderLabel[v.loader] : $t("common.vanilla") }}{{ v.mcVersion && v.mcVersion !== v.id ? ` · ${v.mcVersion}` : "" }})
           </option>
         </select>
         <template v-if="target">
-          <span class="muted">MC {{ target.mcVersion }} · {{ target.loader ? loaderLabel[target.loader] : "原版" }}</span>
+          <span class="muted">MC {{ target.mcVersion }} · {{ target.loader ? loaderLabel[target.loader] : $t("common.vanilla") }}</span>
         </template>
       </span>
     </div>
 
     <div class="toolbar">
       <div v-if="tab !== 'community'" class="tabs">
-        <a v-for="k in kinds" :key="k.key" :class="{ active: kind === k.key }" @click="kind = k.key">{{ k.label }}</a>
+        <a v-for="k in kinds" :key="k" :class="{ active: kind === k }" @click="kind = k">{{ $t(`resources.kind.${k}`) }}</a>
       </div>
       <div class="tabs">
-        <a :class="{ active: tab === 'browse' }" @click="tab = 'browse'">找资源</a>
-        <a v-if="!isModpack" :class="{ active: tab === 'installed' }" @click="tab = 'installed'">已安装</a>
-        <a :class="{ active: tab === 'community' }" @click="tab = 'community'">社区资源</a>
+        <a :class="{ active: tab === 'browse' }" @click="tab = 'browse'">{{ $t("resources.browse") }}</a>
+        <a v-if="!isModpack" :class="{ active: tab === 'installed' }" @click="tab = 'installed'">{{ $t("download.installed") }}</a>
+        <a :class="{ active: tab === 'community' }" @click="tab = 'community'">{{ $t("resources.community") }}</a>
       </div>
     </div>
     <CommunitySources v-if="tab === 'community'" />
     <div v-else-if="tab === 'installed' && !versions.installed.length" class="box-body muted">
-      还没有安装任何版本，先去 <RouterLink to="/download">下载中心</RouterLink> 装一个吧。
+      <i18n-t keypath="resources.noVersion"><RouterLink to="/download">{{ $t("nav.download") }}</RouterLink></i18n-t>
     </div>
 
     <template v-else>
       <div v-if="isVanillaMod" class="box-body">
-        <div class="mod-tip">【版主提示】{{ versionId }} 是原版，装模组需要先在「下载中心」给它装上 Fabric / Forge 等加载器。</div>
+        <div class="mod-tip">{{ $t("common.modTip") }}{{ $t("resources.vanillaMod", { id: versionId }) }}</div>
       </div>
 
       <!-- 找资源 -->
@@ -237,27 +234,27 @@ function formatCount(n: number) {
           <div class="tabs src">
             <a :class="{ active: source === 'modrinth' }" @click="source = 'modrinth'">Modrinth</a>
             <a :class="{ active: source === 'curseforge' }" @click="source = 'curseforge'">
-              CurseForge<span v-if="cfMirror" class="muted mirror">（镜像）</span>
+              CurseForge<span v-if="cfMirror" class="muted mirror">{{ $t("resources.mirror") }}</span>
             </a>
-            <a :class="{ active: source === 'klpbbs' }" @click="source = 'klpbbs'">KLPBBS 中文</a>
+            <a :class="{ active: source === 'klpbbs' }" @click="source = 'klpbbs'">{{ $t("resources.klpbbs") }}</a>
           </div>
           <input v-model="query" class="input grow" :placeholder="placeholder" />
           <select v-model="sort" class="input">
-            <option value="relevance">相关度</option>
-            <option value="downloads">下载量</option>
-            <option value="updated">最近更新</option>
+            <option value="relevance">{{ $t("resources.sort.relevance") }}</option>
+            <option value="downloads">{{ $t("resources.sort.downloads") }}</option>
+            <option value="updated">{{ $t("resources.sort.updated") }}</option>
           </select>
-          <button class="btn primary">搜索</button>
+          <button class="btn primary">{{ $t("resources.searchBtn") }}</button>
         </form>
 
         <div v-if="isModpack" class="memorial">
-          <span>想找国内作者发布的中文整合包？</span>
-          <button class="btn small primary" @click="openMemorial">前往 MCBBS 纪念版寻找整合包 →</button>
-          <span class="muted small">在浏览器里下载后，把整合包文件拖进启动器窗口即可导入</span>
+          <span>{{ $t("resources.memorialAsk") }}</span>
+          <button class="btn small primary" @click="openMemorial">{{ $t("resources.memorialGo") }} →</button>
+          <span class="muted small">{{ $t("resources.memorialHint") }}</span>
         </div>
 
         <p v-if="error" class="box-body error-text">{{ error }}</p>
-        <div v-else-if="searching && !page" class="box-body muted">搜索中…</div>
+        <div v-else-if="searching && !page" class="box-body muted">{{ $t("resources.searching") }}</div>
 
         <table v-if="page" class="thread-table results" :class="{ dim: searching }">
           <tbody>
@@ -268,7 +265,7 @@ function formatCount(n: number) {
               </td>
               <td>
                 <a class="title" @click="open(p.pageUrl)">{{ p.title }}</a>
-                <span class="muted by">by {{ p.author }}</span>
+                <span class="muted by">{{ $t("themeImport.by", { author: p.author }) }}</span>
                 <span v-if="source === 'klpbbs'" class="muted by">{{ p.source === "curseforge" ? "CurseForge" : "Modrinth" }}</span>
                 <div class="desc">{{ p.description }}</div>
                 <div class="cats">
@@ -280,17 +277,17 @@ function formatCount(n: number) {
                 <div class="muted">{{ formatDate(p.updated) }}</div>
               </td>
               <td class="num">
-                <button v-if="isModpack" class="btn small primary" @click="modpackDialog = p">下载导入</button>
-                <button v-else class="btn small primary" :disabled="!versionId || !!isVanillaMod" :title="!versionId ? '先安装一个游戏版本，再选择安装目标' : undefined" @click="dialog = p">安装</button>
+                <button v-if="isModpack" class="btn small primary" @click="modpackDialog = p">{{ $t("resources.downloadImport") }}</button>
+                <button v-else class="btn small primary" :disabled="!versionId || !!isVanillaMod" :title="!versionId ? $t('resources.needVersion') : undefined" @click="dialog = p">{{ $t("download.install") }}</button>
               </td>
             </tr>
-            <tr v-if="!page.hits.length"><td colspan="4" class="muted">没有找到相关资源</td></tr>
+            <tr v-if="!page.hits.length"><td colspan="4" class="muted">{{ $t("resources.noResult") }}</td></tr>
           </tbody>
         </table>
         <div v-if="page && page.total > PAGE" class="pager">
-          <button class="btn small" :disabled="offset === 0 || searching" @click="go(-1)">上一页</button>
-          <span class="muted">第 {{ offset / PAGE + 1 }} / {{ Math.ceil(page.total / PAGE) }} 页 · 共 {{ page.total }} 个</span>
-          <button class="btn small" :disabled="offset + PAGE >= page.total || searching" @click="go(1)">下一页</button>
+          <button class="btn small" :disabled="offset === 0 || searching" @click="go(-1)">{{ $t("resources.prev") }}</button>
+          <span class="muted">{{ $t("resources.page", { i: offset / PAGE + 1, n: Math.ceil(page.total / PAGE), total: page.total }) }}</span>
+          <button class="btn small" :disabled="offset + PAGE >= page.total || searching" @click="go(1)">{{ $t("resources.next") }}</button>
         </div>
       </template>
 
@@ -299,33 +296,33 @@ function formatCount(n: number) {
         <div class="search">
           <span class="muted grow">{{ target?.dir }}</span>
           <button v-if="kind === 'mod' && target?.loader" class="btn small" :disabled="checking" @click="checkCompat">
-            {{ checking ? "检查中…" : "检查兼容性" }}
+            {{ checking ? $t("settings.checking") : $t("resources.checkCompat") }}
           </button>
-          <button class="btn small" @click="loadLocal">刷新</button>
-          <button class="btn small" @click="openFolder">打开文件夹</button>
+          <button class="btn small" @click="loadLocal">{{ $t("common.refresh") }}</button>
+          <button class="btn small" @click="openFolder">{{ $t("launchHome.openFolder") }}</button>
         </div>
         <p v-if="error" class="box-body error-text">{{ error }}</p>
-        <div v-if="localLoading" class="box-body muted">正在扫描并识别…</div>
+        <div v-if="localLoading" class="box-body muted">{{ $t("resources.scanning") }}</div>
         <table v-else class="thread-table">
           <tbody>
             <tr v-for="r in local" :key="r.filename" :class="{ disabled: !r.enabled }">
               <td>
                 <b>{{ r.title ?? r.filename }}</b>
                 <span v-if="r.version" class="muted ver">{{ r.version }}</span>
-                <span v-if="!r.enabled" class="tag off">已禁用</span>
-                <span v-if="compat[r.filename]" class="compat" :class="'st-' + compat[r.filename].status" :title="compat[r.filename].notes.join('；')">
-                  {{ compat[r.filename].status === "ok" ? "✔ 兼容" : compat[r.filename].status === "problem" ? "✘ 不兼容" : "? 未知" }}
+                <span v-if="!r.enabled" class="tag off">{{ $t("resources.disabledTag") }}</span>
+                <span v-if="compat[r.filename]" class="compat" :class="'st-' + compat[r.filename].status" :title="compat[r.filename].notes.join($t('common.listSep'))">
+                  {{ compat[r.filename].status === "ok" ? `✔ ${$t("resource.compatOk")}` : compat[r.filename].status === "problem" ? `✘ ${$t("resource.compatBad")}` : `? ${$t("log.unknown")}` }}
                 </span>
                 <div v-for="p in compat[r.filename]?.problems ?? []" :key="p" class="problem">✘ {{ p }}</div>
                 <div v-if="r.title" class="muted small">{{ r.filename }}</div>
               </td>
-              <td class="num muted">{{ r.size ? formatBytes(r.size) : "文件夹" }}</td>
+              <td class="num muted">{{ r.size ? formatBytes(r.size) : $t("buttons.folder") }}</td>
               <td class="num actions">
-                <button class="btn small" @click="toggle(r)">{{ r.enabled ? "禁用" : "启用" }}</button>
-                <button class="btn small" @click="remove(r)">删除</button>
+                <button class="btn small" @click="toggle(r)">{{ r.enabled ? $t("resources.disable") : $t("resources.enable") }}</button>
+                <button class="btn small" @click="remove(r)">{{ $t("common.delete") }}</button>
               </td>
             </tr>
-            <tr v-if="!local.length"><td colspan="3" class="muted">这里还是空的</td></tr>
+            <tr v-if="!local.length"><td colspan="3" class="muted">{{ $t("resources.empty") }}</td></tr>
           </tbody>
         </table>
       </template>

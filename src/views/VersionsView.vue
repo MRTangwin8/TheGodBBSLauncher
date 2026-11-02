@@ -8,6 +8,7 @@ import ModpackExportDialog from "../components/ModpackExportDialog.vue";
 import { useGameStore } from "../stores/game";
 import { useAccountsStore } from "../stores/accounts";
 import { formatDate, kindLabel, loaderLabel } from "../utils";
+import { errText, t } from "../i18n";
 
 const versions = useVersionsStore();
 const game = useGameStore();
@@ -17,13 +18,13 @@ const exportFor = ref<string | null>(null);
 onMounted(() => versions.loadInstalled());
 
 async function rename(id: string) {
-  const next = prompt(`给「${id}」起个新名字（存档、模组会一起搬过去）：`, id)?.trim();
+  const next = prompt(t("versions.renamePrompt", { id }), id)?.trim();
   if (!next || next === id) return;
   try {
     await api.renameVersion(id, next);
     await versions.loadInstalled();
   } catch (e) {
-    alert(String(e));
+    alert(errText(e));
   }
 }
 
@@ -39,27 +40,27 @@ async function launch(id: string) {
 <template>
   <div class="box">
     <div class="box-title">
-      版本管理
+      {{ $t("nav.versions") }}
       <span class="extra">
-        <template v-if="accounts.selected">当前账号：<b>{{ accounts.selected.name }}</b> · </template>
-        <a @click="versions.loadInstalled()">刷新</a>
+        <template v-if="accounts.selected"><i18n-t keypath="versions.currentAccount"><b>{{ accounts.selected.name }}</b></i18n-t> · </template>
+        <a @click="versions.loadInstalled()">{{ $t("common.refresh") }}</a>
       </span>
     </div>
     <div v-if="game.error" class="box-body">
-      <div class="mod-tip">【版主提示】启动失败：{{ game.error }}</div>
+      <div class="mod-tip">{{ $t("common.modTip") }}{{ $t("common.launchFailed", { err: errText(game.error) }) }}</div>
     </div>
     <table class="thread-table">
       <thead>
-        <tr><th>主题</th><th>游戏版本</th><th class="num">发布时间</th><th class="num">操作</th></tr>
+        <tr><th>{{ $t("common.thread") }}</th><th>{{ $t("versions.gameVersion") }}</th><th class="num">{{ $t("common.released") }}</th><th class="num">{{ $t("common.actions") }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="v in versions.installed" :key="v.id">
           <td>
             <span v-if="v.loader" class="tag" :class="'ld-' + v.loader">{{ loaderLabel[v.loader] }}</span>
-            <span v-else class="tag" :class="v.kind">{{ kindLabel[v.kind ?? ""] ?? v.kind ?? "自定义" }}</span>
-            <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="name" title="管理这个版本：Java、内存、模组、存档"><b>{{ v.id }}</b></RouterLink>
-            <span v-if="!v.hasJar" class="error-text"> （缺少 client.jar）</span>
-            <span v-if="game.running.some((r) => r.versionId === v.id)" class="playing">● 游戏中</span>
+            <span v-else class="tag" :class="v.kind">{{ kindLabel(v.kind) }}</span>
+            <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="name" :title="$t('versions.manageTip')"><b>{{ v.id }}</b></RouterLink>
+            <span v-if="!v.hasJar" class="error-text"> {{ $t("versions.noJar") }}</span>
+            <span v-if="game.running.some((r) => r.versionId === v.id)" class="playing">● {{ $t("versions.playing") }}</span>
           </td>
           <td class="muted">{{ v.mcVersion ?? v.inheritsFrom ?? "-" }}</td>
           <td class="num">{{ formatDate(v.releaseTime) }}</td>
@@ -67,25 +68,25 @@ async function launch(id: string) {
             <button
               class="btn small primary"
               :disabled="!!game.launching"
-              :title="accounts.selected ? '' : '先添加一个账号'"
+              :title="accounts.selected ? '' : $t('versions.addAccountFirst')"
               @click="launch(v.id)"
             >
-              {{ game.launching === v.id ? "启动中…" : "启动" }}
+              {{ game.launching === v.id ? $t("launchHome.launching") : $t("common.launch") }}
             </button>
             <button
               class="btn small"
               :disabled="!!v.inheritsFrom || versions.jobs[v.id]?.status === 'running'"
               @click="versions.install(v.id)"
             >
-              补全文件
+              {{ $t("common.completeFiles") }}
             </button>
-            <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="btn small">管理</RouterLink>
-            <button class="btn small" :disabled="game.running.some((r) => r.versionId === v.id)" @click="rename(v.id)">重命名</button>
-            <button class="btn small" @click="exportFor = v.id">导出</button>
+            <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="btn small">{{ $t("versions.manage") }}</RouterLink>
+            <button class="btn small" :disabled="game.running.some((r) => r.versionId === v.id)" @click="rename(v.id)">{{ $t("versions.rename") }}</button>
+            <button class="btn small" @click="exportFor = v.id">{{ $t("versions.export") }}</button>
           </td>
         </tr>
         <tr v-if="!versions.installed.length">
-          <td colspan="4" class="muted">本版块暂无主题，去 <RouterLink to="/download">下载中心</RouterLink> 安装一个吧</td>
+          <td colspan="4" class="muted"><i18n-t keypath="versions.empty"><RouterLink to="/download">{{ $t("nav.download") }}</RouterLink></i18n-t></td>
         </tr>
       </tbody>
     </table>

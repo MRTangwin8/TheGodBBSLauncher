@@ -22,17 +22,17 @@ onUnmounted(() => unlisten?.());
 
 <template>
   <div class="controls" :class="tone">
-    <button class="ctl" title="最小化" @click="win.minimize()">
+    <button class="ctl" :title="$t('win.minimize')" @click="win.minimize()">
       <svg viewBox="0 0 10 10"><rect x="1" y="5" width="8" height="1" /></svg>
     </button>
-    <button class="ctl" :title="maximized ? '还原' : '最大化'" @click="win.toggleMaximize()">
+    <button class="ctl" :title="maximized ? $t('win.restore') : $t('win.maximize')" @click="win.toggleMaximize()">
       <svg v-if="maximized" viewBox="0 0 10 10">
         <path d="M3 1h6v6h-1V2H3z" />
         <path d="M1 3h6v6H1zm1 1v4h4V4z" fill-rule="evenodd" />
       </svg>
       <svg v-else viewBox="0 0 10 10"><path d="M1 1h8v8H1zm1 1v6h6V2z" fill-rule="evenodd" /></svg>
     </button>
-    <button class="ctl close" title="关闭" @click="win.close()">
+    <button class="ctl close" :title="$t('win.close')" @click="win.close()">
       <svg viewBox="0 0 10 10"><path d="M1.7 1 5 4.3 8.3 1l.7.7L5.7 5 9 8.3l-.7.7L5 5.7 1.7 9 1 8.3 4.3 5 1 1.7z" /></svg>
     </button>
   </div>

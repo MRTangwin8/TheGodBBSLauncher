@@ -4,6 +4,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { api, inTauri } from "../api";
 import type { ExportEntry, PackFormat } from "../api/types";
 import { useVersionsStore } from "../stores/versions";
+import { errText, t } from "../i18n";
 
 const props = defineProps<{ versionId: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -18,10 +19,10 @@ const author = ref("");
 const summary = ref("");
 const error = ref<string | null>(null);
 
-const formats: { key: PackFormat; label: string; desc: string; ext: string }[] = [
-  { key: "modrinth", label: "Modrinth", desc: "Modrinth 上能找到的模组只写下载链接，包最小，通用性最好", ext: "mrpack" },
-  { key: "curseforge", label: "CurseForge", desc: "CurseForge 上能找到的模组只写引用，可以在 CurseForge App 里导入", ext: "zip" },
-  { key: "mcbbs", label: "MCBBS", desc: "所有文件都打包进去，离线可用，还会带上内存和启动参数设置", ext: "zip" },
+const formats: { key: PackFormat; label: string; ext: string }[] = [
+  { key: "modrinth", label: "Modrinth", ext: "mrpack" },
+  { key: "curseforge", label: "CurseForge", ext: "zip" },
+  { key: "mcbbs", label: "MCBBS", ext: "zip" },
 ];
 
 onMounted(async () => {
@@ -29,7 +30,7 @@ onMounted(async () => {
     entries.value = await api.exportCandidates(props.versionId);
     picked.value = new Set(entries.value.filter((e) => e.defaultOn).map((e) => e.name));
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 });
 
@@ -44,12 +45,12 @@ async function start() {
   const f = formats.find((x) => x.key === format.value)!;
   const fileName = `${name.value.trim() || props.versionId}-${version.value.trim() || "1.0"}.${f.ext}`.replace(/[\\/:*?"<>|]/g, "_");
   if (!inTauri) {
-    error.value = "浏览器预览模式不能导出，请用 npm run tauri dev 启动";
+    error.value = t("export.previewOnly");
     return;
   }
-  const out = await save({ defaultPath: fileName, filters: [{ name: `${f.label} 整合包`, extensions: [f.ext] }] });
+  const out = await save({ defaultPath: fileName, filters: [{ name: t("export.filter", { format: f.label }), extensions: [f.ext] }] });
   if (!out) return;
-  const job = versions.startJob(`导出 ${fileName}`);
+  const job = versions.startJob(t("export.job", { file: fileName }));
   emit("close");
   try {
     const r = await api.modpackExport(job.versionId, props.versionId, {
@@ -61,10 +62,10 @@ async function start() {
       include: [...picked.value],
     }, out);
     job.status = "done";
-    job.doneText = `已导出到 ${r.path}（下载链接 ${r.linked} 个，打包 ${r.bundled} 个）`;
+    job.doneText = t("export.done", { path: r.path, linked: r.linked, bundled: r.bundled });
   } catch (e) {
     job.status = "failed";
-    job.error = String(e);
+    job.error = errText(e);
   }
 }
 </script>
@@ -73,7 +74,7 @@ async function start() {
   <div class="mask" @click.self="emit('close')">
     <div class="dialog box">
       <div class="box-title">
-        导出整合包 · {{ versionId }}
+        {{ $t("export.title", { id: versionId }) }}
         <a class="extra close" @click="emit('close')">×</a>
       </div>
       <div class="box-body body">
@@ -81,28 +82,28 @@ async function start() {
           <label v-for="f in formats" :key="f.key" class="fmt" :class="{ active: format === f.key }">
             <input v-model="format" type="radio" :value="f.key" />
             <b>{{ f.label }}</b>
-            <span class="muted">{{ f.desc }}</span>
+            <span class="muted">{{ $t(`export.desc.${f.key}`) }}</span>
           </label>
         </div>
         <div class="grid">
-          <label>名称</label><input v-model="name" class="input" />
-          <label>版本</label><input v-model="version" class="input" />
-          <label>作者</label><input v-model="author" class="input" placeholder="可不填" />
-          <label>简介</label><input v-model="summary" class="input" placeholder="可不填" />
+          <label>{{ $t("export.name") }}</label><input v-model="name" class="input" />
+          <label>{{ $t("export.version") }}</label><input v-model="version" class="input" />
+          <label>{{ $t("export.author") }}</label><input v-model="author" class="input" :placeholder="$t('common.optional')" />
+          <label>{{ $t("export.summary") }}</label><input v-model="summary" class="input" :placeholder="$t('common.optional')" />
         </div>
-        <h4>包含哪些内容</h4>
+        <h4>{{ $t("export.include") }}</h4>
         <div class="entries">
           <label v-for="e in entries" :key="e.name" class="entry">
             <input type="checkbox" :checked="picked.has(e.name)" @change="toggle(e.name)" />
             {{ e.isDir ? "📁" : "📄" }} {{ e.name }}
           </label>
         </div>
-        <p class="muted small">日志、崩溃报告、启动器缓存不会被导出。存档默认不勾选。</p>
+        <p class="muted small">{{ $t("export.excluded") }}</p>
         <p v-if="error" class="error-text">{{ error }}</p>
       </div>
       <div class="actions">
-        <button class="btn" @click="emit('close')">取消</button>
-        <button class="btn primary" :disabled="!picked.size || !name.trim()" @click="start">选择保存位置并导出</button>
+        <button class="btn" @click="emit('close')">{{ $t("common.cancel") }}</button>
+        <button class="btn primary" :disabled="!picked.size || !name.trim()" @click="start">{{ $t("export.start") }}</button>
       </div>
     </div>
   </div>

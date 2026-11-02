@@ -113,14 +113,18 @@ pub(super) async fn install(
 ) -> Result<PathBuf> {
     let query = crate::engine::http::within(crate::engine::http::SEARCH_TIMEOUT, find_package(client, platform, major));
     let (pkg, archive) = query.await?.ok_or_else(|| {
-        Error::Other(format!("官方和 Azul 都没有这个平台（{} {}）的 Java {major}，请手动安装后在设置里选择", platform.os, platform.arch))
+        Error::coded(
+            "java.unavailable",
+            &[("platform", &format!("{} {}", platform.os, platform.arch)), ("major", &major)],
+            format!("官方和 Azul 都没有这个平台（{} {}）的 Java {major}，请手动安装后在设置里选择", platform.os, platform.arch),
+        )
     })?;
     let dl_dir = runtime_root.join(".download");
     let file = dl_dir.join(&pkg.name);
     let task = DownloadTask { url: pkg.download_url.clone(), path: file.clone(), sha1: None, size: Some(pkg.size) };
     let report = downloader.download_all(vec![task], on_progress).await;
     if let Some(f) = report.failed.first() {
-        return Err(Error::Other(format!("Java 下载失败：{}", f.reason)));
+        return Err(Error::coded("java.download", &[("reason", &f.reason)], format!("Java 下载失败：{}", f.reason)));
     }
     let dir_name = format!("zulu-{}", pkg.java_version[0]);
     let (root, sha) = (runtime_root.to_path_buf(), pkg.sha256_hash.clone());

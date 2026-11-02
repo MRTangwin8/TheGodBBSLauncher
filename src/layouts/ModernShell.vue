@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import { t } from "../i18n";
 import { useButtons } from "../buttons";
 import { inTauri } from "../api";
 import { isMac } from "../platform";
@@ -18,7 +19,7 @@ const { nav } = useButtons();
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const game = useGameStore();
-const title = computed(() => (route.meta.title as string) ?? "");
+const title = computed(() => (route.meta.title ? t(route.meta.title as string) : ""));
 </script>
 
 <template>
@@ -27,24 +28,24 @@ const title = computed(() => (route.meta.title as string) ?? "");
 
     <aside class="rail">
       <div class="rail-drag" data-tauri-drag-region />
-      <RouterLink to="/" class="brand" title="神权论坛启动器">神</RouterLink>
+      <RouterLink to="/" class="brand" :title="$t('app.name')">{{ $t("app.mini") }}</RouterLink>
       <nav class="rail-nav">
         <RouterLink v-for="n in nav" :key="n.path" :to="n.path" class="rail-item">
           <ModernIcon :name="n.icon" :size="20" />
-          <span class="rail-label">{{ n.name.length > 2 ? n.name.replace(/中心|管理|空间|游戏/, "") : n.name }}</span>
+          <span class="rail-label">{{ n.short }}</span>
           <i v-if="n.path === '/log' && game.running.length" class="dot playing" />
           <i v-if="n.path === '/download' && versions.running.length" class="dot" />
         </RouterLink>
       </nav>
-      <RouterLink to="/account" class="rail-me" :title="accounts.selected?.name ?? '登录'">
+      <RouterLink to="/account" class="rail-me" :title="accounts.selected?.name ?? $t('shell.login')">
         <AccountAvatar :account="accounts.selected" :size="32" />
       </RouterLink>
     </aside>
 
     <div class="main">
       <header class="titlebar" data-tauri-drag-region>
-        <span class="app-name" data-tauri-drag-region>神权论坛启动器</span>
-        <span v-if="!inTauri" class="preview-hint">浏览器预览 · 假数据</span>
+        <span class="app-name" data-tauri-drag-region>{{ $t("app.name") }}</span>
+        <span v-if="!inTauri" class="preview-hint">{{ $t("shell.previewShort") }}</span>
         <div class="space" data-tauri-drag-region />
         <WindowControls v-if="inTauri && !isMac" tone="auto" />
       </header>
@@ -55,7 +56,7 @@ const title = computed(() => (route.meta.title as string) ?? "");
             <div :key="r.path" class="page"><component :is="Component" /></div>
           </Transition>
         </RouterView>
-        <footer class="footer">与 MCBBS / Mojang Studios / Microsoft 无关 · 游戏文件来自官方源或镜像</footer>
+        <footer class="footer">{{ $t("shell.disclaimer") }} · {{ $t("shell.filesFromOfficial") }}</footer>
       </main>
     </div>
   </div>

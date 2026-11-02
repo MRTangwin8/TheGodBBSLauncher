@@ -48,9 +48,9 @@ pub async fn resolve_server(client: &reqwest::Client, input: &str) -> Result<Ser
     ensure_secure(&url)?;
     let metadata = client.get(&url).send().await?.text().await?;
     let v: Value = serde_json::from_str(&metadata)
-        .map_err(|_| Error::Other("这个地址不是 Yggdrasil 认证服务器".into()))?;
+        .map_err(|_| Error::coded("auth.notYgg", &[], "这个地址不是 Yggdrasil 认证服务器"))?;
     if v.get("meta").is_none() {
-        return Err(Error::Other("这个地址不是 Yggdrasil 认证服务器".into()));
+        return Err(Error::coded("auth.notYgg", &[], "这个地址不是 Yggdrasil 认证服务器"));
     }
     Ok(ServerInfo {
         name: v["meta"]["serverName"].as_str().unwrap_or("外置登录").to_string(),
@@ -65,7 +65,7 @@ fn ensure_secure(url: &str) -> Result<()> {
     if u.scheme() == "https" || (u.scheme() == "http" && local) {
         Ok(())
     } else {
-        Err(Error::Other("认证服务器必须使用 https，否则密码会明文传输。请联系皮肤站管理员开启 https".into()))
+        Err(Error::coded("auth.yggHttps", &[], "认证服务器必须使用 https，否则密码会明文传输。请联系皮肤站管理员开启 https"))
     }
 }
 
@@ -78,14 +78,14 @@ async fn post(client: &reqwest::Client, url: String, body: Value) -> Result<(u16
 
 fn ygg_error(status: u16, v: &Value) -> Error {
     let msg = v["errorMessage"].as_str().or(v["error"].as_str()).unwrap_or("未知错误");
-    Error::Other(format!("外置登录失败（{status}）：{msg}"))
+    Error::coded("auth.ygg", &[("status", &status), ("msg", &msg)], format!("外置登录失败（{status}）：{msg}"))
 }
 
 fn session_from(v: &Value, client_token: &str) -> Result<YggSession> {
     // 有多个角色时服务器可能不给 selectedProfile，先用第一个角色
     let profile = if v["selectedProfile"].is_object() { &v["selectedProfile"] } else { &v["availableProfiles"][0] };
     if !profile.is_object() {
-        return Err(Error::Other("这个账号下还没有角色，请先去皮肤站创建".into()));
+        return Err(Error::coded("auth.yggNoProfile", &[], "这个账号下还没有角色，请先去皮肤站创建"));
     }
     Ok(YggSession {
         name: profile["name"].as_str().unwrap_or_default().to_string(),
@@ -140,7 +140,7 @@ pub async fn ensure_valid(client: &reqwest::Client, api_root: &str, secret: &Sec
     .await?;
     match status {
         200 => session_from(&v, &client_token).map(Some),
-        _ => Err(Error::Other("外置登录已失效，请重新登录".into())),
+        _ => Err(Error::coded("auth.yggExpired", &[], "外置登录已失效，请重新登录")),
     }
 }
 

@@ -59,6 +59,8 @@ export interface Settings {
   buttons: Buttons;
   customPalette: CustomPalette;
   tweaks: Tweaks;
+  /** 界面语言；auto 按系统语言选 */
+  language: "auto" | "zh-CN" | "en" | "ja";
 }
 
 export interface Announcement {

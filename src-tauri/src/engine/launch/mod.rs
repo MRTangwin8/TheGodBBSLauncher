@@ -194,7 +194,7 @@ pub async fn prepare(game: &GameDir, version: &VersionJson, opts: &LaunchOptions
     let sep = classpath_separator(platform);
     let cp = classpath(game, version, platform);
     if let Some(missing) = cp.iter().find(|p| !p.is_file()) {
-        return Err(Error::Other(format!("缺少文件 {}，请先补全文件", missing.display())));
+        return Err(Error::coded("launch.missingFile", &[("path", &missing.display())], format!("缺少文件 {}，请先补全文件", missing.display())));
     }
     let cp: Vec<String> = cp.iter().map(|p| p.display().to_string()).collect();
 

@@ -6,6 +6,7 @@ import { orderNav } from "./buttons-logic";
 import { readableText } from "./colors";
 import { navItems } from "./router";
 import { useSettingsStore } from "./stores/settings";
+import { t } from "./i18n";
 
 export const DEFAULT_BUTTONS: Buttons = {
   launchLabel: "",
@@ -25,7 +26,7 @@ export function useButtons() {
   /** 导航栏：按用户的顺序，去掉隐藏的（首页、主题中心、设置不能隐藏） */
   const nav = computed(() => orderNav(navItems, buttons.value.navOrder, buttons.value.navHidden));
 
-  const launchLabel = computed(() => buttons.value.launchLabel.trim() || "开始游戏");
+  const launchLabel = computed(() => buttons.value.launchLabel.trim() || t("launch.defaultLabel"));
   /** 默认「石头 + 跟随配色」不加任何覆盖，样式见 themes/buttons.css */
   const launchClass = computed(() => ["ui-launch", `ui-${buttons.value.launchStyle}`, buttons.value.launchColor ? "ui-colored" : ""]);
   const launchStyle = computed(() => {

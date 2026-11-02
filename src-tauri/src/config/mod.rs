@@ -59,6 +59,8 @@ pub struct Settings {
     pub tweaks: Tweaks,
     /// 启动按钮、导航栏、首页快捷按钮的自定义（不进主题文件，见 buttons.rs）
     pub buttons: Buttons,
+    /// 界面语言：auto（跟随系统）/ zh-CN / en / ja
+    pub language: String,
 }
 
 /// 自定义配色：四个基础色，其余变量（深色版本、边框、悬停色）由前端推算
@@ -135,6 +137,7 @@ impl Default for Settings {
             custom_palette: CustomPalette::default(),
             tweaks: Tweaks::default(),
             buttons: Buttons::default(),
+            language: "auto".into(),
         }
     }
 }
@@ -147,6 +150,9 @@ impl Settings {
             self.game_dir = default_game_dir();
         }
         self.buttons = self.buttons.sanitized();
+        if !LANGUAGES.contains(&self.language.as_str()) {
+            self.language = "auto".into();
+        }
         let mut dismissed: Vec<String> = Vec::new();
         for id in self.dismissed_announcements.iter().filter_map(|id| crate::engine::announce::clean_announce_id(id)) {
             if !dismissed.contains(&id) {
@@ -158,6 +164,9 @@ impl Settings {
         self
     }
 }
+
+/// 界面支持的语言；auto 由前端按系统语言选
+pub const LANGUAGES: [&str; 4] = ["auto", "zh-CN", "en", "ja"];
 
 /// 游戏目录的默认位置：启动器所在目录下的 `.minecraft`，这样用户一眼就能找到，和启动器放在一起。
 /// 启动器目录不适合放游戏数据时（只读、系统目录、macOS 的 .app 包里、AppImage 的临时挂载点）退回到用户数据目录。
@@ -305,6 +314,16 @@ mod tests {
         std::fs::write(&path, r#"{"onboarded": false}"#).unwrap();
         assert!(!load(&path).onboarded);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn language_defaults_to_auto_and_rejects_unknown_values() {
+        let s: Settings = serde_json::from_str(r#"{"concurrency": 8}"#).unwrap();
+        assert_eq!(s.sanitized().language, "auto", "旧设置文件没有这个字段");
+        let s: Settings = serde_json::from_str(r#"{"language": "ja"}"#).unwrap();
+        assert_eq!(s.sanitized().language, "ja");
+        let s: Settings = serde_json::from_str(r#"{"language": "../evil"}"#).unwrap();
+        assert_eq!(s.sanitized().language, "auto");
     }
 
     use super::*;

@@ -6,6 +6,7 @@ import type { QuickButton } from "../../api/types";
 import { useButtons } from "../../buttons";
 import { describeQuick } from "../../buttons-logic";
 import { useLauncher } from "../../composables/useLauncher";
+import { errText, t } from "../../i18n";
 
 // 首页的自定义快捷按钮（主题中心 → 首页快捷按钮）
 const { buttons } = useButtons();
@@ -26,26 +27,26 @@ async function run(b: QuickButton) {
         break;
       case "launch":
         if (!versions.installed.some((v) => v.id === a.versionId)) {
-          error.value = `版本「${a.versionId}」已经不存在了，到「主题中心 → 首页快捷按钮」里改一下`;
+          error.value = t("quickRun.versionGone", { version: a.versionId });
           return;
         }
         await launch(a.versionId, a.server || null);
         break;
       case "runProgram":
         // 每次运行前都让用户看一眼完整路径；后端还会再核对这个路径确实保存在按钮里
-        if (!window.confirm(`要运行这个程序吗？\n\n${a.path}\n\n只运行你自己添加的程序。`)) return;
+        if (!window.confirm(t("quickRun.confirm", { path: a.path }))) return;
         await api.quickRunProgram(a.path);
         break;
     }
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 }
 </script>
 
 <template>
   <div v-if="buttons.quick.length" class="quick-buttons">
-    <button v-for="b in buttons.quick" :key="b.id" class="btn small" :title="describeQuick(b.action)" @click="run(b)">
+    <button v-for="b in buttons.quick" :key="b.id" class="btn small" :title="$t(describeQuick(b.action).key, describeQuick(b.action).params)" @click="run(b)">
       <span v-if="b.icon" class="qicon">{{ b.icon }}</span>{{ b.label }}
     </button>
     <span v-if="error" class="error-text small">{{ error }}</span>

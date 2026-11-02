@@ -101,7 +101,7 @@ impl AppState {
     /// 启动 / 安装类命令开头调用：迁移游戏目录时拒绝
     pub fn ensure_not_migrating(&self) -> crate::engine::Result<()> {
         if self.migrating.load(Ordering::SeqCst) {
-            return Err(crate::engine::Error::Other("正在迁移游戏目录，等迁移完成再操作".into()));
+            return Err(crate::engine::Error::coded("migrating", &[], "正在迁移游戏目录，等迁移完成再操作"));
         }
         Ok(())
     }

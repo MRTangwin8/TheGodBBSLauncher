@@ -8,49 +8,43 @@ import { useAccountsStore } from "../stores/accounts";
 import { backgroundUrl, currentLayout, DEFAULT_TWEAKS, pendingThemeImport, type Layout } from "../appearance";
 import { contrast } from "../colors";
 import ButtonSettings from "../components/ButtonSettings.vue";
+import { errText, t } from "../i18n";
 
 // 主题中心：布局、配色（含自定义）、预设、外观细调、明暗、背景图、主题分享。改动立刻生效
 const store = useSettingsStore();
 const accounts = useAccountsStore();
 const message = ref<{ ok: boolean; text: string } | null>(null);
 
-const layouts: { key: Layout; name: string; desc: string }[] = [
-  { key: "classic", name: "经典论坛", desc: "第一版：横幅 + 顶部导航 + 面包屑，原汁原味的 MCBBS 版块" },
-  { key: "sidebar", name: "木板侧栏", desc: "木板侧边栏、像素天空草地、半透明羊皮纸卡片，可收起成图标条" },
-  { key: "modern", name: "完全现代", desc: "图标导航条、亚克力卡片、渐变晕染，只保留配色的强调色" },
-];
+const layouts: Layout[] = ["classic", "sidebar", "modern"];
 
 // 内置配色的基础色，也是"以它为起点自定义"时复制过去的值
-const palettes: { key: string; name: string; colors: CustomPalette }[] = [
-  { key: "mcbbs", name: "MCBBS 经典", colors: { accent: "#5e9c35", surface: "#fbf2db", text: "#3d2f1f", wood: "#6b4a2b" } },
-  { key: "grass", name: "草方块", colors: { accent: "#4fa52f", surface: "#f2f9ea", text: "#24331a", wood: "#3f6e22" } },
-  { key: "nether", name: "下界", colors: { accent: "#d4502a", surface: "#fceee8", text: "#3a1a12", wood: "#5a1c14" } },
-  { key: "end", name: "末地", colors: { accent: "#8e5fc0", surface: "#f6f1e0", text: "#2b2238", wood: "#3a2a52" } },
-  { key: "ocean", name: "海洋", colors: { accent: "#23a093", surface: "#eaf6f8", text: "#15303a", wood: "#1f4f6e" } },
-  { key: "cherry", name: "樱花", colors: { accent: "#df6a9c", surface: "#fdf0f4", text: "#3d2030", wood: "#7a3a52" } },
-  { key: "stone", name: "石头", colors: { accent: "#5b7083", surface: "#f1f2f3", text: "#23282d", wood: "#3d4650" } },
+// 名字在语言包 appearance.palettes.<key>
+const palettes: { key: string; colors: CustomPalette }[] = [
+  { key: "mcbbs", colors: { accent: "#5e9c35", surface: "#fbf2db", text: "#3d2f1f", wood: "#6b4a2b" } },
+  { key: "grass", colors: { accent: "#4fa52f", surface: "#f2f9ea", text: "#24331a", wood: "#3f6e22" } },
+  { key: "nether", colors: { accent: "#d4502a", surface: "#fceee8", text: "#3a1a12", wood: "#5a1c14" } },
+  { key: "end", colors: { accent: "#8e5fc0", surface: "#f6f1e0", text: "#2b2238", wood: "#3a2a52" } },
+  { key: "ocean", colors: { accent: "#23a093", surface: "#eaf6f8", text: "#15303a", wood: "#1f4f6e" } },
+  { key: "cherry", colors: { accent: "#df6a9c", surface: "#fdf0f4", text: "#3d2030", wood: "#7a3a52" } },
+  { key: "stone", colors: { accent: "#5b7083", surface: "#f1f2f3", text: "#23282d", wood: "#3d4650" } },
 ];
 
 interface Preset {
-  name: string;
-  desc: string;
+  /** 名字和说明在语言包 theme.presets.<key> */
+  key: string;
   patch: Partial<Settings>;
 }
 // 预设主题：一键套用的配色 + 细调组合
 const presets: Preset[] = [
-  { name: "红石", desc: "红石粉的暗红，配深红木", patch: { palette: "custom", customPalette: { accent: "#c0392b", surface: "#f8ece8", text: "#3b1d1a", wood: "#5e1f17" } } },
-  { name: "雪地", desc: "冷白底色，圆角更大", patch: { palette: "custom", customPalette: { accent: "#3d8fc4", surface: "#f5f9fc", text: "#1f2d3a", wood: "#587089" }, tweaks: { ...DEFAULT_TWEAKS, radius: 12 } } },
-  { name: "金块", desc: "暖金色，像金块一样亮", patch: { palette: "custom", customPalette: { accent: "#cf9415", surface: "#fdf6e3", text: "#3f3216", wood: "#7a5a12" } } },
-  { name: "青金石", desc: "深蓝强调色，沉稳", patch: { palette: "custom", customPalette: { accent: "#2f5fb8", surface: "#eef2fb", text: "#1a2440", wood: "#22346b" } } },
-  { name: "深夜矿洞", desc: "深色 + 萤石青，背景压暗", patch: { palette: "custom", theme: "dark", customPalette: { accent: "#3fbf9c", surface: "#e8ece9", text: "#20262a", wood: "#3b4246" }, tweaks: { ...DEFAULT_TWEAKS, bgDim: 30 } } },
-  { name: "旧版论坛", desc: "经典布局、直角、不透明、无动画", patch: { layout: "classic", palette: "mcbbs", tweaks: { ...DEFAULT_TWEAKS, radius: 0, cardOpacity: 100, cardBlur: 0, animations: false } } },
+  { key: "redstone", patch: { palette: "custom", customPalette: { accent: "#c0392b", surface: "#f8ece8", text: "#3b1d1a", wood: "#5e1f17" } } },
+  { key: "snow", patch: { palette: "custom", customPalette: { accent: "#3d8fc4", surface: "#f5f9fc", text: "#1f2d3a", wood: "#587089" }, tweaks: { ...DEFAULT_TWEAKS, radius: 12 } } },
+  { key: "gold", patch: { palette: "custom", customPalette: { accent: "#cf9415", surface: "#fdf6e3", text: "#3f3216", wood: "#7a5a12" } } },
+  { key: "lapis", patch: { palette: "custom", customPalette: { accent: "#2f5fb8", surface: "#eef2fb", text: "#1a2440", wood: "#22346b" } } },
+  { key: "cave", patch: { palette: "custom", theme: "dark", customPalette: { accent: "#3fbf9c", surface: "#e8ece9", text: "#20262a", wood: "#3b4246" }, tweaks: { ...DEFAULT_TWEAKS, bgDim: 30 } } },
+  { key: "oldForum", patch: { layout: "classic", palette: "mcbbs", tweaks: { ...DEFAULT_TWEAKS, radius: 0, cardOpacity: 100, cardBlur: 0, animations: false } } },
 ];
 
-const themes: { key: Settings["theme"]; label: string }[] = [
-  { key: "light", label: "浅色" },
-  { key: "dark", label: "深色" },
-  { key: "system", label: "跟随系统" },
-];
+const themes: Settings["theme"][] = ["light", "dark", "system"];
 
 const fonts = ["Microsoft YaHei UI", "DengXian", "Source Han Sans SC", "Noto Sans SC", "LXGW WenKai", "HarmonyOS Sans SC", "MiSans", "SimSun"];
 
@@ -66,7 +60,7 @@ async function patch(p: Partial<Settings>) {
   try {
     await store.save({ ...store.settings, ...p });
   } catch (e) {
-    message.value = { ok: false, text: String(e) };
+    message.value = { ok: false, text: errText(e) };
   }
 }
 
@@ -86,7 +80,7 @@ async function flush() {
   try {
     await store.save(store.settings);
   } catch (e) {
-    message.value = { ok: false, text: String(e) };
+    message.value = { ok: false, text: errText(e) };
   }
 }
 onUnmounted(flush);
@@ -103,63 +97,58 @@ function customizeFrom(key: string) {
   patch({ palette: "custom", customPalette: { ...base.colors } });
 }
 
-const colorFields: { key: keyof CustomPalette; label: string; hint: string }[] = [
-  { key: "accent", label: "强调色", hint: "按钮、选中项、进度条" },
-  { key: "surface", label: "卡片底色", hint: "版块和输入框的底" },
-  { key: "text", label: "文字", hint: "正文颜色" },
-  { key: "wood", label: "木头色", hint: "导航栏、边框、标题" },
-];
+const colorFields: (keyof CustomPalette)[] = ["accent", "surface", "text", "wood"];
 const warnings = computed(() => {
   const c = custom.value;
   const out: string[] = [];
-  if (contrast(c.text, c.surface) < 4.5) out.push("文字和卡片底色太接近，正文会看不清");
-  if (contrast("#ffffff", c.accent) < 2.5) out.push("强调色太浅，按钮上的白字会看不清");
-  if (contrast("#ffffff", c.wood) < 3) out.push("木头色太浅，导航栏的白字会看不清");
+  if (contrast(c.text, c.surface) < 4.5) out.push(t("theme.warnText"));
+  if (contrast("#ffffff", c.accent) < 2.5) out.push(t("theme.warnAccent"));
+  if (contrast("#ffffff", c.wood) < 3) out.push(t("theme.warnWood"));
   return out;
 });
 
-const sliders: { key: "radius" | "cardOpacity" | "cardBlur"; label: string; min: number; max: number; unit: string }[] = [
-  { key: "radius", label: "圆角", min: 0, max: 24, unit: "px" },
-  { key: "cardOpacity", label: "卡片不透明度", min: 40, max: 100, unit: "%" },
-  { key: "cardBlur", label: "毛玻璃", min: 0, max: 30, unit: "px" },
+const sliders: { key: "radius" | "cardOpacity" | "cardBlur"; min: number; max: number; unit: string }[] = [
+  { key: "radius", min: 0, max: 24, unit: "px" },
+  { key: "cardOpacity", min: 40, max: 100, unit: "%" },
+  { key: "cardBlur", min: 0, max: 30, unit: "px" },
 ];
 
 async function pickBackground() {
   if (!inTauri) {
-    message.value = { ok: false, text: "浏览器预览模式不能选择文件" };
+    message.value = { ok: false, text: t("theme.previewNoPick") };
     return;
   }
-  const file = await open({ multiple: false, filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
+  const file = await open({ multiple: false, filters: [{ name: t("theme.image"), extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
   if (typeof file === "string") patch({ backgroundImage: file });
 }
 
 // ---------- 分享 ----------
-const exportName = ref("我的主题");
+const exportName = ref(t("theme.myTheme"));
 const exportAuthor = ref(accounts.selected?.name ?? "");
 
 async function exportTheme() {
   if (!inTauri) {
-    message.value = { ok: false, text: "浏览器预览模式不能导出文件" };
+    message.value = { ok: false, text: t("theme.previewNoExport") };
     return;
   }
-  const name = exportName.value.trim() || "我的主题";
-  const path = await save({ defaultPath: `${name.replace(/[\\/:*?"<>|]/g, "_")}.godtheme`, filters: [{ name: "神权主题", extensions: ["godtheme"] }] });
+  const name = exportName.value.trim() || t("theme.myTheme");
+  const path = await save({ defaultPath: `${name.replace(/[\\/:*?"<>|]/g, "_")}.godtheme`, filters: [{ name: t("theme.fileType"), extensions: ["godtheme"] }] });
   if (!path) return;
   await flush(); // 导出读的是磁盘上的设置，先把没保存的改动写进去
   try {
     await api.themeExport(path, name, exportAuthor.value);
-    message.value = { ok: true, text: `已导出到 ${path}` };
+    message.value = { ok: true, text: t("theme.exported", { path }) };
   } catch (e) {
-    message.value = { ok: false, text: String(e) };
+    message.value = { ok: false, text: errText(e) };
   }
 }
 
 async function importTheme() {
   if (!inTauri) {
-    message.value = { ok: false, text: "浏览器预览模式不能选择文件" };
+    message.value = { ok: false, text: t("theme.previewNoPick") };
     return;
   }
-  const file = await open({ multiple: false, filters: [{ name: "神权主题", extensions: ["godtheme"] }] });
+  const file = await open({ multiple: false, filters: [{ name: t("theme.fileType"), extensions: ["godtheme"] }] });
   if (typeof file === "string") pendingThemeImport.value = file;
 }
 
@@ -186,29 +175,29 @@ async function resetAll() {
     customPalette: { ...palettes[0].colors },
     tweaks: { ...DEFAULT_TWEAKS },
   });
-  message.value = { ok: true, text: "已恢复默认外观：经典论坛 + MCBBS 经典配色 + 浅色" };
+  message.value = { ok: true, text: t("theme.resetDone") };
 }
 </script>
 
 <template>
   <div v-if="store.settings" class="theme-center">
     <div class="topbar">
-      <span class="muted">改动立刻生效；玩坏了随时可以恢复</span>
+      <span class="muted">{{ $t("theme.topHint") }}</span>
       <button class="btn small" :class="{ danger: confirmReset }" @click="resetAll">
-        {{ confirmReset ? "再点一次确认恢复" : "↺ 一键恢复默认外观" }}
+        {{ confirmReset ? $t("theme.resetConfirm") : `↺ ${$t("theme.reset")}` }}
       </button>
     </div>
     <div class="box">
-      <div class="box-title">布局风格</div>
+      <div class="box-title">{{ $t("theme.layoutTitle") }}</div>
       <div class="box-body cards">
-        <button v-for="l in layouts" :key="l.key" class="layout-card" :class="{ active: currentLayout === l.key }" @click="patch({ layout: l.key })">
+        <button v-for="l in layouts" :key="l" class="layout-card" :class="{ active: currentLayout === l }" @click="patch({ layout: l })">
           <!-- 迷你示意图 -->
-          <div class="mini" :class="l.key">
-            <template v-if="l.key === 'classic'">
+          <div class="mini" :class="l">
+            <template v-if="l === 'classic'">
               <i class="m-banner" /><i class="m-nav" />
               <div class="m-body"><i class="m-box w2" /><i class="m-box" /></div>
             </template>
-            <template v-else-if="l.key === 'sidebar'">
+            <template v-else-if="l === 'sidebar'">
               <i class="m-side" />
               <div class="m-body"><i class="m-title" /><i class="m-box w2" /><i class="m-box" /></div>
             </template>
@@ -218,54 +207,54 @@ async function resetAll() {
             </template>
           </div>
           <div class="card-text">
-            <b>{{ l.name }}<span v-if="l.key === 'classic'" class="default">默认</span></b>
-            <span class="muted">{{ l.desc }}</span>
+            <b>{{ $t(`appearance.layouts.${l}.name`) }}<span v-if="l === 'classic'" class="default">{{ $t("settings.default") }}</span></b>
+            <span class="muted">{{ $t(`theme.layoutDesc.${l}`) }}</span>
           </div>
         </button>
       </div>
     </div>
 
     <div class="box">
-      <div class="box-title">配色方案 <span class="extra muted">现代布局只取强调色</span></div>
+      <div class="box-title">{{ $t("theme.paletteTitle") }} <span class="extra muted">{{ $t("theme.paletteHint") }}</span></div>
       <div class="box-body">
         <div class="swatches">
           <button v-for="p in palettes" :key="p.key" class="swatch" :class="{ active: store.settings.palette === p.key }" @click="patch({ palette: p.key })">
             <span class="chips">
               <i :style="{ background: p.colors.accent }" /><i :style="{ background: p.colors.surface }" /><i :style="{ background: p.colors.wood }" />
             </span>
-            <span>{{ p.name }}</span>
+            <span>{{ $t(`appearance.palettes.${p.key}`) }}</span>
           </button>
           <button class="swatch" :class="{ active: isCustom }" @click="isCustom || patch({ palette: 'custom' })">
             <span class="chips">
               <i :style="{ background: custom.accent }" /><i :style="{ background: custom.surface }" /><i :style="{ background: custom.wood }" />
             </span>
-            <span>✎ 自定义</span>
+            <span>✎ {{ $t("appearance.palettes.custom") }}</span>
           </button>
         </div>
 
         <div v-if="isCustom" class="editor">
-          <div v-for="f in colorFields" :key="f.key" class="color-row">
-            <input type="color" :value="custom[f.key]" @input="setColor(f.key, ($event.target as HTMLInputElement).value)" />
+          <div v-for="f in colorFields" :key="f" class="color-row">
+            <input type="color" :value="custom[f]" @input="setColor(f, ($event.target as HTMLInputElement).value)" />
             <div class="color-text">
-              <b>{{ f.label }}</b>
-              <span class="muted">{{ f.hint }}</span>
+              <b>{{ $t(`theme.color.${f}.label`) }}</b>
+              <span class="muted">{{ $t(`theme.color.${f}.hint`) }}</span>
             </div>
-            <input class="input hex" :value="custom[f.key]" maxlength="7" spellcheck="false" @change="setColor(f.key, ($event.target as HTMLInputElement).value)" />
+            <input class="input hex" :value="custom[f]" maxlength="7" spellcheck="false" @change="setColor(f, ($event.target as HTMLInputElement).value)" />
           </div>
           <div class="editor-foot">
-            <span class="muted">以内置配色为起点：</span>
-            <a v-for="p in palettes" :key="p.key" class="from" :title="p.name" :style="{ background: p.colors.accent }" @click="customizeFrom(p.key)" />
-            <span class="muted dark-hint">深色版本会自动推算</span>
+            <span class="muted">{{ $t("theme.startFrom") }}</span>
+            <a v-for="p in palettes" :key="p.key" class="from" :title="$t(`appearance.palettes.${p.key}`)" :style="{ background: p.colors.accent }" @click="customizeFrom(p.key)" />
+            <span class="muted dark-hint">{{ $t("theme.darkAuto") }}</span>
           </div>
-          <div v-for="w in warnings" :key="w" class="mod-tip warn">【版主提示】{{ w }}</div>
+          <div v-for="w in warnings" :key="w" class="mod-tip warn">{{ $t("common.modTip") }}{{ w }}</div>
         </div>
       </div>
     </div>
 
     <div class="box">
-      <div class="box-title">预设主题 <span class="extra muted">一键套用，套用后还能接着细调</span></div>
+      <div class="box-title">{{ $t("theme.presetTitle") }} <span class="extra muted">{{ $t("theme.presetHint") }}</span></div>
       <div class="box-body presets">
-        <button v-for="p in presets" :key="p.name" class="preset" @click="patch(p.patch)">
+        <button v-for="p in presets" :key="p.key" class="preset" @click="patch(p.patch)">
           <span class="chips small">
             <template v-if="p.patch.customPalette">
               <i :style="{ background: p.patch.customPalette.accent }" /><i :style="{ background: p.patch.customPalette.surface }" /><i :style="{ background: p.patch.customPalette.wood }" />
@@ -275,8 +264,8 @@ async function resetAll() {
             </template>
           </span>
           <span class="preset-text">
-            <b>{{ p.name }}</b>
-            <span class="muted">{{ p.desc }}</span>
+            <b>{{ $t(`theme.presets.${p.key}.name`) }}</b>
+            <span class="muted">{{ $t(`theme.presets.${p.key}.desc`) }}</span>
           </span>
         </button>
       </div>
@@ -284,64 +273,64 @@ async function resetAll() {
 
     <div class="box">
       <div class="box-title">
-        外观细调
-        <a class="extra" @click="resetTweaks">全部恢复默认</a>
+        {{ $t("theme.tweaksTitle") }}
+        <a class="extra" @click="resetTweaks">{{ $t("theme.resetTweaks") }}</a>
       </div>
       <div class="box-body">
         <div v-for="s in sliders" :key="s.key" class="row">
-          <label>{{ s.label }}</label>
+          <label>{{ $t(`theme.slider.${s.key}`) }}</label>
           <input type="range" :min="s.min" :max="s.max" :value="tweaks[s.key] ?? s.max" class="range" :class="{ unset: tweaks[s.key] === null }" @input="setTweak(s.key, Number(($event.target as HTMLInputElement).value))" />
-          <span class="val">{{ tweaks[s.key] === null ? "布局默认" : tweaks[s.key] + s.unit }}</span>
-          <a v-if="tweaks[s.key] !== null" class="reset" @click="setTweak(s.key, null)">默认</a>
+          <span class="val">{{ tweaks[s.key] === null ? $t("theme.layoutDefault") : tweaks[s.key] + s.unit }}</span>
+          <a v-if="tweaks[s.key] !== null" class="reset" @click="setTweak(s.key, null)">{{ $t("settings.default") }}</a>
         </div>
         <div class="row">
-          <label>背景模糊</label>
+          <label>{{ $t("theme.bgBlur") }}</label>
           <input type="range" min="0" max="20" :value="tweaks.bgBlur" class="range" @input="setTweak('bgBlur', Number(($event.target as HTMLInputElement).value))" />
           <span class="val">{{ tweaks.bgBlur }}px</span>
         </div>
         <div class="row">
-          <label>背景压暗</label>
+          <label>{{ $t("theme.bgDim") }}</label>
           <input type="range" min="0" max="80" :value="tweaks.bgDim" class="range" @input="setTweak('bgDim', Number(($event.target as HTMLInputElement).value))" />
           <span class="val">{{ tweaks.bgDim }}%</span>
         </div>
         <div class="row">
-          <label>基础字号</label>
+          <label>{{ $t("theme.fontSize") }}</label>
           <input type="range" min="12" max="16" :value="tweaks.fontSize" class="range" @input="setTweak('fontSize', Number(($event.target as HTMLInputElement).value))" />
           <span class="val">{{ tweaks.fontSize }}px</span>
         </div>
         <div class="row">
-          <label>字体</label>
-          <input class="input font" list="font-list" :value="tweaks.font" placeholder="默认（微软雅黑）" @change="setTweak('font', ($event.target as HTMLInputElement).value.trim())" />
+          <label>{{ $t("theme.font") }}</label>
+          <input class="input font" list="font-list" :value="tweaks.font" :placeholder="$t('theme.fontDefault')" @change="setTweak('font', ($event.target as HTMLInputElement).value.trim())" />
           <datalist id="font-list"><option v-for="f in fonts" :key="f" :value="f" /></datalist>
-          <span class="muted small">填本机已安装的字体名，没装会回落到默认字体</span>
+          <span class="muted small">{{ $t("theme.fontHint") }}</span>
         </div>
         <div class="row">
-          <label>动画</label>
-          <label class="check"><input type="checkbox" :checked="tweaks.animations" @change="setTweak('animations', ($event.target as HTMLInputElement).checked)" /> 页面切换和弹窗动画</label>
+          <label>{{ $t("theme.animations") }}</label>
+          <label class="check"><input type="checkbox" :checked="tweaks.animations" @change="setTweak('animations', ($event.target as HTMLInputElement).checked)" /> {{ $t("theme.animationsHint") }}</label>
         </div>
       </div>
     </div>
 
     <div class="box">
-      <div class="box-title">明暗与背景</div>
+      <div class="box-title">{{ $t("theme.modeTitle") }}</div>
       <div class="box-body">
         <div class="row">
-          <label>明暗</label>
+          <label>{{ $t("appearance.mode") }}</label>
           <div class="seg">
-            <a v-for="t in themes" :key="t.key" :class="{ active: store.settings.theme === t.key }" @click="patch({ theme: t.key })">{{ t.label }}</a>
+            <a v-for="m in themes" :key="m" :class="{ active: store.settings.theme === m }" @click="patch({ theme: m })">{{ $t(`appearance.modes.${m}`) }}</a>
           </div>
         </div>
         <div class="row">
-          <label>背景图</label>
+          <label>{{ $t("theme.background") }}</label>
           <div class="bg-field">
             <div class="bg-thumb" :style="backgroundUrl ? { backgroundImage: `url(${backgroundUrl})` } : undefined">
-              <span v-if="!backgroundUrl" class="muted">布局自带</span>
+              <span v-if="!backgroundUrl" class="muted">{{ $t("theme.bgBuiltin") }}</span>
             </div>
             <div class="bg-actions">
-              <span class="muted path">{{ store.settings.backgroundImage ?? "未设置：经典用论坛点阵，侧栏用像素风景，现代用渐变" }}</span>
+              <span class="muted path">{{ store.settings.backgroundImage ?? $t("theme.bgUnset") }}</span>
               <div>
-                <button class="btn small" @click="pickBackground">选择图片…</button>
-                <button v-if="store.settings.backgroundImage" class="btn small" @click="patch({ backgroundImage: null })">恢复默认</button>
+                <button class="btn small" @click="pickBackground">{{ $t("theme.pickImage") }}</button>
+                <button v-if="store.settings.backgroundImage" class="btn small" @click="patch({ backgroundImage: null })">{{ $t("theme.restoreDefault") }}</button>
               </div>
             </div>
           </div>
@@ -350,18 +339,18 @@ async function resetAll() {
     </div>
 
     <div class="box">
-      <div class="box-title">分享主题 <span class="extra muted">.godtheme 文件，拖进窗口也能导入</span></div>
+      <div class="box-title">{{ $t("theme.shareTitle") }} <span class="extra muted">{{ $t("theme.shareHint") }}</span></div>
       <div class="box-body">
         <div class="row">
-          <label>导出</label>
-          <input v-model="exportName" class="input" placeholder="主题名" maxlength="40" />
-          <input v-model="exportAuthor" class="input" placeholder="作者" maxlength="40" />
-          <button class="btn primary" @click="exportTheme">导出当前外观…</button>
+          <label>{{ $t("versions.export") }}</label>
+          <input v-model="exportName" class="input" :placeholder="$t('theme.themeName')" maxlength="40" />
+          <input v-model="exportAuthor" class="input" :placeholder="$t('export.author')" maxlength="40" />
+          <button class="btn primary" @click="exportTheme">{{ $t("theme.exportCurrent") }}</button>
         </div>
         <div class="row">
-          <label>导入</label>
-          <button class="btn" @click="importTheme">选择主题文件…</button>
-          <span class="muted small">会包含布局、配色、细调和背景图</span>
+          <label>{{ $t("theme.import") }}</label>
+          <button class="btn" @click="importTheme">{{ $t("theme.pickTheme") }}</button>
+          <span class="muted small">{{ $t("theme.importHint") }}</span>
         </div>
       </div>
     </div>

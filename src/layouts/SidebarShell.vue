@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import { t } from "../i18n";
 import { useButtons } from "../buttons";
 import { inTauri } from "../api";
 import { isMac } from "../platform";
@@ -18,7 +19,7 @@ const { nav } = useButtons();
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const game = useGameStore();
-const title = computed(() => (route.meta.title as string) ?? "");
+const title = computed(() => (route.meta.title ? t(route.meta.title as string) : ""));
 
 // 侧边栏可以收起成图标条，记在本地
 const collapsed = ref(readCollapsed());
@@ -45,33 +46,33 @@ watch(collapsed, (v) => {
     <aside class="sidebar">
       <!-- 和右侧标题栏同高的拖动条，logo 跟标题对齐 -->
       <div class="drag-strip" data-tauri-drag-region />
-      <RouterLink to="/" class="logo" :title="collapsed ? '神权论坛' : undefined">
+      <RouterLink to="/" class="logo" :title="collapsed ? $t('app.forum') : undefined">
         <template v-if="!collapsed">
-          <span class="logo-main">神权论坛</span>
-          <span class="logo-sub">启动器 · MCBBS 纪念版</span>
+          <span class="logo-main">{{ $t("app.forum") }}</span>
+          <span class="logo-sub">{{ $t("app.subtitle") }}</span>
         </template>
-        <span v-else class="logo-main mini">神</span>
+        <span v-else class="logo-main mini">{{ $t("app.mini") }}</span>
       </RouterLink>
 
       <nav class="nav">
         <RouterLink v-for="n in nav" :key="n.path" :to="n.path" class="nav-item" :title="collapsed ? n.name : undefined">
           <PixelIcon :name="n.icon" />
           <span class="label">{{ n.name }}</span>
-          <span v-if="n.path === '/log' && game.running.length" class="badge playing" title="游戏运行中">{{ game.running.length }}</span>
-          <span v-if="n.path === '/download' && versions.running.length" class="badge" title="任务进行中">{{ versions.running.length }}</span>
+          <span v-if="n.path === '/log' && game.running.length" class="badge playing" :title="$t('shell.gameRunning')">{{ game.running.length }}</span>
+          <span v-if="n.path === '/download' && versions.running.length" class="badge" :title="$t('shell.taskRunning')">{{ versions.running.length }}</span>
         </RouterLink>
       </nav>
 
-      <button class="collapse" :title="collapsed ? '展开侧边栏' : '收起侧边栏'" @click="collapsed = !collapsed">
-        {{ collapsed ? "»" : "« 收起" }}
+      <button class="collapse" :title="collapsed ? $t('shell.expand') : $t('shell.collapse')" @click="collapsed = !collapsed">
+        {{ collapsed ? "»" : `« ${$t("shell.collapseShort")}` }}
       </button>
 
-      <RouterLink to="/account" class="me" :title="collapsed ? accounts.selected?.name ?? '游客' : undefined">
+      <RouterLink to="/account" class="me" :title="collapsed ? accounts.selected?.name ?? $t('shell.guestName') : undefined">
         <AccountAvatar :account="accounts.selected" :size="34" />
         <div v-if="!collapsed" class="me-text">
-          <b>{{ accounts.selected?.name ?? "游客" }}</b>
-          <span v-if="accounts.selected">{{ kindLabel[accounts.selected.kind] }} · <span class="god">神权</span></span>
-          <span v-else class="god">点我登录</span>
+          <b>{{ accounts.selected?.name ?? $t("shell.guestName") }}</b>
+          <span v-if="accounts.selected">{{ kindLabel(accounts.selected.kind) }} · <span class="god">{{ $t("shell.god") }}</span></span>
+          <span v-else class="god">{{ $t("shell.clickToLogin") }}</span>
         </div>
       </RouterLink>
     </aside>
@@ -79,7 +80,7 @@ watch(collapsed, (v) => {
     <div class="main-col">
       <!-- 顶部 32px 拖动条放窗口按钮，标题另起一行，不再贴着窗口顶边 -->
       <div class="drag-strip top" data-tauri-drag-region>
-        <span v-if="!inTauri" class="preview-hint">浏览器预览模式 · 数据是假的</span>
+        <span v-if="!inTauri" class="preview-hint">{{ $t("shell.previewHint") }}</span>
         <WindowControls v-if="inTauri && !isMac" class="win" />
       </div>
       <header class="title-row" data-tauri-drag-region>
@@ -95,7 +96,7 @@ watch(collapsed, (v) => {
           </Transition>
         </RouterView>
         <footer class="footer">
-          神权论坛启动器 · 与 MCBBS / Mojang Studios / Microsoft 无关 · 游戏文件全部来自官方源或镜像
+          {{ $t("app.name") }} · {{ $t("shell.disclaimer") }} · {{ $t("shell.filesFromOfficial") }}
         </footer>
       </main>
     </div>

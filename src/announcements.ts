@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import { api } from "./api";
 import type { AnnouncementFeed } from "./api/types";
 import { useSettingsStore } from "./stores/settings";
+import { errText, t } from "./i18n";
 
 const feed = ref<AnnouncementFeed | null>(null);
 export const announcementsLoading = ref(false);
@@ -18,10 +19,10 @@ export async function loadAnnouncements(manual = false) {
     feed.value = await api.getAnnouncements(manual);
     if (manual) {
       const n = feed.value.items.length;
-      announcementsNote.value = { ok: true, text: feed.value.stale ? "连不上 GitHub，显示的是上次缓存的公告" : n ? `已刷新，共 ${n} 条公告` : "已刷新，现在没有公告" };
+      announcementsNote.value = { ok: true, text: feed.value.stale ? t("notice.stale") : n ? t("notice.refreshed", { n }) : t("notice.refreshedEmpty") };
     }
   } catch (e) {
-    if (manual) announcementsNote.value = { ok: false, text: String(e) };
+    if (manual) announcementsNote.value = { ok: false, text: errText(e) };
   } finally {
     announcementsLoading.value = false;
   }

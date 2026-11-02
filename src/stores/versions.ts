@@ -3,6 +3,7 @@ import { computed, reactive, ref } from "vue";
 import { api, onInstallProgress } from "../api";
 import type { DownloadReport, InstalledVersion, LoaderKind, LoaderVersion, Progress, Stage, VersionManifest } from "../api/types";
 import { loaderLabel } from "../utils";
+import { t } from "../i18n";
 
 export interface InstallJob {
   versionId: string;
@@ -60,7 +61,7 @@ export const useVersionsStore = defineStore("versions", () => {
     try {
       job.report = await api.installVersion(versionId);
       job.status = job.report.failed.length ? "failed" : "done";
-      if (job.report.failed.length) job.error = `${job.report.failed.length} 个文件下载失败：${job.report.failed[0].reason}`;
+      if (job.report.failed.length) job.error = t("progress.filesFailed", { n: job.report.failed.length, reason: job.report.failed[0].reason });
     } catch (e) {
       job.status = "failed";
       job.error = String(e);

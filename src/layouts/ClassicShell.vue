@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import { t } from "../i18n";
 import { useButtons } from "../buttons";
 import { inTauri } from "../api";
 import { isMac } from "../platform";
@@ -16,7 +17,7 @@ const { nav } = useButtons();
 const versions = useVersionsStore();
 const accounts = useAccountsStore();
 const game = useGameStore();
-const title = computed(() => (route.meta.title as string) ?? "");
+const title = computed(() => (route.meta.title ? t(route.meta.title as string) : ""));
 </script>
 
 <template>
@@ -24,14 +25,14 @@ const title = computed(() => (route.meta.title as string) ?? "");
     <BackgroundLayer kind="checker" />
     <header class="banner" data-tauri-drag-region>
       <div class="logo" data-tauri-drag-region>
-        <span class="logo-main" data-tauri-drag-region>神权论坛</span>
-        <span class="logo-sub" data-tauri-drag-region>启动器 · MCBBS 纪念版</span>
+        <span class="logo-main" data-tauri-drag-region>{{ $t("app.forum") }}</span>
+        <span class="logo-sub" data-tauri-drag-region>{{ $t("app.subtitle") }}</span>
       </div>
       <div class="banner-user">
-        <span v-if="accounts.selected">欢迎回来，<b>{{ accounts.selected.name }}</b></span>
-        <span v-else>游客，<RouterLink to="/account" class="login-link">登录</RouterLink></span>
+        <i18n-t v-if="accounts.selected" keypath="shell.welcomeBack" tag="span"><b>{{ accounts.selected.name }}</b></i18n-t>
+        <span v-else>{{ $t("shell.guest") }}<RouterLink to="/account" class="login-link">{{ $t("shell.login") }}</RouterLink></span>
         <span class="sep">|</span>
-        <span>用户组：<span class="group-god">神权</span></span>
+        <span>{{ $t("shell.userGroup") }}<span class="group-god">{{ $t("shell.god") }}</span></span>
       </div>
       <WindowControls v-if="inTauri && !isMac" class="win" />
     </header>
@@ -39,16 +40,16 @@ const title = computed(() => (route.meta.title as string) ?? "");
     <nav class="nav">
       <RouterLink v-for="n in nav" :key="n.path" :to="n.path" class="nav-item">{{ n.name }}</RouterLink>
       <span class="nav-right">
-        <RouterLink v-if="game.running.length" to="/log" class="nav-playing">🎮 {{ game.running.length }} 个游戏运行中</RouterLink>
-        <template v-if="versions.running.length">⏳ {{ versions.running.length }} 个任务进行中</template>
+        <RouterLink v-if="game.running.length" to="/log" class="nav-playing">🎮 {{ $t("shell.gamesRunning", { n: game.running.length }) }}</RouterLink>
+        <template v-if="versions.running.length">⏳ {{ $t("shell.tasksRunning", { n: versions.running.length }) }}</template>
       </span>
     </nav>
 
     <div class="scroll">
       <div class="page-wrap">
         <div class="crumb">
-          <span>⌂</span> <RouterLink to="/">神权论坛</RouterLink> <span class="muted">›</span> {{ title }}
-          <span v-if="!inTauri" class="preview-hint">浏览器预览模式 · 数据是假的</span>
+          <span>⌂</span> <RouterLink to="/">{{ $t("app.forum") }}</RouterLink> <span class="muted">›</span> {{ title }}
+          <span v-if="!inTauri" class="preview-hint">{{ $t("shell.previewHint") }}</span>
         </div>
         <RouterView v-slot="{ Component, route: r }">
           <Transition name="page" mode="out-in">
@@ -56,8 +57,8 @@ const title = computed(() => (route.meta.title as string) ?? "");
           </Transition>
         </RouterView>
         <footer class="footer">
-          <p>神权论坛启动器 · 与 MCBBS / Mojang Studios / Microsoft 无关</p>
-          <p class="muted">Minecraft 游戏文件全部从官方源或 BMCLAPI 镜像下载，本程序不分发任何游戏文件</p>
+          <p>{{ $t("app.name") }} · {{ $t("shell.disclaimer") }}</p>
+          <p class="muted">{{ $t("shell.noDistribution") }}</p>
         </footer>
       </div>
     </div>

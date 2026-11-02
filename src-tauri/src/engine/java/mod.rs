@@ -444,7 +444,7 @@ async fn install_mojang(
         .get(key)
         .and_then(|m| m.get(component))
         .and_then(|v| v.first())
-        .ok_or_else(|| Error::Other(format!("Mojang 没有为 {key} 提供 {component}，请手动安装 Java")))?;
+        .ok_or_else(|| Error::coded("java.noRuntime", &[("platform", &key), ("component", &component)], format!("Mojang 没有为 {key} 提供 {component}，请手动安装 Java")))?;
     let manifest: RuntimeManifest = fetch_json(client, &entry.manifest.url, downloader.primary).await?;
 
     // 借用 x64 版时放到单独的文件夹，免得和以后可能出现的原生版混在一起
@@ -465,7 +465,7 @@ async fn install_mojang(
     }
     let report = downloader.download_all(tasks, on_progress).await;
     if let Some(f) = report.failed.first() {
-        return Err(Error::Other(format!("Java 下载失败：{}：{}", f.path, f.reason)));
+        return Err(Error::coded("java.download", &[("reason", &format!("{}：{}", f.path, f.reason))], format!("Java 下载失败：{}：{}", f.path, f.reason)));
     }
 
     #[cfg(unix)]

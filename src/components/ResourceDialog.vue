@@ -4,7 +4,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, inTauri } from "../api";
 import type { InstallPlan, Project, ResourceKind, ResourceVersion } from "../api/types";
 import { useVersionsStore } from "../stores/versions";
-import { formatBytes, formatDate } from "../utils";
+import { formatBytes, formatDate, releaseType } from "../utils";
+import { errText, t } from "../i18n";
 
 const props = defineProps<{ project: Project; kind: ResourceKind; versionId: string }>();
 const emit = defineEmits<{ close: []; installed: [] }>();
@@ -17,7 +18,6 @@ const chosen = ref<ResourceVersion | null>(null);
 const plan = ref<InstallPlan | null>(null);
 const planning = ref(false);
 
-const typeLabel: Record<string, string> = { release: "正式", beta: "测试", alpha: "开发" };
 
 function openProject() {
   if (inTauri) openUrl(props.project.pageUrl);
@@ -28,7 +28,7 @@ onMounted(async () => {
   try {
     list.value = await api.resourceVersions(props.project.source, props.project.id, props.kind, props.versionId);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   } finally {
     loading.value = false;
   }
@@ -41,7 +41,7 @@ async function pick(v: ResourceVersion) {
   try {
     plan.value = await api.resourcePlan(props.kind, props.versionId, v);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
     chosen.value = null;
   } finally {
     planning.value = false;
@@ -53,7 +53,7 @@ const hasProblem = computed(() => plan.value?.items.some((i) => i.compat?.status
 
 async function confirm() {
   if (!plan.value) return;
-  if (hasProblem.value && !window.confirm("有模组没通过兼容性检查，装上后游戏很可能会崩溃。确定仍然安装吗？")) return;
+  if (hasProblem.value && !window.confirm(t("resource.confirmProblem"))) return;
   const p = plan.value;
   const jobId = `${props.project.title} → ${props.versionId}`;
   const job = versions.startJob(jobId);
@@ -62,11 +62,11 @@ async function confirm() {
     const r = await api.resourceInstall(jobId, props.kind, props.versionId, p);
     job.report = r;
     job.status = r.failed.length ? "failed" : "done";
-    if (r.failed.length) job.error = `${r.failed.length} 个文件下载失败：${r.failed[0].reason}`;
+    if (r.failed.length) job.error = t("progress.filesFailed", { n: r.failed.length, reason: r.failed[0].reason });
     emit("installed");
   } catch (e) {
     job.status = "failed";
-    job.error = String(e);
+    job.error = errText(e);
   }
 }
 </script>
@@ -75,7 +75,7 @@ async function confirm() {
   <div class="mask" @click.self="emit('close')">
     <div class="dialog box">
       <div class="box-title">
-        {{ plan ? "确认安装" : "选择版本" }} · {{ project.title }}
+        {{ plan ? $t("resource.confirm") : $t("resource.pickVersion") }} · {{ project.title }}
         <a class="extra close" @click="emit('close')">×</a>
       </div>
 
@@ -84,24 +84,24 @@ async function confirm() {
 
         <!-- 第一步：选版本 -->
         <template v-if="!plan">
-          <div v-if="loading" class="muted">正在获取兼容 {{ versionId }} 的版本…</div>
-          <div v-else-if="!list.length && !error" class="mod-tip">【版主提示】这个资源没有兼容当前游戏版本 / 加载器的版本</div>
+          <div v-if="loading" class="muted">{{ $t("resource.loading", { id: versionId }) }}</div>
+          <div v-else-if="!list.length && !error" class="mod-tip">{{ $t("common.modTip") }}{{ $t("resource.none") }}</div>
           <table v-else class="thread-table">
             <tbody>
               <tr v-for="v in list" :key="v.id">
                 <td>
-                  <span class="tag" :class="'rt-' + v.releaseType">{{ typeLabel[v.releaseType] ?? v.releaseType }}</span>
+                  <span class="tag" :class="'rt-' + v.releaseType">{{ releaseType(v.releaseType) }}</span>
                   <b>{{ v.versionNumber }}</b>
-                  <div class="muted small">{{ v.gameVersions.slice(0, 6).join(", ") }} · {{ v.loaders.join(", ") || "通用" }}</div>
-                  <div v-if="!v.file" class="muted small">未提供下载地址或第三方分发受限</div>
+                  <div class="muted small">{{ v.gameVersions.slice(0, 6).join(", ") }} · {{ v.loaders.join(", ") || $t("resource.universal") }}</div>
+                  <div v-if="!v.file" class="muted small">{{ $t("resource.noFile") }}</div>
                 </td>
                 <td class="num">{{ formatDate(v.published) }}</td>
                 <td class="num">{{ v.file ? formatBytes(v.file.size) : "-" }}</td>
                 <td class="num">
                   <button v-if="v.file" class="btn small primary" :disabled="planning" @click="pick(v)">
-                    {{ planning && chosen?.id === v.id ? "下载并检查…" : "选这个" }}
+                    {{ planning && chosen?.id === v.id ? $t("resource.checking") : $t("resource.pick") }}
                   </button>
-                  <button v-else class="btn small" @click="openProject">项目官网</button>
+                  <button v-else class="btn small" @click="openProject">{{ $t("resource.projectPage") }}</button>
                 </td>
               </tr>
             </tbody>
@@ -110,42 +110,42 @@ async function confirm() {
 
         <!-- 第二步：安装计划 -->
         <template v-else>
-          <p class="muted small checked">已下载并检查：平台、依赖版本范围、Mixin 注入点是否存在于当前游戏</p>
+          <p class="muted small checked">{{ $t("resource.checked") }}</p>
           <div v-for="(item, i) in plan.items" :key="item.projectId" class="floor">
             <span class="floor-no">{{ i + 1 }}#</span>
-            <span v-if="item.compat" class="compat" :class="'st-' + item.compat.status" :title="item.compat.notes.join('；')">
-              {{ item.compat.status === "ok" ? "✔ 兼容" : item.compat.status === "problem" ? "✘ 不兼容" : "? 未知" }}
+            <span v-if="item.compat" class="compat" :class="'st-' + item.compat.status" :title="item.compat.notes.join($t('common.listSep'))">
+              {{ item.compat.status === "ok" ? `✔ ${$t("resource.compatOk")}` : item.compat.status === "problem" ? `✘ ${$t("resource.compatBad")}` : `? ${$t("log.unknown")}` }}
             </span>
             <b>{{ item.title }}</b>
             <span class="muted">{{ item.versionNumber }}</span>
-            <span v-if="item.requiredBy" class="tag dep">{{ item.requiredBy }} 的前置</span>
+            <span v-if="item.requiredBy" class="tag dep">{{ $t("resource.requiredBy", { name: item.requiredBy }) }}</span>
             <span class="size muted">{{ formatBytes(item.file.size) }}</span>
             <div v-if="item.note" class="note">🔄 {{ item.note }}</div>
             <div v-if="item.compat?.status === 'problem'" class="problems">
               <div v-for="p in item.compat.problems" :key="p">✘ {{ p }}</div>
               <div v-if="item.alternative" class="alt">
-                推荐改用兼容的 <b>{{ item.alternative.versionNumber }}</b>
-                <span v-if="item.alternative.releaseType !== 'release'" class="muted">（{{ typeLabel[item.alternative.releaseType] }}版）</span>
-                <button class="btn small primary" :disabled="planning" @click="pick(item.alternative)">改用这个版本</button>
+                <i18n-t keypath="resource.suggest"><b>{{ item.alternative.versionNumber }}</b></i18n-t>
+                <span v-if="item.alternative.releaseType !== 'release'" class="muted">{{ $t("resource.preTag", { type: releaseType(item.alternative.releaseType) }) }}</span>
+                <button class="btn small primary" :disabled="planning" @click="pick(item.alternative)">{{ $t("resource.useThis") }}</button>
               </div>
             </div>
-            <div v-else-if="item.compat?.notes.length" class="muted small">{{ item.compat.notes.join("；") }}</div>
-            <div v-if="item.replaces.length" class="muted small">将替换旧版本：{{ item.replaces.join("、") }}</div>
+            <div v-else-if="item.compat?.notes.length" class="muted small">{{ item.compat.notes.join($t("common.listSep")) }}</div>
+            <div v-if="item.replaces.length" class="muted small">{{ $t("resource.replaces", { list: item.replaces.join($t("common.listComma")) }) }}</div>
           </div>
           <div class="notes">
-            <p v-if="plan.alreadyInstalled.length" class="ok">✔ 已安装的前置：{{ plan.alreadyInstalled.join("、") }}</p>
-            <p v-if="plan.unresolved.length" class="error-text">✘ 找不到兼容版本的前置：{{ plan.unresolved.join("、") }}（需要手动处理，否则游戏可能无法启动）</p>
-            <p v-if="plan.incompatible.length" class="error-text">⚠ 与已安装的模组冲突：{{ plan.incompatible.join("、") }}</p>
-            <p v-if="plan.optional.length" class="muted">可选前置（不会自动安装）：{{ plan.optional.join("、") }}</p>
+            <p v-if="plan.alreadyInstalled.length" class="ok">✔ {{ $t("resource.alreadyInstalled", { list: plan.alreadyInstalled.join($t("common.listComma")) }) }}</p>
+            <p v-if="plan.unresolved.length" class="error-text">✘ {{ $t("resource.unresolved", { list: plan.unresolved.join($t("common.listComma")) }) }}</p>
+            <p v-if="plan.incompatible.length" class="error-text">⚠ {{ $t("resource.incompatible", { list: plan.incompatible.join($t("common.listComma")) }) }}</p>
+            <p v-if="plan.optional.length" class="muted">{{ $t("resource.optional", { list: plan.optional.join($t("common.listComma")) }) }}</p>
           </div>
         </template>
       </div>
 
       <div v-if="plan" class="actions">
-        <span class="muted">共 {{ plan.items.length }} 个文件，{{ formatBytes(totalSize) }}</span>
-        <button class="btn" @click="plan = null; chosen = null">返回</button>
+        <span class="muted">{{ $t("resource.total", { n: plan.items.length, size: formatBytes(totalSize) }) }}</span>
+        <button class="btn" @click="plan = null; chosen = null">{{ $t("common.back") }}</button>
         <button class="btn primary" :class="{ danger: hasProblem }" :disabled="!plan.items.length" @click="confirm">
-          {{ hasProblem ? "仍然安装" : "确认安装" }}
+          {{ hasProblem ? $t("resource.installAnyway") : $t("resource.confirm") }}
         </button>
       </div>
     </div>

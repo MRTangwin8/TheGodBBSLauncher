@@ -61,7 +61,7 @@ pub async fn fetch_json<T: DeserializeOwned>(client: &reqwest::Client, url: &str
             Err(e) => last_err = Some(e),
         }
     }
-    Err(last_err.unwrap_or_else(|| Error::Other(format!("无法获取 {url}"))))
+    Err(last_err.unwrap_or_else(|| Error::coded("fetch", &[("url", &url)], format!("无法获取 {url}"))))
 }
 
 pub async fn fetch_manifest(client: &reqwest::Client, primary: Source) -> Result<VersionManifest> {
@@ -128,7 +128,7 @@ pub async fn install_vanilla(
 
 fn ensure_ok(r: &DownloadReport) -> Result<()> {
     match r.failed.first() {
-        Some(f) => Err(Error::Other(format!("下载 {} 失败：{}", f.path, f.reason))),
+        Some(f) => Err(Error::coded("install.download", &[("path", &f.path), ("reason", &f.reason)], format!("下载 {} 失败：{}", f.path, f.reason))),
         None => Ok(()),
     }
 }

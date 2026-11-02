@@ -8,6 +8,7 @@ import { ALWAYS_VISIBLE, MAX_QUICK, describeQuick, fullOrder, moveItem, newQuick
 import { navItems } from "../router";
 import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
+import { errText, t } from "../i18n";
 
 // 主题中心里的「按钮与导航」：启动按钮外观、导航栏顺序、首页快捷按钮。
 // 这些设置不会进 .godtheme 主题文件：快捷按钮能运行本地程序，不能随别人分享的主题带进来。
@@ -26,7 +27,7 @@ async function save(patch: Partial<Buttons>) {
   try {
     await store.save({ ...store.settings, buttons: { ...buttons.value, ...patch } });
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 }
 
@@ -45,17 +46,13 @@ async function flush() {
   try {
     await store.save(store.settings);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 }
 onUnmounted(flush);
 
 // ---------- 启动按钮 ----------
-const styles: { key: LaunchStyle; label: string }[] = [
-  { key: "stone", label: "石头" },
-  { key: "flat", label: "扁平" },
-  { key: "pill", label: "胶囊" },
-];
+const styles: LaunchStyle[] = ["stone", "flat", "pill"];
 const isMac = /Mac/i.test(navigator.userAgent);
 
 // ---------- 导航栏 ----------
@@ -72,12 +69,11 @@ function toggleNav(path: string, visible: boolean) {
 
 // ---------- 首页快捷按钮 ----------
 type ActionType = QuickAction["type"];
-const actionTypes: { key: ActionType; label: string }[] = [
-  { key: "openFolder", label: "打开文件夹" },
-  { key: "openUrl", label: "打开网址" },
-  { key: "launch", label: "启动游戏" },
-  { key: "runProgram", label: "运行程序" },
-];
+const actionTypes: ActionType[] = ["openFolder", "openUrl", "launch", "runProgram"];
+const describe = (a: QuickAction) => {
+  const d = describeQuick(a);
+  return t(d.key, d.params);
+};
 const editing = ref<string | null>(null); // 正在编辑的按钮 id；"new" 表示新增
 const formError = ref("");
 const form = reactive({ label: "", icon: "", type: "openFolder" as ActionType, path: "", url: "", versionId: "", server: "" });
@@ -123,7 +119,7 @@ async function saveForm() {
   };
   const problem = validateQuick(draft);
   if (problem) {
-    formError.value = problem;
+    formError.value = t(problem);
     return;
   }
   const list = editing.value === "new" ? [...buttons.value.quick, draft] : buttons.value.quick.map((q) => (q.id === draft.id ? draft : q));
@@ -139,7 +135,7 @@ function moveQuick(i: number, delta: -1 | 1) {
 
 async function pick(directory: boolean) {
   if (!inTauri) {
-    formError.value = "浏览器预览模式不能选择文件";
+    formError.value = t("theme.previewNoPick");
     return;
   }
   const chosen = await open({ multiple: false, directory });
@@ -165,117 +161,117 @@ async function resetAll() {
 <template>
   <div class="box">
     <div class="box-title">
-      启动按钮
-      <button class="btn small extra-btn" :class="{ danger: confirmReset }" @click="resetAll">{{ confirmReset ? "再点一次确认" : "↺ 恢复按钮与导航默认" }}</button>
+      {{ $t("buttons.launchTitle") }}
+      <button class="btn small extra-btn" :class="{ danger: confirmReset }" @click="resetAll">{{ confirmReset ? $t("buttons.confirmAgain") : `↺ ${$t("buttons.reset")}` }}</button>
     </div>
     <div class="box-body">
       <div class="row">
-        <label>预览</label>
+        <label>{{ $t("buttons.preview") }}</label>
         <button class="btn primary preview" :class="launchClass" :style="launchStyle" type="button">▶ {{ launchLabel }}</button>
       </div>
       <div class="row">
-        <label>文字</label>
-        <input class="input" maxlength="12" :value="buttons.launchLabel" placeholder="开始游戏" @change="save({ launchLabel: ($event.target as HTMLInputElement).value.trim() })" />
-        <span class="muted small">最多 12 个字，留空用默认的「开始游戏」</span>
+        <label>{{ $t("buttons.text") }}</label>
+        <input class="input" maxlength="12" :value="buttons.launchLabel" :placeholder="$t('launch.defaultLabel')" @change="save({ launchLabel: ($event.target as HTMLInputElement).value.trim() })" />
+        <span class="muted small">{{ $t("buttons.textHint") }}</span>
       </div>
       <div class="row">
-        <label>样式</label>
+        <label>{{ $t("buttons.style") }}</label>
         <div class="seg">
-          <a v-for="s in styles" :key="s.key" :class="{ active: buttons.launchStyle === s.key }" @click="save({ launchStyle: s.key })">{{ s.label }}</a>
+          <a v-for="s in styles" :key="s" :class="{ active: buttons.launchStyle === s }" @click="save({ launchStyle: s })">{{ $t(`buttons.styles.${s}`) }}</a>
         </div>
       </div>
       <div class="row">
-        <label>颜色</label>
+        <label>{{ $t("buttons.color") }}</label>
         <input type="color" class="color" :value="buttons.launchColor || '#5e9c35'" @input="live({ launchColor: ($event.target as HTMLInputElement).value })" />
         <span v-if="buttons.launchColor" class="mono">{{ buttons.launchColor }}</span>
-        <a v-if="buttons.launchColor" @click="save({ launchColor: '' })">跟随配色方案</a>
-        <span v-else class="muted small">现在跟随当前配色方案的强调色</span>
+        <a v-if="buttons.launchColor" @click="save({ launchColor: '' })">{{ $t("buttons.followPalette") }}</a>
+        <span v-else class="muted small">{{ $t("buttons.followingPalette") }}</span>
       </div>
       <div class="row">
-        <label>其他</label>
-        <label class="check"><input type="checkbox" :checked="buttons.launchSound" @change="save({ launchSound: ($event.target as HTMLInputElement).checked })" /> 点击启动时发出提示音</label>
-        <a class="small" @click="playLaunchSound()">试听</a>
-        <label class="check"><input type="checkbox" :checked="buttons.launchShortcut" @change="save({ launchShortcut: ($event.target as HTMLInputElement).checked })" /> 用 {{ isMac ? "⌘" : "Ctrl" }}+Enter 直接启动</label>
+        <label>{{ $t("buttons.other") }}</label>
+        <label class="check"><input type="checkbox" :checked="buttons.launchSound" @change="save({ launchSound: ($event.target as HTMLInputElement).checked })" /> {{ $t("buttons.sound") }}</label>
+        <a class="small" @click="playLaunchSound()">{{ $t("buttons.listen") }}</a>
+        <label class="check"><input type="checkbox" :checked="buttons.launchShortcut" @change="save({ launchShortcut: ($event.target as HTMLInputElement).checked })" /> {{ $t("buttons.shortcut", { key: isMac ? "⌘" : "Ctrl" }) }}</label>
       </div>
     </div>
   </div>
 
   <div class="box">
-    <div class="box-title">导航栏 <span class="extra muted">调整顺序、隐藏用不到的页面</span></div>
+    <div class="box-title">{{ $t("buttons.navTitle") }} <span class="extra muted">{{ $t("buttons.navHint") }}</span></div>
     <div class="box-body">
       <div v-for="(path, i) in order" :key="path" class="nav-row" :class="{ off: isHidden(path) }">
         <span class="nav-name">{{ navName(path) }}</span>
-        <label class="check" :title="ALWAYS_VISIBLE.includes(path) ? '这个页面不能隐藏，否则就进不去设置了' : undefined">
+        <label class="check" :title="ALWAYS_VISIBLE.includes(path) ? $t('buttons.cantHide') : undefined">
           <input type="checkbox" :checked="!isHidden(path)" :disabled="ALWAYS_VISIBLE.includes(path)" @change="toggleNav(path, ($event.target as HTMLInputElement).checked)" />
-          显示
+          {{ $t("buttons.show") }}
         </label>
-        <button class="btn small" :disabled="i === 0" title="上移" @click="save({ navOrder: moveItem(order, i, -1) })">↑</button>
-        <button class="btn small" :disabled="i === order.length - 1" title="下移" @click="save({ navOrder: moveItem(order, i, 1) })">↓</button>
+        <button class="btn small" :disabled="i === 0" :title="$t('buttons.up')" @click="save({ navOrder: moveItem(order, i, -1) })">↑</button>
+        <button class="btn small" :disabled="i === order.length - 1" :title="$t('buttons.down')" @click="save({ navOrder: moveItem(order, i, 1) })">↓</button>
       </div>
-      <p class="muted small hint">首页、主题中心、设置不能隐藏。想恢复默认顺序，用上面的「恢复按钮与导航默认」。</p>
+      <p class="muted small hint">{{ $t("buttons.navFoot") }}</p>
     </div>
   </div>
 
   <div class="box">
-    <div class="box-title">首页快捷按钮 <span class="extra muted">最多 {{ MAX_QUICK }} 个，显示在首页启动区域下面</span></div>
+    <div class="box-title">{{ $t("buttons.quickTitle") }} <span class="extra muted">{{ $t("buttons.quickHint", { n: MAX_QUICK }) }}</span></div>
     <div class="box-body">
-      <div v-if="!buttons.quick.length && editing !== 'new'" class="muted small">还没有快捷按钮。可以加一个"打开存档文件夹""启动并直接进服务器"之类的。</div>
+      <div v-if="!buttons.quick.length && editing !== 'new'" class="muted small">{{ $t("buttons.quickEmpty") }}</div>
       <div v-for="(b, i) in buttons.quick" :key="b.id" class="quick-row">
         <div class="quick-main">
           <b><span v-if="b.icon">{{ b.icon }} </span>{{ b.label }}</b>
-          <span class="muted small">{{ describeQuick(b.action) }}</span>
+          <span class="muted small">{{ describe(b.action) }}</span>
         </div>
         <button class="btn small" :disabled="i === 0" @click="moveQuick(i, -1)">↑</button>
         <button class="btn small" :disabled="i === buttons.quick.length - 1" @click="moveQuick(i, 1)">↓</button>
-        <button class="btn small" @click="startEdit(b)">编辑</button>
-        <button class="btn small" @click="removeQuick(b.id)">删除</button>
+        <button class="btn small" @click="startEdit(b)">{{ $t("buttons.edit") }}</button>
+        <button class="btn small" @click="removeQuick(b.id)">{{ $t("common.delete") }}</button>
       </div>
 
       <div v-if="editing" class="editor">
         <div class="row">
-          <label>名称</label>
-          <input v-model="form.label" class="input" maxlength="16" placeholder="例如：存档" />
-          <input v-model="form.icon" class="input icon" maxlength="4" placeholder="图标" title="一个 emoji 或一两个字，可以留空" />
+          <label>{{ $t("export.name") }}</label>
+          <input v-model="form.label" class="input" maxlength="16" :placeholder="$t('buttons.namePlaceholder')" />
+          <input v-model="form.icon" class="input icon" maxlength="4" :placeholder="$t('buttons.icon')" :title="$t('buttons.iconHint')" />
         </div>
         <div class="row">
-          <label>动作</label>
+          <label>{{ $t("buttons.action") }}</label>
           <select v-model="form.type" class="input">
-            <option v-for="t in actionTypes" :key="t.key" :value="t.key">{{ t.label }}</option>
+            <option v-for="a in actionTypes" :key="a" :value="a">{{ $t(`buttons.actions.${a}`) }}</option>
           </select>
         </div>
         <div v-if="form.type === 'openFolder' || form.type === 'runProgram'" class="row">
-          <label>{{ form.type === "openFolder" ? "文件夹" : "程序" }}</label>
-          <input v-model="form.path" class="input wide" :placeholder="form.type === 'openFolder' ? '要打开的文件夹路径' : '要运行的程序或脚本的完整路径'" />
-          <button class="btn small" type="button" @click="pick(form.type === 'openFolder')">选择…</button>
+          <label>{{ form.type === "openFolder" ? $t("buttons.folder") : $t("buttons.program") }}</label>
+          <input v-model="form.path" class="input wide" :placeholder="form.type === 'openFolder' ? $t('buttons.folderPlaceholder') : $t('buttons.programPlaceholder')" />
+          <button class="btn small" type="button" @click="pick(form.type === 'openFolder')">{{ $t("common.browse") }}</button>
         </div>
-        <p v-if="form.type === 'runProgram'" class="mod-tip warn">【版主提示】运行程序等于在文件管理器里双击它。每次点这个按钮之前都会弹窗让你确认完整路径；只添加你自己信得过的程序。</p>
+        <p v-if="form.type === 'runProgram'" class="mod-tip warn">{{ $t("common.modTip") }}{{ $t("buttons.programWarn") }}</p>
         <div v-if="form.type === 'openUrl'" class="row">
-          <label>网址</label>
+          <label>{{ $t("buttons.url") }}</label>
           <input v-model="form.url" class="input wide" placeholder="https://www.mcbbs.co/" />
         </div>
         <template v-if="form.type === 'launch'">
           <div class="row">
-            <label>版本</label>
+            <label>{{ $t("launchHome.version") }}</label>
             <select v-model="form.versionId" class="input wide">
-              <option v-if="!versions.installed.length" value="">还没有安装任何版本</option>
+              <option v-if="!versions.installed.length" value="">{{ $t("forumHome.noVersions") }}</option>
               <option v-for="v in versions.installed" :key="v.id" :value="v.id">{{ v.id }}</option>
             </select>
           </div>
           <div class="row">
-            <label>服务器</label>
-            <input v-model="form.server" class="input wide" placeholder="可选，例如 mc.example.com:25565，启动后直接进入" />
+            <label>{{ $t("buttons.server") }}</label>
+            <input v-model="form.server" class="input wide" :placeholder="$t('buttons.serverPlaceholder')" />
           </div>
         </template>
         <p v-if="formError" class="error-text small">{{ formError }}</p>
         <div class="row">
           <label></label>
-          <button class="btn primary" @click="saveForm">{{ editing === "new" ? "添加" : "保存" }}</button>
-          <button class="btn" @click="editing = null">取消</button>
+          <button class="btn primary" @click="saveForm">{{ editing === "new" ? $t("common.add") : $t("common.save") }}</button>
+          <button class="btn" @click="editing = null">{{ $t("common.cancel") }}</button>
         </div>
       </div>
       <div v-else class="row add">
-        <button class="btn" :disabled="buttons.quick.length >= MAX_QUICK" @click="startAdd">＋ 添加快捷按钮</button>
-        <span v-if="buttons.quick.length >= MAX_QUICK" class="muted small">已经到上限了</span>
+        <button class="btn" :disabled="buttons.quick.length >= MAX_QUICK" @click="startAdd">＋ {{ $t("buttons.addQuick") }}</button>
+        <span v-if="buttons.quick.length >= MAX_QUICK" class="muted small">{{ $t("buttons.limit") }}</span>
       </div>
     </div>
   </div>

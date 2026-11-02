@@ -5,7 +5,8 @@ import { api, inTauri } from "../api";
 import type { Project, ResourceVersion } from "../api/types";
 import { useVersionsStore } from "../stores/versions";
 import { useModpackStore } from "../stores/modpack";
-import { formatBytes, formatDate } from "../utils";
+import { formatBytes, formatDate, releaseType } from "../utils";
+import { errText, t } from "../i18n";
 
 // 资源中心选整合包版本：下载到缓存后，交给和拖进窗口一样的导入对话框（预览、起名、安装）
 const props = defineProps<{ project: Project }>();
@@ -17,13 +18,12 @@ const list = ref<ResourceVersion[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
-const typeLabel: Record<string, string> = { release: "正式", beta: "测试", alpha: "开发" };
 
 onMounted(async () => {
   try {
     list.value = await api.modpackVersions(props.project.source, props.project.id);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   } finally {
     loading.value = false;
   }
@@ -35,7 +35,7 @@ function openProject() {
 }
 
 async function download(v: ResourceVersion) {
-  const jobId = `整合包 ${props.project.title} ${v.versionNumber}`;
+  const jobId = t("modpackImport.job", { name: `${props.project.title} ${v.versionNumber}` });
   const job = versions.startJob(jobId);
   emit("close");
   try {
@@ -44,7 +44,7 @@ async function download(v: ResourceVersion) {
     modpack.importPath = path;
   } catch (e) {
     job.status = "failed";
-    job.error = String(e);
+    job.error = errText(e);
   }
 }
 </script>
@@ -53,30 +53,30 @@ async function download(v: ResourceVersion) {
   <div class="mask" @click.self="emit('close')">
     <div class="dialog box">
       <div class="box-title">
-        选择整合包版本 · {{ project.title }}
+        {{ $t("modpackVersion.title", { name: project.title }) }}
         <a class="extra close" @click="emit('close')">×</a>
       </div>
       <div class="box-body body">
-        <p class="muted small hint">整合包自带游戏版本和加载器，导入时会单独创建一个版本，不影响已有的游戏。</p>
+        <p class="muted small hint">{{ $t("modpackVersion.hint") }}</p>
         <p v-if="error" class="error-text">{{ error }}</p>
-        <div v-else-if="loading" class="muted">正在获取版本列表…</div>
-        <div v-else-if="!list.length" class="mod-tip">【版主提示】这个整合包还没有可下载的版本</div>
+        <div v-else-if="loading" class="muted">{{ $t("download.loading") }}</div>
+        <div v-else-if="!list.length" class="mod-tip">{{ $t("common.modTip") }}{{ $t("modpackVersion.none") }}</div>
         <table v-else class="thread-table">
           <tbody>
             <tr v-for="v in list" :key="v.id">
               <td>
-                <span class="tag" :class="'rt-' + v.releaseType">{{ typeLabel[v.releaseType] ?? v.releaseType }}</span>
+                <span class="tag" :class="'rt-' + v.releaseType">{{ releaseType(v.releaseType) }}</span>
                 <b>{{ v.versionNumber }}</b>
                 <div class="muted small">
-                  MC {{ v.gameVersions.slice(0, 3).join(", ") || "未知" }}<template v-if="v.loaders.length"> · {{ v.loaders.join(", ") }}</template>
+                  MC {{ v.gameVersions.slice(0, 3).join(", ") || $t("log.unknown") }}<template v-if="v.loaders.length"> · {{ v.loaders.join(", ") }}</template>
                 </div>
-                <div v-if="!v.file" class="muted small">作者限制了第三方下载，需要到项目页面手动下载</div>
+                <div v-if="!v.file" class="muted small">{{ $t("resource.restricted") }}</div>
               </td>
               <td class="num">{{ formatDate(v.published) }}</td>
               <td class="num">{{ v.file ? formatBytes(v.file.size) : "-" }}</td>
               <td class="num">
-                <button v-if="v.file" class="btn small primary" @click="download(v)">下载并导入</button>
-                <button v-else class="btn small" @click="openProject">项目页面</button>
+                <button v-if="v.file" class="btn small primary" @click="download(v)">{{ $t("modpackVersion.download") }}</button>
+                <button v-else class="btn small" @click="openProject">{{ $t("resource.projectPage") }}</button>
               </td>
             </tr>
           </tbody>

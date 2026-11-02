@@ -6,6 +6,7 @@ import { useAccountsStore } from "../stores/accounts";
 import { useGameStore } from "../stores/game";
 import { useSettingsStore } from "../stores/settings";
 import { playLaunchSound } from "../buttons";
+import { t } from "../i18n";
 
 export function useLauncher() {
   const versions = useVersionsStore();
@@ -37,10 +38,10 @@ export function useLauncher() {
   const launchingThis = computed(() => !!selected.value && game.launching === selected.value);
   const launchStage = computed(() => {
     const j = selected.value ? versions.jobs[selected.value] : undefined;
-    if (!j || j.kind !== "launch" || j.status !== "running") return "正在准备…";
-    if (j.stage === "java") return "正在下载 Java…";
+    if (!j || j.kind !== "launch" || j.status !== "running") return t("launch.preparing");
+    if (j.stage === "java") return t("launch.downloadingJava");
     const p = j.progress;
-    return p && p.totalFiles ? `补全文件 ${p.finishedFiles}/${p.totalFiles}` : "检查游戏文件…";
+    return p && p.totalFiles ? t("launch.completingFiles", { done: p.finishedFiles, total: p.totalFiles }) : t("launch.checkingFiles");
   });
 
   /** server：启动后直接进这个服务器（首页快捷按钮用） */

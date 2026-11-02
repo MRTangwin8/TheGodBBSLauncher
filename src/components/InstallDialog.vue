@@ -4,19 +4,13 @@ import { api } from "../api";
 import type { LoaderKind, LoaderVersion } from "../api/types";
 import { useVersionsStore } from "../stores/versions";
 import { defaultVersionName, loaderLabel } from "../utils";
+import { errText, t } from "../i18n";
 
 const props = defineProps<{ mc: string }>();
 const emit = defineEmits<{ close: [] }>();
 const versions = useVersionsStore();
 
 const kinds: (LoaderKind | null)[] = [null, "fabric", "quilt", "forge", "neoforge"];
-const blurb: Record<string, string> = {
-  none: "纯净原版，不装任何加载器",
-  fabric: "轻量、更新快，适合新版本和性能优化模组",
-  quilt: "Fabric 的分支，兼容大部分 Fabric 模组",
-  forge: "老牌加载器，模组最多，旧版本首选",
-  neoforge: "Forge 的社区分支，1.20.2 以后的主流选择",
-};
 
 const kind = ref<LoaderKind | null>(null);
 const list = ref<LoaderVersion[]>([]);
@@ -41,7 +35,7 @@ watch(kind, async (k) => {
       list.value = await api.listLoaderVersions(k, props.mc);
       cache.set(k, list.value);
     } catch (e) {
-      error.value = String(e);
+      error.value = errText(e);
     } finally {
       loading.value = false;
     }
@@ -64,9 +58,9 @@ watch([kind, selected], () => {
 const nameError = computed(() => {
   const n = name.value.trim();
   if (!kind.value) return null;
-  if (!n) return "版本名不能为空";
-  if (/[\\/:*?"<>|]/.test(n)) return '不能包含 \\ / : * ? " < > |';
-  if (versions.installed.some((v) => v.id === n)) return "已经有同名版本了";
+  if (!n) return t("install.nameEmpty");
+  if (/[\\/:*?"<>|]/.test(n)) return t("install.nameChars", { chars: '\\ / : * ? " < > |' });
+  if (versions.installed.some((v) => v.id === n)) return t("install.nameTaken");
   return null;
 });
 
@@ -87,42 +81,42 @@ function confirm() {
   <div class="mask" @click.self="emit('close')">
     <div class="dialog box">
       <div class="box-title">
-        发表新主题 · 安装 Minecraft {{ mc }}
+        {{ $t("install.title", { mc }) }}
         <a class="extra close" @click="emit('close')">×</a>
       </div>
       <div class="box-body">
         <div class="kinds">
           <label v-for="k in kinds" :key="k ?? 'none'" class="kind" :class="{ active: kind === k }">
             <input v-model="kind" type="radio" :value="k" />
-            <b>{{ k ? loaderLabel[k] : "原版" }}</b>
-            <span class="muted">{{ blurb[k ?? "none"] }}</span>
+            <b>{{ k ? loaderLabel[k] : $t("common.vanilla") }}</b>
+            <span class="muted">{{ $t(`install.blurb.${k ?? "none"}`) }}</span>
           </label>
         </div>
 
         <div v-if="kind" class="pick">
-          <div v-if="loading" class="muted">正在获取 {{ loaderLabel[kind] }} 版本列表…</div>
+          <div v-if="loading" class="muted">{{ $t("install.loading", { loader: loaderLabel[kind] }) }}</div>
           <div v-else-if="error" class="error-text">{{ error }}</div>
-          <div v-else-if="!list.length" class="mod-tip">【版主提示】{{ loaderLabel[kind] }} 还不支持 Minecraft {{ mc }}</div>
+          <div v-else-if="!list.length" class="mod-tip">{{ $t("common.modTip") }}{{ $t("install.unsupported", { loader: loaderLabel[kind], mc }) }}</div>
           <template v-else>
             <select v-model="selected" class="input">
               <option v-for="v in shown" :key="v.id" :value="v.id">{{ v.version }}{{ v.stable ? " ★" : "" }}</option>
             </select>
-            <label class="check"><input v-model="showUnstable" type="checkbox" /> 显示测试版</label>
-            <span class="muted">共 {{ list.length }} 个版本，★ 为稳定/推荐版</span>
+            <label class="check"><input v-model="showUnstable" type="checkbox" /> {{ $t("install.showUnstable") }}</label>
+            <span class="muted">{{ $t("install.count", { n: list.length }) }}</span>
           </template>
         </div>
 
         <div v-if="kind && selected" class="name-row">
-          <label>版本名称</label>
+          <label>{{ $t("install.name") }}</label>
           <input v-model="name" class="input" @input="nameTouched = true" />
           <span v-if="nameError" class="error-text">{{ nameError }}</span>
-          <span v-else class="muted">也是 versions 下的文件夹名，以后可以在「版本管理」里改</span>
+          <span v-else class="muted">{{ $t("install.nameHint") }}</span>
         </div>
 
         <div class="actions">
-          <button class="btn" @click="emit('close')">取消</button>
+          <button class="btn" @click="emit('close')">{{ $t("common.cancel") }}</button>
           <button class="btn primary" :disabled="!canInstall" @click="confirm">
-            {{ kind ? `安装 ${mc} + ${loaderLabel[kind]}` : `安装原版 ${mc}` }}
+            {{ kind ? $t("install.installLoader", { mc, loader: loaderLabel[kind] }) : $t("install.installVanilla", { mc }) }}
           </button>
         </div>
       </div>

@@ -15,18 +15,18 @@ const acc = computed(() => accounts.selected);
 
 <template>
   <div class="box">
-    <div class="box-title">个人信息</div>
+    <div class="box-title">{{ $t("userCard.title") }}</div>
     <div class="box-body user">
       <div class="avatar"><AccountAvatar :account="acc" mode="body" :size="128" /></div>
-      <div class="name">{{ acc?.name ?? "游客" }}</div>
-      <div class="group" title="在本启动器里，你拥有一切权限">神权</div>
+      <div class="name">{{ acc?.name ?? $t("shell.guestName") }}</div>
+      <div class="group" :title="$t('userCard.godTip')">{{ $t("shell.god") }}</div>
       <dl>
-        <dt>账号类型</dt><dd>{{ acc ? kindLabel[acc.kind] : "未登录" }}</dd>
-        <dt>积分</dt><dd>{{ points }}</dd>
-        <dt>已装版本</dt><dd>{{ versions.installed.length }}</dd>
-        <dt>游戏时长</dt><dd>{{ formatDuration(totalPlay) }}</dd>
+        <dt>{{ $t("userCard.accountType") }}</dt><dd>{{ acc ? kindLabel(acc.kind) : $t("userCard.notLoggedIn") }}</dd>
+        <dt>{{ $t("userCard.points") }}</dt><dd>{{ points }}</dd>
+        <dt>{{ $t("userCard.installed") }}</dt><dd>{{ versions.installed.length }}</dd>
+        <dt>{{ $t("userCard.playTime") }}</dt><dd>{{ formatDuration(totalPlay) }}</dd>
       </dl>
-      <RouterLink to="/account">{{ acc ? "管理账号 »" : "登录 / 添加账号 »" }}</RouterLink>
+      <RouterLink to="/account">{{ acc ? $t("userCard.manage") : $t("userCard.loginOrAdd") }} »</RouterLink>
     </div>
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, inTauri } from "../api";
 import type { DeviceCode } from "../api/types";
@@ -7,6 +7,7 @@ import { kindLabel, useAccountsStore } from "../stores/accounts";
 import UserCard from "../components/UserCard.vue";
 import AccountAvatar from "../components/AccountAvatar.vue";
 import { isStore, storeBlocks } from "../edition";
+import { errText, t } from "../i18n";
 
 const store = useAccountsStore();
 onMounted(() => store.load());
@@ -28,7 +29,7 @@ function done(text: string) {
   message.value = { ok: true, text };
 }
 function fail(e: unknown) {
-  message.value = { ok: false, text: String(e) };
+  message.value = { ok: false, text: errText(e) };
 }
 
 async function addOffline() {
@@ -38,7 +39,7 @@ async function addOffline() {
     const a = await api.addOfflineAccount(offlineName.value);
     await store.added(a);
     offlineName.value = "";
-    done(`离线账号 ${a.name} 已添加`);
+    done(t("account.offlineAdded", { name: a.name }));
   } catch (e) {
     fail(e);
   } finally {
@@ -55,7 +56,7 @@ async function startMicrosoft() {
     // 一直等到用户在浏览器里完成授权
     const a = await api.microsoftLoginFinish();
     await store.added(a);
-    done(`欢迎回来，${a.name}！正版登录成功`);
+    done(t("account.msLoggedIn", { name: a.name }));
   } catch (e) {
     fail(e);
   } finally {
@@ -87,7 +88,7 @@ async function addYgg() {
     const a = await api.addYggdrasilAccount(ygg.value.server, ygg.value.username, ygg.value.password);
     await store.added(a);
     ygg.value.password = "";
-    done(`外置账号 ${a.name}（${a.serverName}）登录成功`);
+    done(t("account.yggLoggedIn", { name: a.name, server: a.serverName ?? "" }));
   } catch (e) {
     fail(e);
   } finally {
@@ -96,23 +97,21 @@ async function addYgg() {
 }
 
 async function remove(id: string, name: string) {
-  if (!confirm(`确定删除账号 ${name} 吗？`)) return;
+  if (!confirm(t("account.confirmDelete", { name }))) return;
   await store.remove(id);
 }
 
 // 商店版只能用正版账号，不显示另外两种
-const tabs: { key: Mode; label: string }[] = [
-  { key: "microsoft" as Mode, label: "微软正版" },
-  { key: "offline" as Mode, label: "离线账号" },
-  { key: "yggdrasil" as Mode, label: "外置登录" },
-].filter((t) => !storeBlocks(t.key));
+const tabs = computed(() =>
+  (["microsoft", "offline", "yggdrasil"] as Mode[]).filter((k) => !storeBlocks(k)).map((key) => ({ key, label: t(`account.tab.${key}`) })),
+);
 </script>
 
 <template>
   <div class="account">
     <div>
       <div class="box">
-        <div class="box-title">我的账号 <span class="extra muted">点击设为当前账号</span></div>
+        <div class="box-title">{{ $t("account.mine") }} <span class="extra muted">{{ $t("account.clickToSelect") }}</span></div>
         <table class="thread-table">
           <tbody>
             <tr
@@ -124,66 +123,66 @@ const tabs: { key: Mode; label: string }[] = [
             >
               <td class="head-cell"><AccountAvatar :account="a" :size="32" /></td>
               <td>
-                <span class="tag" :class="'acc-' + a.kind">{{ kindLabel[a.kind] }}</span>
+                <span class="tag" :class="'acc-' + a.kind">{{ kindLabel(a.kind) }}</span>
                 <b>{{ a.name }}</b>
-                <span v-if="a.id === store.selectedId" class="current-mark">✔ 当前</span>
-                <span v-if="storeBlocks(a.kind)" class="tag blocked">商店版不能用</span>
-                <div class="muted small">{{ a.serverName ?? (a.kind === "microsoft" ? "Microsoft 账号" : "仅限单机和离线服务器") }}</div>
+                <span v-if="a.id === store.selectedId" class="current-mark">✔ {{ $t("account.current") }}</span>
+                <span v-if="storeBlocks(a.kind)" class="tag blocked">{{ $t("account.storeBlocked") }}</span>
+                <div class="muted small">{{ a.serverName ?? (a.kind === "microsoft" ? $t("account.msAccount") : $t("account.offlineOnly")) }}</div>
               </td>
-              <td class="num"><a class="del" @click.stop="remove(a.id, a.name)">删除</a></td>
+              <td class="num"><a class="del" @click.stop="remove(a.id, a.name)">{{ $t("common.delete") }}</a></td>
             </tr>
             <tr v-if="!store.accounts.length">
-              <td colspan="3" class="muted">还没有账号。在下面添加一个，才能启动游戏。</td>
+              <td colspan="3" class="muted">{{ $t("account.empty") }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div class="box">
-        <div class="box-title">添加账号</div>
-        <div v-if="isStore" class="box-body store-note">【版主提示】微软商店版只能使用正版账号：请用购买了 Minecraft Java 版的微软账号登录。</div>
+        <div class="box-title">{{ $t("quickLaunch.addAccount") }}</div>
+        <div v-if="isStore" class="box-body store-note">{{ $t("common.modTip") }}{{ $t("account.storeNote") }}</div>
         <div class="tabs">
-          <a v-for="t in tabs" :key="t.key" :class="{ active: mode === t.key }" @click="mode = t.key">{{ t.label }}</a>
+          <a v-for="tab in tabs" :key="tab.key" :class="{ active: mode === tab.key }" @click="mode = tab.key">{{ tab.label }}</a>
         </div>
         <div class="box-body">
           <template v-if="mode === 'microsoft'">
             <div v-if="device" class="device">
-              <p>请在浏览器中打开 <b>{{ device.verificationUri }}</b>，输入下面的代码并用你的微软账号登录：</p>
+              <p><i18n-t keypath="account.deviceHint"><b>{{ device.verificationUri }}</b></i18n-t></p>
               <div class="code">{{ device.userCode }}</div>
               <div class="device-actions">
-                <button class="btn primary" @click="copyAndOpen">{{ copied ? "已复制，正在打开浏览器" : "复制代码并打开浏览器" }}</button>
-                <button class="btn" @click="cancelMicrosoft">取消</button>
+                <button class="btn primary" @click="copyAndOpen">{{ copied ? $t("account.copiedOpening") : $t("account.copyAndOpen") }}</button>
+                <button class="btn" @click="cancelMicrosoft">{{ $t("common.cancel") }}</button>
               </div>
-              <p class="muted small">⏳ 等待你在浏览器中完成登录…（代码 {{ Math.round(device.expiresIn / 60) }} 分钟内有效）</p>
+              <p class="muted small">⏳ {{ $t("account.waiting", { n: Math.round(device.expiresIn / 60) }) }}</p>
             </div>
             <div v-else>
-              <p>使用购买了 Minecraft Java 版的微软账号登录。启动器不会接触你的微软密码。</p>
-              <button class="btn primary" :disabled="busy" @click="startMicrosoft">{{ busy ? "请求中…" : "微软账号登录" }}</button>
+              <p>{{ $t("account.msHint") }}</p>
+              <button class="btn primary" :disabled="busy" @click="startMicrosoft">{{ busy ? $t("account.requesting") : $t("account.msLogin") }}</button>
             </div>
           </template>
 
           <template v-else-if="mode === 'offline'">
             <form class="form-row" @submit.prevent="addOffline">
-              <input v-model="offlineName" class="input" placeholder="游戏名（3~16 位字母数字下划线）" maxlength="16" />
-              <button class="btn primary" :disabled="busy || !offlineName">添加</button>
+              <input v-model="offlineName" class="input" :placeholder="$t('account.offlinePlaceholder')" maxlength="16" />
+              <button class="btn primary" :disabled="busy || !offlineName">{{ $t("common.add") }}</button>
             </form>
-            <p class="muted small">离线账号只能进单人游戏和开启了离线模式的服务器。</p>
+            <p class="muted small">{{ $t("account.offlineHint") }}</p>
           </template>
 
           <template v-else>
             <form class="ygg" @submit.prevent="addYgg">
-              <label>认证服务器</label>
-              <input v-model="ygg.server" class="input" placeholder="如 littleskin.cn/api/yggdrasil 或皮肤站首页地址" />
-              <label>邮箱 / 用户名</label>
+              <label>{{ $t("account.yggServer") }}</label>
+              <input v-model="ygg.server" class="input" :placeholder="$t('account.yggServerPlaceholder')" />
+              <label>{{ $t("account.yggUser") }}</label>
               <input v-model="ygg.username" class="input" autocomplete="username" />
-              <label>密码</label>
+              <label>{{ $t("account.password") }}</label>
               <input v-model="ygg.password" class="input" type="password" autocomplete="current-password" />
               <span></span>
               <div>
                 <button class="btn primary" :disabled="busy || !ygg.server || !ygg.username || !ygg.password">
-                  {{ busy ? "登录中…" : "登录" }}
+                  {{ busy ? $t("account.loggingIn") : $t("shell.login") }}
                 </button>
-                <span class="muted small"> 密码只用于这一次登录，不会被保存</span>
+                <span class="muted small"> {{ $t("account.passwordHint") }}</span>
               </div>
             </form>
           </template>

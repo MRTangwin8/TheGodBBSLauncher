@@ -5,6 +5,7 @@ import { api, inTauri, onUpdateProgress } from "../api";
 import type { UpdateInfo, UpdateProgress } from "../api/types";
 import { useGameStore } from "../stores/game";
 import { formatBytes, formatDate } from "../utils";
+import { errText, t } from "../i18n";
 
 // 发现新版本时问一声：立即更新（应用内安装）/ 前往下载 / 以后再说 / 跳过此版本。
 // 更新说明是纯文本，不当 HTML 渲染。安装包的签名由后端校验，校验不过不会装。
@@ -28,7 +29,7 @@ onUnmounted(() => unlisten?.());
 async function install() {
   if (!props.info.latest) return;
   if (game.running.length) {
-    error.value = "游戏还在运行。更新会重启启动器，请先退出游戏再更新。";
+    error.value = t("update.gameRunning");
     return;
   }
   error.value = "";
@@ -39,7 +40,7 @@ async function install() {
     // 成功的话启动器会在这里自己重启，下面不会执行到
     await api.installUpdate(props.info.latest);
   } catch (e) {
-    error.value = `${e}`;
+    error.value = errText(e);
     installing.value = false;
   } finally {
     unlisten?.();
@@ -54,7 +55,7 @@ async function download() {
     else window.open(props.info.url, "_blank", "noopener,noreferrer");
     emit("close");
   } catch (e) {
-    error.value = `打不开浏览器：${e}。发布页地址：${props.info.url}`;
+    error.value = t("update.cantOpen", { err: errText(e), url: props.info.url });
   }
 }
 
@@ -65,40 +66,40 @@ function dismiss() {
 
 <template>
   <div class="mask" @click.self="dismiss">
-    <div class="dialog box" role="dialog" aria-modal="true" aria-label="发现新版本">
+    <div class="dialog box" role="dialog" aria-modal="true" :aria-label="$t('update.title')">
       <div class="box-title">
-        发现新版本
+        {{ $t("update.title") }}
         <a v-if="!installing" class="extra close" @click="dismiss">×</a>
       </div>
       <div class="box-body">
         <p class="versions">
-          <span class="muted">当前 v{{ info.current }}</span>
+          <span class="muted">{{ $t("update.current", { v: info.current }) }}</span>
           <span class="arrow">→</span>
           <b class="new">v{{ info.latest }}</b>
-          <span v-if="info.prerelease" class="tag pre">预发布</span>
+          <span v-if="info.prerelease" class="tag pre">{{ $t("update.prerelease") }}</span>
           <span v-if="info.published" class="muted date">{{ formatDate(info.published) }}</span>
         </p>
         <pre v-if="info.notes" class="notes">{{ info.notes }}</pre>
-        <p v-else class="muted">这个版本没有填写更新说明。</p>
+        <p v-else class="muted">{{ $t("update.noNotes") }}</p>
 
         <div v-if="installing" class="progress">
           <div class="xp-bar"><div :style="{ width: (downloadDone ? 100 : percent) + '%' }" /></div>
           <p class="muted small">
-            <template v-if="downloadDone">下载完成。启动器马上会关闭，安装窗口走完（大约十几秒到半分钟）后会自动重新打开，期间请不要手动再启动。</template>
-            <template v-else-if="progress">正在下载 {{ formatBytes(progress.downloaded) }}<template v-if="progress.total"> / {{ formatBytes(progress.total) }}（{{ percent }}%）</template></template>
-            <template v-else>正在连接…</template>
+            <template v-if="downloadDone">{{ $t("update.downloaded") }}</template>
+            <template v-else-if="progress">{{ $t("update.downloading", { size: formatBytes(progress.downloaded) }) }}<template v-if="progress.total"> / {{ formatBytes(progress.total) }} ({{ percent }}%)</template></template>
+            <template v-else>{{ $t("update.connecting") }}</template>
           </p>
         </div>
-        <p v-else-if="info.canInstall" class="muted small">点「立即更新」会下载新版本、校验签名，然后启动器会先关闭、装好后自动重新打开（需要十几秒，期间不用操作）；你的设置、账号和游戏都不受影响。</p>
-        <p v-else class="muted small">点「前往下载」会用系统浏览器打开发布页，从那里选择适合你系统的安装包；核对文件的 SHA256 / MD5 请看发布页。</p>
-        <p v-if="error" class="error-text small">{{ error }}<template v-if="info.canInstall"> 也可以改用「前往下载」手动安装。</template></p>
+        <p v-else-if="info.canInstall" class="muted small">{{ $t("update.installHint") }}</p>
+        <p v-else class="muted small">{{ $t("update.downloadHint") }}</p>
+        <p v-if="error" class="error-text small">{{ error }}<template v-if="info.canInstall"> {{ $t("update.fallback") }}</template></p>
       </div>
       <div class="actions">
-        <button class="btn small" :disabled="installing" @click="emit('skip', info.latest ?? '')">跳过此版本</button>
+        <button class="btn small" :disabled="installing" @click="emit('skip', info.latest ?? '')">{{ $t("update.skip") }}</button>
         <span class="grow" />
-        <button class="btn" :disabled="installing" @click="dismiss">以后再说</button>
-        <button class="btn" :class="{ primary: !info.canInstall }" :disabled="installing" @click="download">前往下载</button>
-        <button v-if="info.canInstall" class="btn primary" :disabled="installing" @click="install">{{ installing ? "更新中…" : "立即更新" }}</button>
+        <button class="btn" :disabled="installing" @click="dismiss">{{ $t("update.later") }}</button>
+        <button class="btn" :class="{ primary: !info.canInstall }" :disabled="installing" @click="download">{{ $t("update.goDownload") }}</button>
+        <button v-if="info.canInstall" class="btn primary" :disabled="installing" @click="install">{{ installing ? $t("update.updating") : $t("update.now") }}</button>
       </div>
     </div>
   </div>

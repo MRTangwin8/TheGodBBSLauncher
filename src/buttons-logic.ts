@@ -34,16 +34,16 @@ export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
   return next;
 }
 
-/** 服务器地址：主机名、IPv4 或 [IPv6]，可带端口。返回错误说明，合格返回 null；留空算合格（不进服务器） */
+/** 服务器地址：主机名、IPv4 或 [IPv6]，可带端口。返回错误说明在语言包里的 key（quickErr.*），合格返回 null；留空算合格（不进服务器） */
 export function validateServer(input: string): string | null {
   const s = input.trim();
   if (!s) return null;
-  if (s.length > 260) return "服务器地址太长";
+  if (s.length > 260) return "quickErr.serverTooLong";
   const m = /^(?:\[([0-9a-fA-F:.]+)\]|([A-Za-z0-9_.-]+))(?::(\d{1,5}))?$/.exec(s);
-  if (!m) return "服务器地址格式不对，应为 主机名 或 主机名:端口，例如 mc.example.com:25565";
+  if (!m) return "quickErr.serverFormatHint";
   const host = m[1] ?? m[2];
-  if (m[1] ? !m[1].includes(":") : /^[-.]|[-.]$|\.\./.test(host)) return "服务器地址格式不对";
-  if (m[3] !== undefined && (Number(m[3]) < 1 || Number(m[3]) > 65535)) return "端口要在 1 到 65535 之间";
+  if (m[1] ? !m[1].includes(":") : /^[-.]|[-.]$|\.\./.test(host)) return "quickErr.serverFormat";
+  if (m[3] !== undefined && (Number(m[3]) < 1 || Number(m[3]) > 65535)) return "quickErr.port";
   return null;
 }
 
@@ -60,42 +60,44 @@ export interface QuickDraft {
   action: QuickActionDraft;
 }
 
-/** 校验一个快捷按钮，返回第一个问题；没问题返回 null */
+/** 校验一个快捷按钮，返回第一个问题（语言包 key）；没问题返回 null */
 export function validateQuick(b: QuickDraft): string | null {
-  if (!b.label.trim()) return "给按钮起个名字";
+  if (!b.label.trim()) return "quickErr.name";
   const a = b.action;
   switch (a.type) {
     case "openFolder":
-      return a.path.trim() ? null : "选择要打开的文件夹";
+      return a.path.trim() ? null : "quickErr.folder";
     case "runProgram":
-      return a.path.trim() ? null : "选择要运行的程序或脚本";
+      return a.path.trim() ? null : "quickErr.program";
     case "openUrl": {
       try {
         const u = new URL(a.url.trim());
-        if (!["http:", "https:"].includes(u.protocol)) return "网址要以 http:// 或 https:// 开头";
-        if (u.username || u.password) return "网址里不要带账号密码";
+        if (!["http:", "https:"].includes(u.protocol)) return "quickErr.urlScheme";
+        if (u.username || u.password) return "quickErr.urlCredentials";
         return null;
       } catch {
-        return "网址格式不对，例如 https://www.mcbbs.co/";
+        return "quickErr.url";
       }
     }
     case "launch":
-      if (!a.versionId.trim()) return "选择要启动的版本";
+      if (!a.versionId.trim()) return "quickErr.version";
       return validateServer(a.server ?? "");
   }
 }
 
-/** 按钮动作的一句话说明，用在列表和悬停提示里 */
-export function describeQuick(a: QuickActionDraft): string {
+/** 按钮动作的一句话说明（语言包 key + 参数），用在列表和悬停提示里 */
+export function describeQuick(a: QuickActionDraft): { key: string; params: Record<string, string> } {
   switch (a.type) {
     case "openFolder":
-      return `打开文件夹 ${a.path}`;
+      return { key: "quickDesc.openFolder", params: { path: a.path } };
     case "openUrl":
-      return `打开网址 ${a.url}`;
+      return { key: "quickDesc.openUrl", params: { url: a.url } };
     case "runProgram":
-      return `运行 ${a.path}`;
+      return { key: "quickDesc.runProgram", params: { path: a.path } };
     case "launch":
-      return a.server?.trim() ? `启动 ${a.versionId} 并进入 ${a.server.trim()}` : `启动 ${a.versionId}`;
+      return a.server?.trim()
+        ? { key: "quickDesc.launchServer", params: { version: a.versionId, server: a.server.trim() } }
+        : { key: "quickDesc.launch", params: { version: a.versionId } };
   }
 }
 

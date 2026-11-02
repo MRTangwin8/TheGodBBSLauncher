@@ -11,6 +11,7 @@ import GameDirDialog from "../components/GameDirDialog.vue";
 import type { GameDirInfo } from "../api/types";
 import { announcementsLoading, announcementsNote, loadAnnouncements, restoreAnnouncements } from "../announcements";
 import { isStore } from "../edition";
+import { LOCALES, LOCALE_NAMES, errText, t } from "../i18n";
 
 const store = useSettingsStore();
 const versions = useVersionsStore();
@@ -37,7 +38,7 @@ async function showDirDialog(fromLegacy = false) {
 }
 async function pickGameDir() {
   if (!inTauri) {
-    message.value = { ok: false, text: "浏览器预览模式不能选择文件夹" };
+    message.value = { ok: false, text: t("gameDir.previewOnly") };
     return;
   }
   const chosen = await open({ multiple: false, directory: true });
@@ -53,7 +54,7 @@ async function onDirClosed() {
   if (i) suggestMove.value = i.legacyHasData ? "fromLegacy" : i.currentIsLegacy && i.current !== i.recommended ? "toRecommended" : null;
 }
 async function openGameDir() {
-  if (form.value) await api.quickOpenFolder(form.value.gameDir).catch((e) => (message.value = { ok: false, text: `${e}` }));
+  if (form.value) await api.quickOpenFolder(form.value.gameDir).catch((e) => (message.value = { ok: false, text: errText(e) }));
 }
 // 老版本默认放在 AppData 里：提醒一下可以搬到启动器旁边
 const suggestMove = ref<"toRecommended" | "fromLegacy" | null>(null);
@@ -75,9 +76,9 @@ async function updateRules() {
   rulesMsg.value = null;
   try {
     rules.value = await api.updateCrashRules(form.value.crashRulesUrl);
-    rulesMsg.value = { ok: true, text: `更新成功，现在共 ${rules.value.count} 条规则` };
+    rulesMsg.value = { ok: true, text: t("settings.rulesUpdated", { n: rules.value.count }) };
   } catch (e) {
-    rulesMsg.value = { ok: false, text: String(e) };
+    rulesMsg.value = { ok: false, text: errText(e) };
   } finally {
     rulesBusy.value = false;
   }
@@ -85,7 +86,7 @@ async function updateRules() {
 
 async function resetRules() {
   rules.value = await api.resetCrashRules();
-  rulesMsg.value = { ok: true, text: "已恢复内置规则库" };
+  rulesMsg.value = { ok: true, text: t("settings.rulesReset") };
 }
 
 async function scanJava(force: boolean) {
@@ -114,10 +115,10 @@ async function save() {
       windowWidth: optNumber(form.value.windowWidth),
       windowHeight: optNumber(form.value.windowHeight),
     });
-    message.value = { ok: true, text: "保存成功，神权已生效" };
+    message.value = { ok: true, text: t("settings.saved") };
     versions.loadInstalled();
   } catch (e) {
-    message.value = { ok: false, text: String(e) };
+    message.value = { ok: false, text: errText(e) };
   }
 }
 
@@ -127,13 +128,24 @@ async function runProbe() {
   try {
     probe.value = await api.probeMirrors();
   } catch (e) {
-    message.value = { ok: false, text: String(e) };
+    message.value = { ok: false, text: errText(e) };
   } finally {
     probing.value = false;
   }
 }
 
-const sourceName = { official: "Mojang 官方", bmclapi: "BMCLAPI" };
+// 界面语言：改了立刻生效、立刻保存，和下面那张表单的「保存」无关
+const languages: Settings["language"][] = ["auto", ...LOCALES];
+const langMsg = ref("");
+async function setLanguage(language: Settings["language"]) {
+  if (!store.settings) return;
+  langMsg.value = "";
+  try {
+    await store.save({ ...store.settings, language });
+  } catch (e) {
+    langMsg.value = errText(e);
+  }
+}
 
 // 检查更新：手动查，查到新版本会弹窗；自动检查的开关改了立刻保存
 const checking = ref(false);
@@ -143,11 +155,11 @@ async function manualCheck() {
   updateMsg.value = null;
   try {
     const info = await checkForUpdate(true);
-    if (!info?.latest) updateMsg.value = { ok: true, text: "GitHub 上还没有发布版本" };
-    else if (info.hasUpdate) updateMsg.value = { ok: true, text: `发现新版本 v${info.latest}` };
-    else updateMsg.value = { ok: true, text: `已经是最新版（v${info.current}）` };
+    if (!info?.latest) updateMsg.value = { ok: true, text: t("settings.noRelease") };
+    else if (info.hasUpdate) updateMsg.value = { ok: true, text: t("settings.hasUpdate", { v: info.latest }) };
+    else updateMsg.value = { ok: true, text: t("settings.upToDate", { v: info.current }) };
   } catch (e) {
-    updateMsg.value = { ok: false, text: String(e) };
+    updateMsg.value = { ok: false, text: errText(e) };
   } finally {
     checking.value = false;
   }
@@ -158,7 +170,7 @@ async function setAnnouncements(on: boolean) {
     await store.save({ ...store.settings, announcementsEnabled: on });
     if (on) loadAnnouncements();
   } catch (e) {
-    updateMsg.value = { ok: false, text: String(e) };
+    updateMsg.value = { ok: false, text: errText(e) };
   }
 }
 async function setAutoCheck(on: boolean) {
@@ -166,7 +178,7 @@ async function setAutoCheck(on: boolean) {
   try {
     await store.save({ ...store.settings, autoCheckUpdate: on });
   } catch (e) {
-    updateMsg.value = { ok: false, text: String(e) };
+    updateMsg.value = { ok: false, text: errText(e) };
   }
 }
 
@@ -177,69 +189,79 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
 
 <template>
   <div class="box">
-    <div class="box-title">外观</div>
+    <div class="box-title">{{ $t("settings.appearance") }}</div>
     <div class="box-body">
-      布局、配色、深浅色和背景图都在 <RouterLink to="/theme">主题中心</RouterLink> 里切换。
+      <div class="row">
+        <label>{{ $t("language.label") }}</label>
+        <div class="field">
+          <select class="input" :value="store.settings?.language ?? 'auto'" @change="setLanguage(($event.target as HTMLSelectElement).value as Settings['language'])">
+            <option v-for="l in languages" :key="l" :value="l">{{ l === "auto" ? $t("language.auto") : LOCALE_NAMES[l] }}</option>
+          </select>
+          <span class="muted hint">{{ $t("settings.languageHint") }}</span>
+          <span v-if="langMsg" class="error-text">{{ langMsg }}</span>
+        </div>
+      </div>
+      <i18n-t keypath="settings.appearanceHint" tag="p" class="appearance-hint"><RouterLink to="/theme">{{ $t("nav.theme") }}</RouterLink></i18n-t>
     </div>
   </div>
 
   <div class="box">
-    <div class="box-title">设置</div>
+    <div class="box-title">{{ $t("nav.settings") }}</div>
     <div v-if="form" class="box-body">
       <div class="row">
-        <label>游戏目录</label>
+        <label>{{ $t("settings.gameDir") }}</label>
         <div class="field">
           <div class="dirline">
             <code class="dirpath">{{ form.gameDir }}</code>
-            <button class="btn small" @click="pickGameDir">选择文件夹…</button>
-            <button class="btn small" @click="showDirDialog()">更改 / 迁移…</button>
-            <button class="btn small" @click="openGameDir">打开文件夹</button>
+            <button class="btn small" @click="pickGameDir">{{ $t("settings.pickFolder") }}</button>
+            <button class="btn small" @click="showDirDialog()">{{ $t("settings.changeDir") }}</button>
+            <button class="btn small" @click="openGameDir">{{ $t("launchHome.openFolder") }}</button>
           </div>
-          <div class="muted hint">默认放在启动器旁边的 .minecraft 里，卸载启动器不会删它。libraries / assets 在所有版本间共享</div>
-          <div v-if="suggestMove === 'toRecommended'" class="hint"><a @click="showDirDialog()">你的游戏数据还在系统的应用数据文件夹里，可以一键迁到启动器旁边 »</a></div>
-          <div v-else-if="suggestMove === 'fromLegacy'" class="hint"><a @click="showDirDialog(true)">旧位置（应用数据文件夹）里还留着游戏数据，可以一键迁到现在的游戏目录 »</a></div>
+          <div class="muted hint">{{ $t("settings.gameDirHint") }}</div>
+          <div v-if="suggestMove === 'toRecommended'" class="hint"><a @click="showDirDialog()">{{ $t("settings.suggestRecommended") }} »</a></div>
+          <div v-else-if="suggestMove === 'fromLegacy'" class="hint"><a @click="showDirDialog(true)">{{ $t("settings.suggestLegacy") }} »</a></div>
         </div>
       </div>
       <div class="row">
-        <label>下载源</label>
+        <label>{{ $t("settings.source") }}</label>
         <div class="field">
           <select v-model="form.downloadSource" class="input">
-            <option value="auto">自动（测速选最快）</option>
-            <option value="official">Mojang 官方</option>
-            <option value="bmclapi">BMCLAPI 镜像</option>
+            <option value="auto">{{ $t("settings.sourceAuto") }}</option>
+            <option value="official">{{ $t("settings.sourceOfficial") }}</option>
+            <option value="bmclapi">{{ $t("settings.sourceBmclapi") }}</option>
           </select>
-          <button class="btn" :disabled="probing" @click="runProbe">{{ probing ? "测速中…" : "测速" }}</button>
+          <button class="btn" :disabled="probing" @click="runProbe">{{ probing ? $t("settings.probing") : $t("settings.probe") }}</button>
           <span v-if="probe" class="probe">
             <span v-for="p in probe" :key="p.source">
-              {{ sourceName[p.source] }}：<b>{{ p.millis === null ? "超时" : p.millis + " ms" }}</b>
+              {{ p.source === "official" ? $t("settings.sourceOfficial") : "BMCLAPI" }}: <b>{{ p.millis === null ? $t("settings.timeout") : p.millis + " ms" }}</b>
             </span>
           </span>
-          <div class="muted hint">无论选哪个，失败时都会自动换另一个源重试</div>
+          <div class="muted hint">{{ $t("settings.sourceHint") }}</div>
         </div>
       </div>
       <div class="row">
-        <label>最大并发</label>
+        <label>{{ $t("settings.concurrency") }}</label>
         <div class="field">
           <input v-model.number="form.concurrency" type="number" min="1" max="256" class="input narrow" />
-          <span class="muted hint">默认 8，网络好可以调高</span>
+          <span class="muted hint">{{ $t("settings.concurrencyHint") }}</span>
         </div>
       </div>
       <div class="row">
         <label>CurseForge Key</label>
         <div class="field">
-          <input v-model="form.curseforgeApiKey" type="password" class="input wide mono" placeholder="留空则通过 MCIM 社区镜像访问 CurseForge" autocomplete="off" />
+          <input v-model="form.curseforgeApiKey" type="password" class="input wide mono" :placeholder="$t('settings.cfPlaceholder')" autocomplete="off" />
           <div class="muted hint">
-            可在 console.curseforge.com 免费申请。填写后直连官方接口；Modrinth 不需要 Key。
+            {{ $t("settings.cfHint") }}
           </div>
         </div>
       </div>
 
-      <h3 class="section">游戏与 Java <span class="muted">—— 完全神权，参数你说了算</span></h3>
+      <h3 class="section">{{ $t("settings.gameJava") }} <span class="muted">{{ $t("settings.gameJavaTag") }}</span></h3>
       <div class="row">
         <label>Java</label>
         <div class="field">
           <select v-model="form.javaPath" class="input wide">
-            <option :value="null">自动选择（按版本要求，没有就自动下载 Mojang 官方 Java）</option>
+            <option :value="null">{{ $t("settings.javaAuto") }}</option>
             <option v-for="j in javas" :key="j.path" :value="j.path">
               Java {{ j.version }} {{ j.arch }} {{ j.vendor ?? "" }} — {{ j.path }}
             </option>
@@ -247,51 +269,51 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
               {{ form.javaPath }}
             </option>
           </select>
-          <button class="btn" :disabled="scanning" @click="scanJava(true)">{{ scanning ? "扫描中…" : "重新扫描" }}</button>
-          <div class="muted hint">本机找到 {{ javas.length }} 个 Java</div>
+          <button class="btn" :disabled="scanning" @click="scanJava(true)">{{ scanning ? $t("settings.scanning") : $t("settings.rescan") }}</button>
+          <div class="muted hint">{{ $t("settings.javaFound", { n: javas.length }) }}</div>
         </div>
       </div>
       <div class="row">
-        <label>最大内存</label>
+        <label>{{ $t("settings.memory") }}</label>
         <div class="field">
-          <input v-model="form.memoryMb" type="number" min="512" step="256" class="input narrow" placeholder="自动" />
+          <input v-model="form.memoryMb" type="number" min="512" step="256" class="input narrow" :placeholder="$t('settings.auto')" />
           <span class="muted">MB</span>
           <span v-if="memory" class="muted hint">
-            留空为自动（本机 {{ (memory.totalMb / 1024).toFixed(1) }} GB 内存，自动分配 {{ memory.autoMb }} MB）
+            {{ $t("settings.memoryHint", { total: (memory.totalMb / 1024).toFixed(1), auto: memory.autoMb }) }}
           </span>
         </div>
       </div>
       <div class="row">
-        <label>窗口大小</label>
+        <label>{{ $t("settings.windowSize") }}</label>
         <div class="field">
-          <input v-model="form.windowWidth" type="number" class="input narrow" placeholder="默认" />
+          <input v-model="form.windowWidth" type="number" class="input narrow" :placeholder="$t('settings.default')" />
           ×
-          <input v-model="form.windowHeight" type="number" class="input narrow" placeholder="默认" />
+          <input v-model="form.windowHeight" type="number" class="input narrow" :placeholder="$t('settings.default')" />
         </div>
       </div>
       <div class="row">
-        <label>版本隔离</label>
+        <label>{{ $t("settings.isolate") }}</label>
         <div class="field">
-          <label class="check"><input v-model="form.isolateVersions" type="checkbox" /> 每个版本使用独立的游戏目录（存档、模组、设置互不影响）</label>
+          <label class="check"><input v-model="form.isolateVersions" type="checkbox" /> {{ $t("settings.isolateHint") }}</label>
         </div>
       </div>
       <div class="row">
-        <label>JVM 参数</label>
+        <label>{{ $t("settings.jvmArgs") }}</label>
         <div class="field">
-          <input v-model="form.jvmArgs" class="input wide mono" placeholder="例如 -XX:+UseZGC -Dsome.prop=1" />
+          <input v-model="form.jvmArgs" class="input wide mono" :placeholder="$t('settings.example', { v: '-XX:+UseZGC -Dsome.prop=1' })" />
         </div>
       </div>
       <div class="row">
-        <label>游戏参数</label>
+        <label>{{ $t("settings.gameArgs") }}</label>
         <div class="field">
-          <input v-model="form.gameArgs" class="input wide mono" placeholder="例如 --fullscreen" />
+          <input v-model="form.gameArgs" class="input wide mono" :placeholder="$t('settings.example', { v: '--fullscreen' })" />
         </div>
       </div>
 
       <div class="row">
         <label></label>
         <div class="field">
-          <button class="btn primary" @click="save">保存</button>
+          <button class="btn primary" @click="save">{{ $t("common.save") }}</button>
           <span v-if="message" :class="message.ok ? 'ok' : 'error-text'">{{ message.text }}</span>
         </div>
       </div>
@@ -299,18 +321,18 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
   </div>
 
   <div v-if="form" class="box">
-    <div class="box-title">崩溃分析规则库</div>
+    <div class="box-title">{{ $t("settings.rules") }}</div>
     <div class="box-body">
       <p v-if="rules" class="rules-info">
-        当前 <b>{{ rules.count }}</b> 条规则（版本 {{ rules.version }}，{{ rules.custom ? "已加载自定义/在线规则" : "内置规则" }}）
+        <i18n-t keypath="settings.rulesInfo"><b>{{ rules.count }}</b><span>{{ rules.version }}</span><span>{{ rules.custom ? $t("settings.rulesCustom") : $t("settings.rulesBuiltin") }}</span></i18n-t>
       </p>
       <div class="row">
-        <label>更新地址</label>
+        <label>{{ $t("settings.rulesUrl") }}</label>
         <div class="field">
-          <input v-model="form.crashRulesUrl" class="input wide mono" placeholder="https://…/crash-rules.json（留空只用内置规则）" />
-          <button class="btn" :disabled="!form.crashRulesUrl || rulesBusy" @click="updateRules">{{ rulesBusy ? "更新中…" : "立即更新" }}</button>
-          <button v-if="rules?.custom" class="btn" :disabled="rulesBusy" @click="resetRules">恢复内置</button>
-          <div class="muted hint">规则是 JSON 格式，和内置规则同 id 的会覆盖、新 id 会追加。改完记得点上面的「保存」记住地址。</div>
+          <input v-model="form.crashRulesUrl" class="input wide mono" :placeholder="$t('settings.rulesPlaceholder')" />
+          <button class="btn" :disabled="!form.crashRulesUrl || rulesBusy" @click="updateRules">{{ rulesBusy ? $t("update.updating") : $t("update.now") }}</button>
+          <button v-if="rules?.custom" class="btn" :disabled="rulesBusy" @click="resetRules">{{ $t("settings.rulesRestore") }}</button>
+          <div class="muted hint">{{ $t("settings.rulesHint") }}</div>
         </div>
       </div>
       <p v-if="rulesMsg" :class="rulesMsg.ok ? 'ok' : 'error-text'">{{ rulesMsg.text }}</p>
@@ -318,31 +340,31 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
   </div>
 
   <div class="box">
-    <div class="box-title">关于</div>
+    <div class="box-title">{{ $t("settings.about") }}</div>
     <div class="box-body about">
-      <p><b>神权论坛启动器</b> {{ appVersion ? `v${appVersion}` : "（浏览器预览）" }}<template v-if="isStore">（微软商店版）</template> —— 献给 MCBBS（我的世界中文论坛）的一封情书。</p>
-      <p>本程序是<b>非官方粉丝纪念作品</b>，与 MCBBS、Mojang Studios、Microsoft 均无关联；界面元素全部为原创绘制，未使用任何官方 Logo 或图片素材。</p>
-      <p>本程序不分发 Minecraft 游戏文件，所有文件均从 Mojang 官方服务器或 BMCLAPI 镜像下载。感谢 bangbang93 提供 BMCLAPI，感谢 MCIM 提供 Modrinth / CurseForge 镜像。</p>
-      <p v-if="isStore" class="muted">商店版由 Microsoft Store 负责更新；只能使用正版 Minecraft 账号。</p>
+      <p><b>{{ $t("app.name") }}</b> {{ appVersion ? `v${appVersion}` : $t("settings.browserPreview") }}<template v-if="isStore">{{ $t("settings.storeEdition") }}</template> {{ $t("settings.loveLetter") }}</p>
+      <i18n-t keypath="settings.unofficial" tag="p"><b>{{ $t("settings.unofficialBold") }}</b></i18n-t>
+      <p>{{ $t("settings.noDistribution") }}</p>
+      <p v-if="isStore" class="muted">{{ $t("settings.storeUpdates") }}</p>
       <div v-else class="update-row">
-        <button class="btn small" :disabled="checking" @click="manualCheck">{{ checking ? "检查中…" : "检查更新" }}</button>
+        <button class="btn small" :disabled="checking" @click="manualCheck">{{ checking ? $t("settings.checking") : $t("settings.checkUpdate") }}</button>
         <label class="check">
           <input type="checkbox" :checked="store.settings?.autoCheckUpdate !== false" @change="setAutoCheck(($event.target as HTMLInputElement).checked)" />
-          启动时自动检查更新
+          {{ $t("settings.autoCheck") }}
         </label>
         <span v-if="updateMsg" :class="updateMsg.ok ? 'ok' : 'error-text'">{{ updateMsg.text }}</span>
       </div>
       <div class="update-row">
-        <button class="btn small" :disabled="announcementsLoading" @click="loadAnnouncements(true)">{{ announcementsLoading ? "刷新中…" : "刷新公告" }}</button>
+        <button class="btn small" :disabled="announcementsLoading" @click="loadAnnouncements(true)">{{ announcementsLoading ? $t("settings.refreshing") : $t("settings.refreshNotice") }}</button>
         <label class="check">
           <input type="checkbox" :checked="store.settings?.announcementsEnabled !== false" @change="setAnnouncements(($event.target as HTMLInputElement).checked)" />
-          启动时获取公告
+          {{ $t("settings.fetchNotice") }}
         </label>
-        <a v-if="store.settings?.dismissedAnnouncements?.length" @click="restoreAnnouncements()">重新显示已关闭的公告</a>
+        <a v-if="store.settings?.dismissedAnnouncements?.length" @click="restoreAnnouncements()">{{ $t("settings.restoreNotice") }}</a>
         <span v-if="announcementsNote" :class="announcementsNote.ok ? 'ok' : 'error-text'">{{ announcementsNote.text }}</span>
       </div>
-      <p v-if="isStore" class="muted hint">获取公告只会向 GitHub 读取公开内容（GitHub 能看到你的网络地址），不会上传任何其他信息，只在启动时获取一次。</p>
-      <p v-else class="muted hint">检查更新和获取公告都只会向 GitHub 读取公开内容（GitHub 能看到你的网络地址），不会上传任何其他信息。公告只在启动时获取一次；更新不会自动安装，点了「立即更新」才会。</p>
+      <p v-if="isStore" class="muted hint">{{ $t("settings.privacyStore") }}</p>
+      <p v-else class="muted hint">{{ $t("settings.privacy") }}</p>
     </div>
   </div>
   <GameDirDialog v-if="dirDialog && dirInfo" :info="dirInfo" :initial="dirInitial" :from-legacy="dirFromLegacy" @close="onDirClosed" />
@@ -351,9 +373,10 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
 <style scoped>
 .row { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
 .row:last-child { border-bottom: none; }
-.row label { width: 90px; flex-shrink: 0; text-align: right; padding-top: 6px; color: var(--text-muted); }
+.appearance-hint { margin: 8px 0 0; }
+.row label { width: 110px; flex-shrink: 0; text-align: right; padding-top: 6px; color: var(--text-muted); }
 .field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; }
-.wide { flex: 1; min-width: 300px; }
+.wide { flex: 1 1 300px; min-width: 0; }
 .narrow { width: 90px; }
 .hint { width: 100%; font-size: 12px; }
 .dirline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -367,5 +390,5 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
 .mono { font-family: var(--font-pixel); }
 .update-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 10px 0 4px; }
 .rules-info { margin: 0 0 6px; }
-.field label.check { width: auto; text-align: left; padding-top: 0; color: var(--text); }
+.field label.check { width: auto; flex-shrink: 1; text-align: left; padding-top: 0; color: var(--text); }
 </style>

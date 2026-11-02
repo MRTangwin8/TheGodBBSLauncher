@@ -10,6 +10,7 @@ import PixelIcon from "../PixelIcon.vue";
 import QuickButtons from "./QuickButtons.vue";
 import NoticeBoard from "./NoticeBoard.vue";
 import { useButtons } from "../../buttons";
+import { errText, t } from "../../i18n";
 
 const { selected, byRecent, current, runningRun, launchingThis, launchStage, launch, versions, accounts, game, router } = useLauncher();
 const settings = useSettingsStore();
@@ -24,7 +25,7 @@ onMounted(() => versions.loadInstalled());
 
 function describe(v: { loader: string | null; mcVersion: string | null; id: string }) {
   const mc = v.mcVersion && v.mcVersion !== v.id ? `MC ${v.mcVersion}` : "";
-  return [mc, v.loader ? loaderLabel[v.loader] : "原版"].filter(Boolean).join(" · ");
+  return [mc, v.loader ? loaderLabel[v.loader] : t("common.vanilla")].filter(Boolean).join(" · ");
 }
 
 /** 在资源管理器里打开这个版本的文件夹 */
@@ -44,49 +45,49 @@ function openFolder() {
         <div class="hero-main">
           <div class="pickers">
             <label class="picker">
-              <span class="picker-label">版本</span>
+              <span class="picker-label">{{ $t("launchHome.version") }}</span>
               <select v-model="selected" class="picker-select">
                 <option v-for="v in byRecent" :key="v.id" :value="v.id">{{ v.id }}</option>
               </select>
             </label>
             <label class="picker">
-              <span class="picker-label">账号</span>
+              <span class="picker-label">{{ $t("launchHome.account") }}</span>
               <select
                 v-if="accounts.accounts.length"
                 :value="accounts.selectedId ?? ''"
                 class="picker-select"
                 @change="accounts.select(($event.target as HTMLSelectElement).value)"
               >
-                <option v-for="a in accounts.accounts" :key="a.id" :value="a.id">{{ a.name }}（{{ accountKind[a.kind] }}）</option>
+                <option v-for="a in accounts.accounts" :key="a.id" :value="a.id">{{ $t("quickLaunch.accountOption", { name: a.name, kind: accountKind(a.kind) }) }}</option>
               </select>
-              <RouterLink v-else to="/account" class="picker-empty">还没有账号，点这里添加 »</RouterLink>
+              <RouterLink v-else to="/account" class="picker-empty">{{ $t("launchHome.noAccount") }} »</RouterLink>
             </label>
           </div>
           <p v-if="current" class="hero-meta">
-            <span v-if="current.modpack" class="tag modpack">整合包</span>
-            {{ describe(current) }} · 已玩 {{ formatDuration(current.playTimeSecs) }} · {{ timeAgo(current.lastPlayed) }}
+            <span v-if="current.modpack" class="tag modpack">{{ $t("common.modpack") }}</span>
+            {{ describe(current) }} · {{ $t("quickLaunch.played", { time: formatDuration(current.playTimeSecs) }) }} · {{ timeAgo(current.lastPlayed) }}
           </p>
           <div v-if="current" class="quick-actions">
-            <a @click="openFolder"><PixelIcon name="folder" :size="12" /> 打开文件夹</a>
-            <a v-if="current.loader" @click="router.push({ path: '/resources', query: { version: current.id } })"><PixelIcon name="resources" :size="12" /> 管理模组</a>
-            <a @click="router.push('/versions')"><PixelIcon name="versions" :size="12" /> 版本管理</a>
+            <a @click="openFolder"><PixelIcon name="folder" :size="12" /> {{ $t("launchHome.openFolder") }}</a>
+            <a v-if="current.loader" @click="router.push({ path: '/resources', query: { version: current.id } })"><PixelIcon name="resources" :size="12" /> {{ $t("launchHome.manageMods") }}</a>
+            <a @click="router.push('/versions')"><PixelIcon name="versions" :size="12" /> {{ $t("nav.versions") }}</a>
           </div>
           <QuickButtons />
-          <p v-if="game.error && !game.launching" class="error-text small">启动失败：{{ game.error }}</p>
+          <p v-if="game.error && !game.launching" class="error-text small">{{ $t("common.launchFailed", { err: errText(game.error) }) }}</p>
         </div>
 
         <div class="hero-action">
           <template v-if="runningRun">
             <button class="launch running" @click="router.push('/log')">
-              <span class="launch-title">游戏运行中</span>
-              <span class="launch-sub">点击查看日志</span>
+              <span class="launch-title">{{ $t("shell.gameRunning") }}</span>
+              <span class="launch-sub">{{ $t("launchHome.viewLog") }}</span>
             </button>
-            <a class="stop" @click="game.kill(runningRun.runId)">结束进程</a>
+            <a class="stop" @click="game.kill(runningRun.runId)">{{ $t("launchHome.kill") }}</a>
           </template>
           <button v-else class="launch" :class="launchClass" :style="launchStyle" :disabled="!!game.launching" @click="launch()">
             <PixelIcon v-if="!launchingThis" name="play" :size="22" />
             <span class="launch-text">
-              <span class="launch-title">{{ launchingThis ? "启动中…" : accounts.selected ? launchLabel : "添加账号" }}</span>
+              <span class="launch-title">{{ launchingThis ? $t("launchHome.launching") : accounts.selected ? launchLabel : $t("quickLaunch.addAccount") }}</span>
               <span class="launch-sub">{{ launchingThis ? launchStage : current?.id }}</span>
             </span>
           </button>
@@ -94,40 +95,40 @@ function openFolder() {
       </template>
 
       <div v-else class="hero-empty">
-        <h2>欢迎来到神权论坛！</h2>
-        <p class="muted">还没有安装任何版本。先去下载中心装一个，或者把整合包文件直接拖进窗口。</p>
-        <RouterLink to="/download" class="btn primary">去下载中心</RouterLink>
+        <h2>{{ $t("launchHome.welcome") }}</h2>
+        <p class="muted">{{ $t("launchHome.empty") }}</p>
+        <RouterLink to="/download" class="btn primary">{{ $t("launchHome.goDownload") }}</RouterLink>
       </div>
     </section>
 
     <div class="cols">
       <div>
         <NoticeBoard>
-          <p><span class="tag">置顶</span><b>神权论坛启动器</b>：原版 / 加载器 / 整合包一键安装，资源中心下载时自动检查兼容性，崩溃了版主帮你看。</p>
-          <p class="muted">小贴士：把 .mrpack 或整合包 .zip 直接拖进窗口就能导入。</p>
+          <p><span class="tag">{{ $t("notice.pinned") }}</span><b>{{ $t("app.name") }}</b>{{ $t("home.intro") }}</p>
+          <p class="muted">{{ $t("home.tip") }}</p>
         </NoticeBoard>
 
         <section class="box">
-          <div class="box-title">最近玩过 <RouterLink to="/versions" class="extra">全部版本 »</RouterLink></div>
-          <div v-if="!recent.length" class="box-body muted">沙发还空着～ 启动一次游戏就会出现在这里。</div>
+          <div class="box-title">{{ $t("launchHome.recent") }} <RouterLink to="/versions" class="extra">{{ $t("quickLaunch.allVersions") }} »</RouterLink></div>
+          <div v-if="!recent.length" class="box-body muted">{{ $t("launchHome.recentEmpty") }}</div>
           <div v-for="(v, i) in recent" :key="v.id" class="floor">
             <span class="floor-no">{{ i + 1 }}#</span>
             <div class="floor-main">
               <b>{{ v.id }}</b>
-              <span class="muted small">{{ describe(v) }} · {{ timeAgo(v.lastPlayed) }} · 共 {{ formatDuration(v.playTimeSecs) }}</span>
+              <span class="muted small">{{ describe(v) }} · {{ timeAgo(v.lastPlayed) }} · {{ $t("launchHome.total", { time: formatDuration(v.playTimeSecs) }) }}</span>
             </div>
-            <button class="btn small" :disabled="!!game.launching || game.running.some((r) => r.versionId === v.id)" @click="launch(v.id)">启动</button>
+            <button class="btn small" :disabled="!!game.launching || game.running.some((r) => r.versionId === v.id)" @click="launch(v.id)">{{ $t("common.launch") }}</button>
           </div>
         </section>
       </div>
 
       <section class="box stats">
-        <div class="box-title">我的数据</div>
+        <div class="box-title">{{ $t("launchHome.myStats") }}</div>
         <div class="box-body">
-          <div class="stat"><span class="stat-num">{{ formatDuration(totalPlay) }}</span><span class="muted">游戏时长</span></div>
-          <div class="stat"><span class="stat-num">{{ versions.installed.length }}</span><span class="muted">已装版本</span></div>
-          <div class="stat"><span class="stat-num">{{ points }}</span><span class="muted">积分</span></div>
-          <div class="group">用户组：<b>神权</b></div>
+          <div class="stat"><span class="stat-num">{{ formatDuration(totalPlay) }}</span><span class="muted">{{ $t("userCard.playTime") }}</span></div>
+          <div class="stat"><span class="stat-num">{{ versions.installed.length }}</span><span class="muted">{{ $t("userCard.installed") }}</span></div>
+          <div class="stat"><span class="stat-num">{{ points }}</span><span class="muted">{{ $t("userCard.points") }}</span></div>
+          <div class="group">{{ $t("shell.userGroup") }}<b>{{ $t("shell.god") }}</b></div>
         </div>
       </section>
     </div>
@@ -142,7 +143,7 @@ function openFolder() {
 .hero-main { flex: 1; min-width: 0; }
 .pickers { display: flex; flex-direction: column; gap: 10px; }
 .picker { display: flex; align-items: center; gap: 12px; }
-.picker-label { width: 32px; color: var(--text-muted); }
+.picker-label { min-width: 32px; white-space: nowrap; color: var(--text-muted); }
 .picker-select {
   flex: 1;
   max-width: 420px;

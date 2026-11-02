@@ -5,6 +5,7 @@ import { api } from "../api";
 import type { ModpackPreview } from "../api/types";
 import { useVersionsStore } from "../stores/versions";
 import { loaderLabel } from "../utils";
+import { errText, t } from "../i18n";
 
 const props = defineProps<{ path: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -15,7 +16,7 @@ const preview = ref<ModpackPreview | null>(null);
 const error = ref<string | null>(null);
 const name = ref("");
 
-const formatLabel = { modrinth: "Modrinth（.mrpack）", curseforge: "CurseForge", mcbbs: "MCBBS" };
+const formatLabel = { modrinth: "Modrinth (.mrpack)", curseforge: "CurseForge", mcbbs: "MCBBS" };
 const fileName = computed(() => props.path.split(/[\\/]/).pop());
 
 onMounted(async () => {
@@ -23,21 +24,21 @@ onMounted(async () => {
     preview.value = await api.modpackPreview(props.path);
     name.value = preview.value.suggestedName;
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 });
 
 const nameError = computed(() => {
   const n = name.value.trim();
-  if (!n) return "版本名不能为空";
-  if (/[\\/:*?"<>|]/.test(n)) return '不能包含 \\ / : * ? " < > |';
-  if (versions.installed.some((v) => v.id === n)) return "已经有同名版本了";
+  if (!n) return t("install.nameEmpty");
+  if (/[\\/:*?"<>|]/.test(n)) return t("install.nameChars", { chars: '\\ / : * ? " < > |' });
+  if (versions.installed.some((v) => v.id === n)) return t("install.nameTaken");
   return null;
 });
 
 async function start() {
   const n = name.value.trim();
-  const job = versions.startJob(`整合包 ${n}`);
+  const job = versions.startJob(t("modpackImport.job", { name: n }));
   job.stage = "versionJson";
   emit("close");
   router.push("/download");
@@ -46,7 +47,7 @@ async function start() {
     job.status = "done";
   } catch (e) {
     job.status = "failed";
-    job.error = String(e);
+    job.error = errText(e);
   }
   await versions.loadInstalled();
 }
@@ -56,41 +57,41 @@ async function start() {
   <div class="mask" @click.self="emit('close')">
     <div class="dialog box">
       <div class="box-title">
-        导入整合包
+        {{ $t("download.importModpack") }}
         <a class="extra close" @click="emit('close')">×</a>
       </div>
       <div class="box-body">
         <p class="muted small">{{ fileName }}</p>
         <p v-if="error" class="error-text">{{ error }}</p>
-        <div v-else-if="!preview" class="muted">正在读取整合包…</div>
+        <div v-else-if="!preview" class="muted">{{ $t("modpackImport.reading") }}</div>
         <template v-else>
           <h3 class="pack-name">
-            {{ preview.info.name || "未命名整合包" }} <span class="muted">{{ preview.info.version }}</span>
+            {{ preview.info.name || $t("modpackImport.unnamed") }} <span class="muted">{{ preview.info.version }}</span>
           </h3>
           <p v-if="preview.info.summary" class="summary">{{ preview.info.summary }}</p>
           <dl class="facts">
-            <dt>格式</dt><dd>{{ formatLabel[preview.info.format] }}</dd>
-            <dt>游戏</dt>
+            <dt>{{ $t("modpackImport.format") }}</dt><dd>{{ formatLabel[preview.info.format] }}</dd>
+            <dt>{{ $t("modpackImport.game") }}</dt>
             <dd>
               Minecraft {{ preview.info.mc }}
               <template v-if="preview.info.loader"> + {{ loaderLabel[preview.info.loader] }} {{ preview.info.loaderVersion }}</template>
             </dd>
-            <dt v-if="preview.info.author">作者</dt><dd v-if="preview.info.author">{{ preview.info.author }}</dd>
-            <dt>文件</dt><dd>需下载 {{ preview.info.fileCount }} 个，包内自带 {{ preview.info.overrideCount }} 个</dd>
-            <dt v-if="preview.info.minMemoryMb">内存</dt><dd v-if="preview.info.minMemoryMb">至少 {{ preview.info.minMemoryMb }} MB</dd>
+            <dt v-if="preview.info.author">{{ $t("export.author") }}</dt><dd v-if="preview.info.author">{{ preview.info.author }}</dd>
+            <dt>{{ $t("modpackImport.files") }}</dt><dd>{{ $t("modpackImport.fileCounts", { download: preview.info.fileCount, bundled: preview.info.overrideCount }) }}</dd>
+            <dt v-if="preview.info.minMemoryMb">{{ $t("modpackImport.memory") }}</dt><dd v-if="preview.info.minMemoryMb">{{ $t("modpackImport.minMemory", { mb: preview.info.minMemoryMb }) }}</dd>
           </dl>
-          <div v-for="w in preview.info.warnings" :key="w" class="mod-tip warn">【版主提示】{{ w }}</div>
+          <div v-for="w in preview.info.warnings" :key="w" class="mod-tip warn">{{ $t("common.modTip") }}{{ w }}</div>
           <div class="name-row">
-            <label>版本名称</label>
+            <label>{{ $t("install.name") }}</label>
             <input v-model="name" class="input" />
           </div>
           <p v-if="nameError" class="error-text small">{{ nameError }}</p>
-          <p v-else class="muted small">会单独放在 versions/{{ name.trim() }}，存档和模组与其它版本互不影响</p>
+          <p v-else class="muted small">{{ $t("modpackImport.isolated", { name: name.trim() }) }}</p>
         </template>
       </div>
       <div class="actions">
-        <button class="btn" @click="emit('close')">取消</button>
-        <button class="btn primary" :disabled="!preview || !!nameError" @click="start">开始导入</button>
+        <button class="btn" @click="emit('close')">{{ $t("common.cancel") }}</button>
+        <button class="btn primary" :disabled="!preview || !!nameError" @click="start">{{ $t("modpackImport.start") }}</button>
       </div>
     </div>
   </div>

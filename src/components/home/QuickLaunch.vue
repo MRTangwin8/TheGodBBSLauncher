@@ -4,6 +4,7 @@ import { kindLabel as accountKind } from "../../stores/accounts";
 import { formatDuration, loaderLabel } from "../../utils";
 import { useButtons } from "../../buttons";
 import QuickButtons from "./QuickButtons.vue";
+import { errText } from "../../i18n";
 
 // 经典论坛首页的「快速启动」版块
 const { launchLabel, launchClass, launchStyle } = useButtons();
@@ -13,11 +14,11 @@ const { selected, byRecent, current, runningRun, launchingThis, launchStage, lau
 <template>
   <div class="box">
     <div class="box-title">
-      🎮 快速启动
-      <RouterLink to="/versions" class="extra">全部版本 »</RouterLink>
+      🎮 {{ $t("quickLaunch.title") }}
+      <RouterLink to="/versions" class="extra">{{ $t("quickLaunch.allVersions") }} »</RouterLink>
     </div>
     <div v-if="!versions.installed.length" class="box-body muted">
-      还没有安装任何版本，去 <RouterLink to="/download">下载中心</RouterLink> 装一个，或者把整合包拖进窗口。
+      <i18n-t keypath="quickLaunch.empty"><RouterLink to="/download">{{ $t("nav.download") }}</RouterLink></i18n-t>
     </div>
     <div v-else class="box-body quick">
       <select v-model="selected" class="input pick">
@@ -29,23 +30,23 @@ const { selected, byRecent, current, runningRun, launchingThis, launchStage, lau
         class="input pick account"
         @change="accounts.select(($event.target as HTMLSelectElement).value)"
       >
-        <option v-for="a in accounts.accounts" :key="a.id" :value="a.id">{{ a.name }}（{{ accountKind[a.kind] }}）</option>
+        <option v-for="a in accounts.accounts" :key="a.id" :value="a.id">{{ $t("quickLaunch.accountOption", { name: a.name, kind: accountKind(a.kind) }) }}</option>
       </select>
-      <RouterLink v-else to="/account" class="no-account">添加账号 »</RouterLink>
+      <RouterLink v-else to="/account" class="no-account">{{ $t("quickLaunch.addAccount") }} »</RouterLink>
 
       <template v-if="runningRun">
-        <button class="btn go running" @click="router.push('/log')">游戏运行中</button>
-        <a class="stop" @click="game.kill(runningRun.runId)">结束</a>
+        <button class="btn go running" @click="router.push('/log')">{{ $t("shell.gameRunning") }}</button>
+        <a class="stop" @click="game.kill(runningRun.runId)">{{ $t("quickLaunch.stop") }}</a>
       </template>
       <button v-else class="btn primary go" :class="launchClass" :style="launchStyle" :disabled="!!game.launching" @click="launch()">
-        {{ launchingThis ? launchStage : accounts.selected ? `▶ ${launchLabel}` : "添加账号" }}
+        {{ launchingThis ? launchStage : accounts.selected ? `▶ ${launchLabel}` : $t("quickLaunch.addAccount") }}
       </button>
     </div>
     <div v-if="versions.installed.length" class="quick-extra"><QuickButtons /></div>
     <div v-if="current && versions.installed.length" class="meta muted">
-      {{ current.loader ? loaderLabel[current.loader] : "原版" }}{{ current.mcVersion && current.mcVersion !== current.id ? ` · MC ${current.mcVersion}` : "" }}
-      · 已玩 {{ formatDuration(current.playTimeSecs) }}
-      <span v-if="game.error && !game.launching" class="error-text"> · 启动失败：{{ game.error }}</span>
+      {{ current.loader ? loaderLabel[current.loader] : $t("common.vanilla") }}{{ current.mcVersion && current.mcVersion !== current.id ? ` · MC ${current.mcVersion}` : "" }}
+      · {{ $t("quickLaunch.played", { time: formatDuration(current.playTimeSecs) }) }}
+      <span v-if="game.error && !game.launching" class="error-text"> · {{ $t("common.launchFailed", { err: errText(game.error) }) }}</span>
     </div>
   </div>
 </template>

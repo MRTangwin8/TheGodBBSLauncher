@@ -6,6 +6,7 @@ import type { DirStats, GameDirInfo, MigrateProgress, MigrateReport } from "../a
 import { useGameStore } from "../stores/game";
 import { useSettingsStore } from "../stores/settings";
 import { formatBytes } from "../utils";
+import { errText, t } from "../i18n";
 
 // 更改游戏目录：默认把现有内容搬过去；也可以只改位置（旧数据留在原处）。
 // 后端保证：新位置确认没问题之前，旧数据一个字节都不动。
@@ -28,13 +29,6 @@ const error = ref("");
 let unlisten: (() => void) | undefined;
 onUnmounted(() => unlisten?.());
 
-const stageText: Record<string, string> = {
-  scanning: "正在统计文件…",
-  moving: "正在移动…",
-  copying: "正在复制…",
-  verifying: "正在核对复制结果…",
-  cleaning: "正在清理旧目录…",
-};
 const percent = computed(() => {
   const p = progress.value;
   return p?.totalBytes ? Math.min(100, Math.round((p.bytes / p.totalBytes) * 100)) : 0;
@@ -42,9 +36,9 @@ const percent = computed(() => {
 const sameAsCurrent = computed(() => norm(target.value) === norm(source.value));
 const hasOld = computed(() => !!mine.value?.exists && !mine.value.empty);
 const blocked = computed(() => {
-  if (game.running.length) return "游戏还在运行，先退出游戏再更改目录。";
-  if (!target.value.trim()) return "请选择新位置。";
-  if (sameAsCurrent.value) return "新位置和现在的一样。";
+  if (game.running.length) return t("gameDir.gameRunning");
+  if (!target.value.trim()) return t("gameDir.pickTarget");
+  if (sameAsCurrent.value) return t("gameDir.same");
   return "";
 });
 
@@ -61,7 +55,7 @@ onMounted(refresh);
 
 async function pick() {
   if (!inTauri) {
-    error.value = "浏览器预览模式不能选择文件夹";
+    error.value = t("gameDir.previewOnly");
     return;
   }
   const chosen = await open({ multiple: false, directory: true });
@@ -80,7 +74,7 @@ async function run() {
     report.value = await api.gameDirMigrate(target.value.trim(), props.fromLegacy || (moveFiles.value && hasOld.value), props.fromLegacy);
     await settings.load();
   } catch (e) {
-    error.value = `${e}`;
+    error.value = errText(e);
   } finally {
     busy.value = false;
     unlisten?.();
@@ -95,56 +89,56 @@ function dismiss() {
 
 <template>
   <div class="mask" @click.self="dismiss">
-    <div class="dialog box" role="dialog" aria-modal="true" aria-label="更改游戏目录">
+    <div class="dialog box" role="dialog" aria-modal="true" :aria-label="$t('gameDir.title')">
       <div class="box-title">
-        {{ fromLegacy ? "迁移旧位置的游戏数据" : "更改游戏目录" }}
+        {{ fromLegacy ? $t("gameDir.legacyTitle") : $t("gameDir.title") }}
         <a v-if="!busy" class="extra close" @click="dismiss">×</a>
       </div>
       <div class="box-body">
         <template v-if="report">
           <p class="ok-text">
-            <template v-if="report.moved">已迁移完成。<template v-if="report.renamed">同一个磁盘，直接移动，没有复制。</template><template v-else>共 {{ report.files }} 个文件，{{ formatBytes(report.bytes) }}。</template></template>
-            <template v-else>已改到新位置，旧文件原样留在原处。</template>
+            <template v-if="report.moved">{{ $t("gameDir.migrated") }}<template v-if="report.renamed">{{ $t("gameDir.renamed") }}</template><template v-else>{{ $t("gameDir.copied", { n: report.files, size: formatBytes(report.bytes) }) }}</template></template>
+            <template v-else>{{ $t("gameDir.changedOnly") }}</template>
           </p>
-          <p class="muted small break">现在的游戏目录：{{ target }}</p>
+          <p class="muted small break">{{ $t("gameDir.now", { path: target }) }}</p>
           <div v-if="report.leftover.length" class="warn-box">
-            <p class="small">下面这些东西已经复制成功，但旧目录里没能删掉（可能被占用或杀毒软件在扫描），请自己删除：</p>
+            <p class="small">{{ $t("gameDir.leftover") }}</p>
             <ul class="small"><li v-for="p in report.leftover" :key="p" class="break">{{ p }}</li></ul>
           </div>
         </template>
         <template v-else>
           <div class="path-row">
-            <span class="label muted">{{ fromLegacy ? "旧位置" : "现在" }}</span>
+            <span class="label muted">{{ fromLegacy ? $t("gameDir.oldLabel") : $t("gameDir.nowLabel") }}</span>
             <span class="break">{{ source }}</span>
-            <span v-if="mine?.exists" class="muted small">（{{ mine.files }} 个文件，{{ formatBytes(mine.bytes) }}）</span>
+            <span v-if="mine?.exists" class="muted small">{{ $t("gameDir.stats", { n: mine.files, size: formatBytes(mine.bytes) }) }}</span>
           </div>
           <div class="path-row">
-            <span class="label muted">改到</span>
-            <span v-if="fromLegacy" class="break">{{ target }}<span class="muted small">（现在的游戏目录）</span></span>
+            <span class="label muted">{{ $t("gameDir.toLabel") }}</span>
+            <span v-if="fromLegacy" class="break">{{ target }}<span class="muted small">{{ $t("gameDir.currentDir") }}</span></span>
             <template v-else>
               <input v-model="target" class="input grow" :disabled="busy" @change="refresh" />
-              <button class="btn small" :disabled="busy" @click="pick">选择…</button>
+              <button class="btn small" :disabled="busy" @click="pick">{{ $t("common.browse") }}</button>
             </template>
           </div>
           <p v-if="!fromLegacy && target !== info.recommended" class="small">
-            <a @click="target = info.recommended; refresh()">用推荐位置（启动器旁边）</a>
+            <a @click="target = info.recommended; refresh()">{{ $t("gameDir.useRecommended") }}</a>
           </p>
-          <p v-if="dest?.exists && !dest.empty && !moveFiles" class="muted small">这个文件夹里已经有 {{ dest.files }} 个文件，启动器会直接使用它。</p>
+          <p v-if="dest?.exists && !dest.empty && !moveFiles" class="muted small">{{ $t("gameDir.destHasFiles", { n: dest.files }) }}</p>
 
-          <p v-if="fromLegacy" class="muted small">只会搬进去和现在目录里不重名的东西，重名的话会停下来，不覆盖任何文件。</p>
+          <p v-if="fromLegacy" class="muted small">{{ $t("gameDir.legacyHint") }}</p>
           <div v-if="hasOld && !fromLegacy" class="choice">
-            <label><input v-model="moveFiles" type="radio" :value="true" :disabled="busy" /> 把现有内容搬过去（推荐）</label>
-            <label><input v-model="moveFiles" type="radio" :value="false" :disabled="busy" /> 只改位置，不搬文件（旧文件留在原处，新位置从头开始）</label>
+            <label><input v-model="moveFiles" type="radio" :value="true" :disabled="busy" /> {{ $t("gameDir.move") }}</label>
+            <label><input v-model="moveFiles" type="radio" :value="false" :disabled="busy" /> {{ $t("gameDir.noMove") }}</label>
           </div>
           <p v-if="hasOld && (moveFiles || fromLegacy)" class="muted small">
-            同一个磁盘上会直接移动，几 GB 也是瞬间；跨磁盘要复制，可能要几分钟，期间不能启动游戏和下载。复制完核对无误才会删旧文件，中途取消或出错，旧文件不会受影响。
+            {{ $t("gameDir.moveHint") }}
           </p>
 
           <div v-if="busy" class="progress">
             <div class="xp-bar"><div :style="{ width: percent + '%' }" /></div>
             <p class="muted small">
-              {{ stageText[progress?.stage ?? "scanning"] }}
-              <template v-if="progress?.totalBytes">{{ formatBytes(progress.bytes) }} / {{ formatBytes(progress.totalBytes) }}（{{ percent }}%）</template>
+              {{ $t(`gameDir.stage.${progress?.stage ?? "scanning"}`) }}
+              <template v-if="progress?.totalBytes">{{ formatBytes(progress.bytes) }} / {{ formatBytes(progress.totalBytes) }} ({{ percent }}%)</template>
             </p>
           </div>
           <p v-if="blocked && !busy" class="muted small">{{ blocked }}</p>
@@ -154,13 +148,13 @@ function dismiss() {
       <div class="actions">
         <template v-if="report">
           <span class="grow" />
-          <button class="btn primary" @click="emit('close')">好的</button>
+          <button class="btn primary" @click="emit('close')">{{ $t("common.ok") }}</button>
         </template>
         <template v-else>
           <span class="grow" />
-          <button v-if="busy" class="btn" @click="api.gameDirMigrateCancel()">取消迁移</button>
-          <button v-else class="btn" @click="dismiss">关闭</button>
-          <button class="btn primary" :disabled="busy || !!blocked" @click="run">{{ busy ? "迁移中…" : fromLegacy || (moveFiles && hasOld) ? "开始迁移" : "确定" }}</button>
+          <button v-if="busy" class="btn" @click="api.gameDirMigrateCancel()">{{ $t("gameDir.cancel") }}</button>
+          <button v-else class="btn" @click="dismiss">{{ $t("common.close") }}</button>
+          <button class="btn primary" :disabled="busy || !!blocked" @click="run">{{ busy ? $t("gameDir.migrating") : fromLegacy || (moveFiles && hasOld) ? $t("gameDir.start") : $t("common.confirm") }}</button>
         </template>
       </div>
     </div>

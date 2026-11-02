@@ -56,12 +56,12 @@ pub async fn list_versions(client: &reqwest::Client, primary: mirror::Source, ki
 /// `name` 为空时用 [`default_version_name`]（带 MC 版本，比安装器自带的 neoforge-21.11.48 直观）。
 pub async fn install(ctx: &LoaderContext<'_>, kind: LoaderKind, mc: &str, loader_id: &str, name: Option<&str>) -> Result<String> {
     if !ctx.game.version_json(mc).is_file() {
-        return Err(Error::Other(format!("请先安装原版 {mc}")));
+        return Err(Error::coded("loader.needVanilla", &[("mc", &mc)], format!("请先安装原版 {mc}")));
     }
     let name = name.map(str::to_string).unwrap_or_else(|| default_version_name(kind, mc, loader_id));
     crate::engine::install::validate_version_name(&name)?;
     if ctx.game.versions().join(&name).exists() {
-        return Err(Error::Other(format!("已经有名为「{name}」的版本了，换个名字吧")));
+        return Err(Error::coded("install.nameTaken", &[("name", &name)], format!("已经有名为「{name}」的版本了，换个名字吧")));
     }
     let installed = match kind {
         LoaderKind::Fabric | LoaderKind::Quilt => fabric::install(ctx, kind, mc, loader_id).await?,
@@ -81,7 +81,7 @@ pub(crate) async fn fetch_text(client: &reqwest::Client, url: &str, primary: mir
             Err(e) => last = Some(e.into()),
         }
     }
-    Err(last.unwrap_or_else(|| Error::Other(format!("无法获取 {url}"))))
+    Err(last.unwrap_or_else(|| Error::coded("fetch", &[("url", &url)], format!("无法获取 {url}"))))
 }
 
 /// maven-metadata.xml 里的所有 <version>

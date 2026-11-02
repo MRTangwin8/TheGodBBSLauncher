@@ -39,7 +39,7 @@ pub async fn install_loader(
     let state: &AppState = &state;
     let _task = state.begin_task()?;
     if !state.installing.lock().await.insert(job_id.clone()) {
-        return Err(Error::Other("这个加载器已经在安装了，别急".into()));
+        return Err(Error::coded("install.loaderBusy", &[], "这个加载器已经在安装了，别急"));
     }
     let name = name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());
     let result = do_install(&app, state, &job_id, &mc_version, kind, &loader_id, name.as_deref()).await;
@@ -77,7 +77,11 @@ pub async fn install_game(state: &AppState, report: ReportFn, mc: &str, loader: 
     let entry = manifest.find(mc).ok_or_else(|| Error::VersionNotFound(mc.to_string()))?.clone();
     let r = install::install_vanilla(&downloader, &game, &entry, &platform, report.clone()).await?;
     if let Some(f) = r.failed.first() {
-        return Err(Error::Other(format!("原版 {mc} 有 {} 个文件下载失败：{}", r.failed.len(), f.reason)));
+        return Err(Error::coded(
+            "install.vanillaFailed",
+            &[("mc", &mc), ("n", &r.failed.len()), ("reason", &f.reason)],
+            format!("原版 {mc} 有 {} 个文件下载失败：{}", r.failed.len(), f.reason),
+        ));
     }
     downloader.verify_existing = true;
 

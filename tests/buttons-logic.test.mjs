@@ -68,10 +68,10 @@ test("快捷按钮校验", () => {
   assert.equal(validateQuick(q({ type: "launch", versionId: "1.21.1", server: "mc.example.com" })), null);
   assert.equal(validateQuick(q({ type: "launch", versionId: "1.21.1" })), null);
 
-  assert.match(validateQuick(q({ type: "openFolder", path: "C:/mc" }, "  ")), /名字/);
-  assert.match(validateQuick(q({ type: "openFolder", path: " " })), /文件夹/);
-  assert.match(validateQuick(q({ type: "runProgram", path: "" })), /程序/);
-  assert.match(validateQuick(q({ type: "launch", versionId: "" })), /版本/);
+  assert.match(validateQuick(q({ type: "openFolder", path: "C:/mc" }, "  ")), /quickErr\.name/);
+  assert.match(validateQuick(q({ type: "openFolder", path: " " })), /quickErr\.folder/);
+  assert.match(validateQuick(q({ type: "runProgram", path: "" })), /quickErr\.program/);
+  assert.match(validateQuick(q({ type: "launch", versionId: "" })), /quickErr\.version/);
   assert.notEqual(validateQuick(q({ type: "launch", versionId: "1.21.1", server: "--bad" })), null);
   for (const url of ["javascript:alert(1)", "file:///C:/Windows/System32/cmd.exe", "ftp://x.com", "example.com", "https://user:pw@example.com", ""]) {
     assert.notEqual(validateQuick(q({ type: "openUrl", url })), null, url);
@@ -79,9 +79,9 @@ test("快捷按钮校验", () => {
 });
 
 test("动作说明，以及 id 不重复", () => {
-  assert.equal(describeQuick({ type: "launch", versionId: "1.21.1", server: " mc.x.com " }), "启动 1.21.1 并进入 mc.x.com");
-  assert.equal(describeQuick({ type: "launch", versionId: "1.21.1" }), "启动 1.21.1");
-  assert.match(describeQuick({ type: "runProgram", path: "C:/a.bat" }), /运行 C:\/a\.bat/);
+  assert.deepEqual(describeQuick({ type: "launch", versionId: "1.21.1", server: " mc.x.com " }), { key: "quickDesc.launchServer", params: { version: "1.21.1", server: "mc.x.com" } });
+  assert.deepEqual(describeQuick({ type: "launch", versionId: "1.21.1" }), { key: "quickDesc.launch", params: { version: "1.21.1" } });
+  assert.deepEqual(describeQuick({ type: "runProgram", path: "C:/a.bat" }), { key: "quickDesc.runProgram", params: { path: "C:/a.bat" } });
   const ids = new Set();
   const existing = [];
   for (let i = 0; i < 200; i++) {

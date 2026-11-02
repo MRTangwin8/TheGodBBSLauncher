@@ -4,6 +4,7 @@ import { api } from "../api";
 import type { ThemePreview } from "../api/types";
 import { useSettingsStore } from "../stores/settings";
 import { reloadBackground } from "../appearance";
+import { errText } from "../i18n";
 
 const props = defineProps<{ path: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -14,24 +15,12 @@ const error = ref<string | null>(null);
 const busy = ref(false);
 const fileName = computed(() => props.path.split(/[\\/]/).pop());
 
-const layoutName: Record<string, string> = { classic: "经典论坛", sidebar: "木板侧栏", modern: "完全现代" };
-const paletteName: Record<string, string> = {
-  mcbbs: "MCBBS 经典",
-  grass: "草方块",
-  nether: "下界",
-  end: "末地",
-  ocean: "海洋",
-  cherry: "樱花",
-  stone: "石头",
-  custom: "自定义",
-};
-const themeName: Record<string, string> = { light: "浅色", dark: "深色", system: "跟随系统" };
 
 onMounted(async () => {
   try {
     preview.value = await api.themePreview(props.path);
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   }
 });
 
@@ -42,7 +31,7 @@ async function apply() {
     await reloadBackground();
     emit("close");
   } catch (e) {
-    error.value = String(e);
+    error.value = errText(e);
   } finally {
     busy.value = false;
   }
@@ -53,32 +42,32 @@ async function apply() {
   <div class="mask" @click.self="emit('close')">
     <div class="dialog box">
       <div class="box-title">
-        导入主题
+        {{ $t("themeImport.title") }}
         <a class="extra close" @click="emit('close')">×</a>
       </div>
       <div class="box-body">
         <p class="muted small">{{ fileName }}</p>
         <p v-if="error" class="error-text">{{ error }}</p>
-        <div v-else-if="!preview" class="muted">正在读取主题…</div>
+        <div v-else-if="!preview" class="muted">{{ $t("themeImport.reading") }}</div>
         <template v-else>
           <div class="hero" :style="preview.background ? { backgroundImage: `url(${preview.background})` } : undefined">
             <div v-if="preview.palette === 'custom' && preview.customPalette" class="chips">
               <i v-for="c in preview.customPalette" :key="c" :style="{ background: c }" />
             </div>
-            <span v-if="!preview.background" class="muted">没有背景图（用布局自带的）</span>
+            <span v-if="!preview.background" class="muted">{{ $t("themeImport.noBackground") }}</span>
           </div>
-          <h3 class="name">{{ preview.name || "未命名主题" }} <span v-if="preview.author" class="muted">by {{ preview.author }}</span></h3>
+          <h3 class="name">{{ preview.name || $t("themeImport.unnamed") }} <span v-if="preview.author" class="muted">{{ $t("themeImport.by", { author: preview.author }) }}</span></h3>
           <dl class="facts">
-            <dt>布局</dt><dd>{{ preview.layout ? layoutName[preview.layout] : "不改" }}</dd>
-            <dt>配色</dt><dd>{{ preview.palette ? paletteName[preview.palette] : "不改" }}</dd>
-            <dt>明暗</dt><dd>{{ preview.theme ? themeName[preview.theme] : "不改" }}</dd>
+            <dt>{{ $t("appearance.layout") }}</dt><dd>{{ preview.layout ? $t(`appearance.layouts.${preview.layout}.name`) : $t("themeImport.unchanged") }}</dd>
+            <dt>{{ $t("appearance.palette") }}</dt><dd>{{ preview.palette ? $t(`appearance.palettes.${preview.palette}`) : $t("themeImport.unchanged") }}</dd>
+            <dt>{{ $t("appearance.mode") }}</dt><dd>{{ preview.theme ? $t(`appearance.modes.${preview.theme}`) : $t("themeImport.unchanged") }}</dd>
           </dl>
-          <p class="muted small">导入后会替换当前的外观细调和背景图，之后随时可以在主题中心改回来。</p>
+          <p class="muted small">{{ $t("themeImport.replaceHint") }}</p>
         </template>
       </div>
       <div class="actions">
-        <button class="btn" @click="emit('close')">取消</button>
-        <button class="btn primary" :disabled="!preview || busy" @click="apply">{{ busy ? "应用中…" : "应用主题" }}</button>
+        <button class="btn" @click="emit('close')">{{ $t("common.cancel") }}</button>
+        <button class="btn primary" :disabled="!preview || busy" @click="apply">{{ busy ? $t("themeImport.applying") : $t("themeImport.apply") }}</button>
       </div>
     </div>
   </div>

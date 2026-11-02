@@ -7,6 +7,7 @@ import InstallDialog from "../components/InstallDialog.vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { inTauri } from "../api";
 import { useModpackStore } from "../stores/modpack";
+import { errText, t } from "../i18n";
 
 const versions = useVersionsStore();
 const dialogFor = ref<string | null>(null);
@@ -18,7 +19,7 @@ async function pickModpack() {
     modpack.importPath = "C:/Downloads/Fabulously.Optimized-v6.5.0.mrpack";
     return;
   }
-  const file = await open({ multiple: false, filters: [{ name: "整合包", extensions: ["mrpack", "zip"] }] });
+  const file = await open({ multiple: false, filters: [{ name: t("common.modpack"), extensions: ["mrpack", "zip"] }] });
   if (typeof file === "string") modpack.importPath = file;
 }
 const filter = ref<VersionKind | "old">("release");
@@ -28,11 +29,11 @@ const limit = ref(PAGE);
 
 onMounted(() => versions.manifest || versions.loadManifest());
 
-const tabs: { key: VersionKind | "old"; label: string }[] = [
-  { key: "release", label: "正式版" },
-  { key: "snapshot", label: "快照" },
-  { key: "old", label: "远古版本" },
-];
+const tabs = computed<{ key: VersionKind | "old"; label: string }[]>(() => [
+  { key: "release", label: t("versionKind.release") },
+  { key: "snapshot", label: t("versionKind.snapshot") },
+  { key: "old", label: t("download.old") },
+]);
 
 const filtered = computed(() => {
   const list = versions.manifest?.versions ?? [];
@@ -52,38 +53,38 @@ function switchTab(key: VersionKind | "old") {
 <template>
   <div class="box">
     <div class="box-title">
-      下载中心
+      {{ $t("nav.download") }}
       <span class="extra">
         <template v-if="versions.manifest">
-          最新正式版 <b>{{ versions.manifest.latest.release }}</b> · 最新快照 <b>{{ versions.manifest.latest.snapshot }}</b>
+          <i18n-t keypath="download.latest"><b>{{ versions.manifest.latest.release }}</b><b>{{ versions.manifest.latest.snapshot }}</b></i18n-t>
         </template>
       </span>
     </div>
     <div class="toolbar">
       <div class="tabs">
-        <a v-for="t in tabs" :key="t.key" :class="{ active: filter === t.key }" @click="switchTab(t.key)">{{ t.label }}</a>
+        <a v-for="tab in tabs" :key="tab.key" :class="{ active: filter === tab.key }" @click="switchTab(tab.key)">{{ tab.label }}</a>
       </div>
-      <input v-model="keyword" class="input" placeholder="搜索版本号…" @input="limit = PAGE" />
-      <button class="btn" @click="versions.loadManifest(true)">刷新</button>
-      <button class="btn primary" @click="pickModpack">导入整合包</button>
+      <input v-model="keyword" class="input" :placeholder="$t('download.search')" @input="limit = PAGE" />
+      <button class="btn" @click="versions.loadManifest(true)">{{ $t("common.refresh") }}</button>
+      <button class="btn primary" @click="pickModpack">{{ $t("download.importModpack") }}</button>
     </div>
 
     <div v-if="versions.manifestError" class="box-body">
-      <div class="mod-tip">【版主提示】版本列表获取失败：{{ versions.manifestError }}</div>
+      <div class="mod-tip">{{ $t("common.modTip") }}{{ $t("download.manifestFailed", { err: errText(versions.manifestError) }) }}</div>
     </div>
-    <div v-else-if="!versions.manifest" class="box-body muted">正在加载版本列表…</div>
+    <div v-else-if="!versions.manifest" class="box-body muted">{{ $t("download.loading") }}</div>
 
     <table v-else class="thread-table">
       <thead>
-        <tr><th>主题</th><th class="num">发布时间</th><th class="num">操作</th></tr>
+        <tr><th>{{ $t("common.thread") }}</th><th class="num">{{ $t("common.released") }}</th><th class="num">{{ $t("common.actions") }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="v in filtered.slice(0, limit)" :key="v.id">
           <td>
-            <span class="tag" :class="v.type">{{ kindLabel[v.type] }}</span>
+            <span class="tag" :class="v.type">{{ kindLabel(v.type) }}</span>
             <b>{{ v.id }}</b>
-            <span v-if="versions.installedIds.has(v.id)" class="tag installed">已安装</span>
-            <span v-if="v.id === versions.manifest.latest.release" class="hot">新</span>
+            <span v-if="versions.installedIds.has(v.id)" class="tag installed">{{ $t("download.installed") }}</span>
+            <span v-if="v.id === versions.manifest.latest.release" class="hot">{{ $t("download.new") }}</span>
           </td>
           <td class="num">{{ formatDate(v.releaseTime) }}</td>
           <td class="num">
@@ -94,23 +95,23 @@ function switchTab(key: VersionKind | "old") {
                 :disabled="versions.jobs[v.id]?.status === 'running'"
                 @click="versions.install(v.id)"
               >
-                补全文件
+                {{ $t("common.completeFiles") }}
               </button>
               <button
                 class="btn small primary"
                 :disabled="versions.jobs[v.id]?.status === 'running'"
                 @click="dialogFor = v.id"
               >
-                {{ versions.jobs[v.id]?.status === "running" ? "安装中…" : versions.installedIds.has(v.id) ? "装加载器" : "安装" }}
+                {{ versions.jobs[v.id]?.status === "running" ? $t("download.installing") : versions.installedIds.has(v.id) ? $t("download.addLoader") : $t("download.install") }}
               </button>
             </span>
           </td>
         </tr>
-        <tr v-if="!filtered.length"><td colspan="3" class="muted">没有找到相关主题</td></tr>
+        <tr v-if="!filtered.length"><td colspan="3" class="muted">{{ $t("download.noResult") }}</td></tr>
       </tbody>
     </table>
     <div v-if="filtered.length > limit" class="more">
-      <button class="btn" @click="limit += PAGE">加载更多（还有 {{ filtered.length - limit }} 帖）</button>
+      <button class="btn" @click="limit += PAGE">{{ $t("download.more", { n: filtered.length - limit }) }}</button>
     </div>
   </div>
   <InstallDialog v-if="dialogFor" :mc="dialogFor" @close="dialogFor = null" />

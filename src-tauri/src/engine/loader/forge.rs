@@ -141,7 +141,7 @@ pub async fn install(ctx: &LoaderContext<'_>, kind: LoaderKind, mc: &str, id: &s
         )
         .await;
     if let Some(f) = r.failed.first() {
-        return Err(Error::Other(format!("安装器下载失败：{}", f.reason)));
+        return Err(Error::coded("loader.installer", &[("reason", &f.reason)], format!("安装器下载失败：{}", f.reason)));
     }
 
     let profile_bytes = {
@@ -167,7 +167,11 @@ async fn download_libraries(ctx: &LoaderContext<'_>, libraries: Vec<Library>) ->
     let report = ctx.report.clone();
     let r = ctx.downloader.download_all(tasks, Arc::new(move |p| report(Stage::Loader, p))).await;
     match r.failed.first() {
-        Some(f) => Err(Error::Other(format!("{} 个库下载失败，例如 {}：{}", r.failed.len(), f.path, f.reason))),
+        Some(f) => Err(Error::coded(
+            "loader.libsMany",
+            &[("n", &r.failed.len()), ("path", &f.path), ("reason", &f.reason)],
+            format!("{} 个库下载失败，例如 {}：{}", r.failed.len(), f.path, f.reason),
+        )),
         None => Ok(()),
     }
 }
@@ -314,7 +318,7 @@ async fn install_modern(ctx: &LoaderContext<'_>, mc: &str, installer: &Path, pro
     let java = match (&ctx.java, processors.is_empty()) {
         (_, true) => None,
         (Some(j), false) => Some(j.clone()),
-        (None, false) => return Err(Error::Other("运行 Forge 安装器需要 Java".into())),
+        (None, false) => return Err(Error::coded("loader.needJava", &[], "运行 Forge 安装器需要 Java")),
     };
 
     let total = processors.len();

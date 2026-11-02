@@ -22,7 +22,7 @@ pub async fn add_offline_account(state: State<'_, AppState>, name: String) -> Re
     crate::edition::check_account_kind(AccountKind::Offline)?;
     let name = name.trim().to_string();
     if !offline::is_valid_name(&name) {
-        return Err(Error::Other("离线名字需要 3~16 位，只能用英文字母、数字和下划线".into()));
+        return Err(Error::coded("auth.offlineName", &[], "离线名字需要 3~16 位，只能用英文字母、数字和下划线"));
     }
     let account = Account {
         id: new_id(),

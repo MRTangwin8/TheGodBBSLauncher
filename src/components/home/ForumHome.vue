@@ -6,6 +6,7 @@ import UserCard from "../UserCard.vue";
 import QuickLaunch from "./QuickLaunch.vue";
 import NoticeBoard from "./NoticeBoard.vue";
 import { formatDate, kindLabel } from "../../utils";
+import { t } from "../../i18n";
 
 // 第一版的论坛首页：公告栏 + 版块列表 + 最新帖子 + 个人信息
 const versions = useVersionsStore();
@@ -16,30 +17,30 @@ const boards = computed(() => [
   {
     to: "/download",
     icon: "⬇",
-    name: "下载中心",
-    desc: "原版 / 加载器一键安装，导入整合包",
-    stat: versions.manifest ? `${versions.manifest.versions.length} 个版本` : "…",
-    last: versions.manifest ? `最新正式版 ${versions.manifest.latest.release}` : "",
+    name: t("nav.download"),
+    desc: t("forumHome.downloadDesc"),
+    stat: versions.manifest ? t("forumHome.versionCount", { n: versions.manifest.versions.length }) : "…",
+    last: versions.manifest ? t("forumHome.latestRelease", { v: versions.manifest.latest.release }) : "",
   },
   {
     to: "/versions",
     icon: "▤",
-    name: "版本管理",
-    desc: "启动、补全文件、重命名、导出整合包",
-    stat: `${versions.installed.length} 个已安装`,
-    last: versions.installed[0] ? `最近：${versions.installed[0].id}` : "还没有安装任何版本",
+    name: t("nav.versions"),
+    desc: t("forumHome.versionsDesc"),
+    stat: t("forumHome.installedCount", { n: versions.installed.length }),
+    last: versions.installed[0] ? t("forumHome.recent", { v: versions.installed[0].id }) : t("forumHome.noVersions"),
   },
-  { to: "/resources", icon: "▣", name: "资源中心", desc: "Modrinth / CurseForge 模组、资源包、光影", stat: "自动装前置", last: "下载时检查兼容性" },
+  { to: "/resources", icon: "▣", name: t("nav.resources"), desc: t("forumHome.resourcesDesc"), stat: t("forumHome.resourcesStat"), last: t("forumHome.resourcesLast") },
   {
     to: "/account",
     icon: "☺",
-    name: "个人空间",
-    desc: "微软正版 / 离线 / 外置登录",
-    stat: `${accounts.accounts.length} 个账号`,
-    last: accounts.selected ? `当前：${accounts.selected.name}` : "还没有账号",
+    name: t("nav.account"),
+    desc: t("forumHome.accountDesc"),
+    stat: t("forumHome.accountCount", { n: accounts.accounts.length }),
+    last: accounts.selected ? t("forumHome.current", { name: accounts.selected.name }) : t("forumHome.noAccount"),
   },
-  { to: "/theme", icon: "✿", name: "主题中心", desc: "布局、配色、深浅色、背景图", stat: "三种布局", last: "七套配色" },
-  { to: "/settings", icon: "⚙", name: "设置", desc: "游戏目录、下载源、Java、内存、参数", stat: "完全神权", last: "所有参数你说了算" },
+  { to: "/theme", icon: "✿", name: t("nav.theme"), desc: t("forumHome.themeDesc"), stat: t("forumHome.themeStat"), last: t("forumHome.themeLast") },
+  { to: "/settings", icon: "⚙", name: t("nav.settings"), desc: t("forumHome.settingsDesc"), stat: t("forumHome.settingsStat"), last: t("forumHome.settingsLast") },
 ]);
 
 const latest = computed(() =>
@@ -52,12 +53,12 @@ const latest = computed(() =>
     <div class="left">
       <QuickLaunch />
       <NoticeBoard>
-        <p><span class="tag">置顶</span><b>神权论坛启动器</b>：原版 / 加载器 / 整合包一键安装，资源中心下载时自动检查兼容性，崩溃了版主帮你看。</p>
-        <p class="muted">小贴士：把 .mrpack 或整合包 .zip 直接拖进窗口就能导入；去「主题中心」可以换布局和配色。</p>
+        <p><span class="tag">{{ $t("notice.pinned") }}</span><b>{{ $t("app.name") }}</b>{{ $t("home.intro") }}</p>
+        <p class="muted">{{ $t("home.tipTheme") }}</p>
       </NoticeBoard>
 
       <div class="box">
-        <div class="box-title">版块</div>
+        <div class="box-title">{{ $t("forumHome.boards") }}</div>
         <table class="thread-table boards">
           <tbody>
             <tr v-for="b in boards" :key="b.to">
@@ -74,18 +75,18 @@ const latest = computed(() =>
       </div>
 
       <div class="box">
-        <div class="box-title">最新帖子 <span class="extra muted">最近玩过的版本</span></div>
+        <div class="box-title">{{ $t("forumHome.latest") }} <span class="extra muted">{{ $t("forumHome.latestHint") }}</span></div>
         <table class="thread-table">
           <tbody>
             <tr v-for="v in latest" :key="v.id">
               <td>
-                <span class="tag" :class="v.kind">{{ kindLabel[v.kind ?? ""] ?? v.kind ?? "自定义" }}</span>
+                <span class="tag" :class="v.kind">{{ kindLabel(v.kind) }}</span>
                 <RouterLink to="/versions">{{ v.id }}</RouterLink>
               </td>
               <td class="num">{{ formatDate(v.releaseTime) }}</td>
             </tr>
             <tr v-if="!latest.length">
-              <td class="muted">沙发还空着～ 去 <RouterLink to="/download">下载中心</RouterLink> 装一个版本抢沙发吧</td>
+              <td class="muted"><i18n-t keypath="forumHome.empty"><RouterLink to="/download">{{ $t("nav.download") }}</RouterLink></i18n-t></td>
             </tr>
           </tbody>
         </table>

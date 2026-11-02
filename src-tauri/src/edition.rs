@@ -19,7 +19,7 @@ pub fn check_account_kind(kind: AccountKind) -> Result<()> {
 
 fn check_kind(store: bool, kind: AccountKind) -> Result<()> {
     if store && kind != AccountKind::Microsoft {
-        return Err(Error::Other("微软商店版只能使用正版 Minecraft 账号：请在「个人空间」用拥有 Java 版的微软账号登录".into()));
+        return Err(Error::coded("storeAccount", &[], "微软商店版只能使用正版 Minecraft 账号：请在「个人空间」用拥有 Java 版的微软账号登录"));
     }
     Ok(())
 }

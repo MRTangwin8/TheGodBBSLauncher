@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { inTauri } from "../../api";
+import { errText, t } from "../../i18n";
 import { announcements, dismissAnnouncement } from "../../announcements";
 
 // 两种首页共用的公告栏：GitHub 上的公告（纯文本）+ 各首页自己的内置文字（插槽）
@@ -13,25 +14,25 @@ async function open(url: string) {
     if (inTauri) await openUrl(url);
     else window.open(url, "_blank", "noopener,noreferrer");
   } catch (e) {
-    error.value = `打不开浏览器：${e}`;
+    error.value = t("notice.cantOpenBrowser", { err: errText(e) });
   }
 }
 </script>
 
 <template>
   <div class="box">
-    <div class="box-title">📢 公告栏</div>
+    <div class="box-title">📢 {{ $t("notice.title") }}</div>
     <div class="box-body notice">
       <article v-for="a in announcements" :key="a.id" class="item" :class="'lv-' + a.level">
         <div class="head">
-          <span v-if="a.pinned" class="tag pin">置顶</span>
-          <span v-else-if="a.level === 'warn'" class="tag warn">注意</span>
+          <span v-if="a.pinned" class="tag pin">{{ $t("notice.pinned") }}</span>
+          <span v-else-if="a.level === 'warn'" class="tag warn">{{ $t("notice.warn") }}</span>
           <b>{{ a.title }}</b>
           <span v-if="a.date" class="muted date">{{ a.date }}</span>
-          <a class="close" title="关闭这条公告" @click="dismissAnnouncement(a.id)">×</a>
+          <a class="close" :title="$t('notice.dismiss')" @click="dismissAnnouncement(a.id)">×</a>
         </div>
         <p v-if="a.body" class="body">{{ a.body }}</p>
-        <a v-if="a.link" class="more" @click="open(a.link)">{{ a.linkText || "查看详情" }} »</a>
+        <a v-if="a.link" class="more" @click="open(a.link)">{{ a.linkText || $t("notice.details") }} »</a>
       </article>
       <p v-if="error" class="error-text small">{{ error }}</p>
       <!-- 内置的简介和小贴士由各个首页自己放 -->

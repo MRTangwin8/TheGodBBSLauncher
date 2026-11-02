@@ -6,9 +6,10 @@ import type { DeviceCode, Settings } from "../api/types";
 import { useAccountsStore } from "../stores/accounts";
 import { useSettingsStore } from "../stores/settings";
 import { isStore, storeBlocks } from "../edition";
+import { LOCALES, LOCALE_NAMES, errText, t } from "../i18n";
 
 // 首次启动引导：选风格 → 登录账号 → 完成。每一步都能跳过，随时可以「跳过全部」。
-// 选的风格立刻生效（可以直接看到效果）；之后都能在「主题中心」「个人空间」里再改。
+// 选的语言和风格立刻生效：整个窗口当场换成所选的样子（风格这一步遮罩调淡，能看清背后）；之后都能在「主题中心」「设置」「个人空间」里再改。
 const settings = useSettingsStore();
 const accounts = useAccountsStore();
 const emit = defineEmits<{ close: [] }>();
@@ -17,25 +18,19 @@ const step = ref(0); // 0 欢迎 / 1 风格 / 2 账号 / 3 完成
 const busy = ref(false);
 const message = ref<{ ok: boolean; text: string } | null>(null);
 
-const layouts: { key: Settings["layout"]; name: string; desc: string }[] = [
-  { key: "classic", name: "经典论坛", desc: "横幅 + 顶部导航，原汁原味的论坛版块" },
-  { key: "sidebar", name: "木板侧栏", desc: "木板侧边栏，像素天空和草地" },
-  { key: "modern", name: "完全现代", desc: "图标导航条 + 亚克力卡片" },
-];
+const layouts: Settings["layout"][] = ["classic", "sidebar", "modern"];
 const palettes = [
-  { key: "mcbbs", name: "MCBBS 经典", color: "#5e9c35" },
-  { key: "grass", name: "草方块", color: "#4fa52f" },
-  { key: "nether", name: "下界", color: "#d4502a" },
-  { key: "end", name: "末地", color: "#8e5fc0" },
-  { key: "ocean", name: "海洋", color: "#23a093" },
-  { key: "cherry", name: "樱花", color: "#df6a9c" },
-  { key: "stone", name: "石头", color: "#5b7083" },
+  { key: "mcbbs", color: "#5e9c35" },
+  { key: "grass", color: "#4fa52f" },
+  { key: "nether", color: "#d4502a" },
+  { key: "end", color: "#8e5fc0" },
+  { key: "ocean", color: "#23a093" },
+  { key: "cherry", color: "#df6a9c" },
+  { key: "stone", color: "#5b7083" },
 ];
-const modes: { key: Settings["theme"]; name: string }[] = [
-  { key: "light", name: "浅色" },
-  { key: "dark", name: "深色" },
-  { key: "system", name: "跟随系统" },
-];
+const modes: Settings["theme"][] = ["light", "dark", "system"];
+const languages: Settings["language"][] = ["auto", ...LOCALES];
+const languageName = (l: Settings["language"]) => (l === "auto" ? t("language.auto") : LOCALE_NAMES[l]);
 
 async function patch(p: Partial<Settings>) {
   if (settings.settings) await settings.save({ ...settings.settings, ...p });
@@ -44,11 +39,9 @@ async function patch(p: Partial<Settings>) {
 // ---- 账号 ----
 type Mode = "microsoft" | "offline" | "yggdrasil";
 const mode = ref<Mode>("microsoft");
-const tabs: { key: Mode; label: string }[] = [
-  { key: "microsoft" as Mode, label: "微软正版" },
-  { key: "offline" as Mode, label: "离线账号" },
-  { key: "yggdrasil" as Mode, label: "外置登录" },
-].filter((t) => !storeBlocks(t.key));
+const tabs = computed(() =>
+  (["microsoft", "offline", "yggdrasil"] as Mode[]).filter((k) => !storeBlocks(k)).map((key) => ({ key, label: t(`account.tab.${key}`) })),
+);
 const offlineName = ref("");
 const ygg = ref({ server: "", username: "", password: "" });
 const device = ref<DeviceCode | null>(null);
@@ -63,7 +56,7 @@ async function run(task: () => Promise<{ name: string }>) {
     addedName.value = a.name;
     step.value = 3;
   } catch (e) {
-    message.value = { ok: false, text: String(e) };
+    message.value = { ok: false, text: errText(e) };
   } finally {
     device.value = null;
     busy.value = false;
@@ -110,91 +103,105 @@ async function finish() {
   emit("close");
 }
 
-const title = computed(() => ["欢迎来到神权论坛", "挑个喜欢的风格", "登录账号", "都准备好了"][step.value]);
+const title = computed(() => t(`onboarding.title.${step.value}`));
 </script>
 
 <template>
-  <div class="mask">
-    <div class="dialog box" role="dialog" aria-modal="true" aria-label="首次启动引导">
+  <div class="mask" :class="{ 'see-through': step === 1 }">
+    <!-- 窗口右下角的语言选择：选了立刻生效 -->
+    <label v-if="settings.settings" class="lang" :title="$t('language.label')">
+      <span aria-hidden="true">🌐</span>
+      <select class="input" :value="settings.settings.language" :aria-label="$t('language.label')" @change="patch({ language: ($event.target as HTMLSelectElement).value as Settings['language'] })">
+        <option v-for="l in languages" :key="l" :value="l">{{ languageName(l) }}</option>
+      </select>
+    </label>
+
+    <div class="dialog box" role="dialog" aria-modal="true" :aria-label="$t('onboarding.aria')">
       <div class="box-title">{{ title }} <span class="extra muted">{{ step + 1 }} / 4</span></div>
       <div class="box-body">
         <template v-if="step === 0">
-          <p>这是神权论坛启动器（MCBBS 纪念版）。花一分钟挑好外观、登录账号，就能开始玩了。</p>
-          <p class="muted small">每一步都可以跳过，之后也都能在「主题中心」和「个人空间」里再改。</p>
+          <p>{{ $t("onboarding.intro") }}</p>
+          <p class="muted small">{{ $t("onboarding.introHint") }}</p>
         </template>
 
         <template v-else-if="step === 1">
           <div v-if="settings.settings" class="pick">
-            <div class="label muted">布局</div>
+            <p class="muted small live">{{ $t("onboarding.liveHint") }}</p>
+            <div class="label muted">{{ $t("appearance.layout") }}</div>
             <div class="cards">
-              <button v-for="l in layouts" :key="l.key" class="card" :class="{ active: settings.settings.layout === l.key }" @click="patch({ layout: l.key })">
-                <b>{{ l.name }}</b><span class="muted small">{{ l.desc }}</span>
+              <button v-for="l in layouts" :key="l" class="card" :class="{ active: settings.settings.layout === l }" @click="patch({ layout: l })">
+                <b>{{ $t(`appearance.layouts.${l}.name`) }}</b><span class="muted small">{{ $t(`appearance.layouts.${l}.desc`) }}</span>
               </button>
             </div>
-            <div class="label muted">配色</div>
+            <div class="label muted">{{ $t("appearance.palette") }}</div>
             <div class="swatches">
-              <button v-for="p in palettes" :key="p.key" class="swatch" :class="{ active: settings.settings.palette === p.key }" :title="p.name" @click="patch({ palette: p.key })">
-                <i :style="{ background: p.color }" />{{ p.name }}
+              <button v-for="p in palettes" :key="p.key" class="swatch" :class="{ active: settings.settings.palette === p.key }" :title="$t(`appearance.palettes.${p.key}`)" @click="patch({ palette: p.key })">
+                <i :style="{ background: p.color }" />{{ $t(`appearance.palettes.${p.key}`) }}
               </button>
             </div>
-            <div class="label muted">明暗</div>
+            <div class="label muted">{{ $t("appearance.mode") }}</div>
             <div class="swatches">
-              <button v-for="m in modes" :key="m.key" class="swatch" :class="{ active: settings.settings.theme === m.key }" @click="patch({ theme: m.key })">{{ m.name }}</button>
+              <button v-for="m in modes" :key="m" class="swatch" :class="{ active: settings.settings.theme === m }" @click="patch({ theme: m })">{{ $t(`appearance.modes.${m}`) }}</button>
             </div>
           </div>
         </template>
 
         <template v-else-if="step === 2">
           <div class="tabs">
-            <a v-for="t in tabs" :key="t.key" :class="{ active: mode === t.key }" @click="!busy && (mode = t.key)">{{ t.label }}</a>
+            <a v-for="tab in tabs" :key="tab.key" :class="{ active: mode === tab.key }" @click="!busy && (mode = tab.key)">{{ tab.label }}</a>
           </div>
           <div class="acc-body">
             <template v-if="mode === 'microsoft'">
-              <p class="small">用微软账号登录，可以联机、使用正版皮肤。点下面的按钮后，在浏览器里输入验证码授权即可。</p>
-              <p v-if="isStore" class="small">微软商店版只能使用正版账号，需要这个微软账号购买了 Minecraft Java 版。</p>
+              <p class="small">{{ $t("onboarding.msHint") }}</p>
+              <p v-if="isStore" class="small">{{ $t("onboarding.storeHint") }}</p>
               <template v-if="device">
-                <p>验证码：<b class="code">{{ device.userCode }}</b></p>
-                <button class="btn" @click="copyAndOpen">{{ copied ? "已复制，已打开浏览器" : "复制验证码并打开授权页面" }}</button>
-                <p class="muted small">等待你在浏览器里完成授权…</p>
+                <p>{{ $t("onboarding.code") }}<b class="code">{{ device.userCode }}</b></p>
+                <button class="btn" @click="copyAndOpen">{{ copied ? $t("onboarding.copied") : $t("onboarding.copyAndOpen") }}</button>
+                <p class="muted small">{{ $t("onboarding.waiting") }}</p>
               </template>
-              <button v-else class="btn primary" :disabled="busy" @click="startMicrosoft">开始微软登录</button>
+              <button v-else class="btn primary" :disabled="busy" @click="startMicrosoft">{{ $t("onboarding.msStart") }}</button>
             </template>
             <template v-else-if="mode === 'offline'">
-              <p class="small">离线账号不需要联网验证，只能玩单人和不验证正版的服务器。</p>
-              <div class="form-row"><input v-model="offlineName" class="input" placeholder="玩家名（3~16 个字母数字或下划线）" :disabled="busy" @keyup.enter="addOffline" /><button class="btn primary" :disabled="busy || !offlineName.trim()" @click="addOffline">添加</button></div>
+              <p class="small">{{ $t("onboarding.offlineHint") }}</p>
+              <div class="form-row"><input v-model="offlineName" class="input" :placeholder="$t('onboarding.offlinePlaceholder')" :disabled="busy" @keyup.enter="addOffline" /><button class="btn primary" :disabled="busy || !offlineName.trim()" @click="addOffline">{{ $t("common.add") }}</button></div>
             </template>
             <template v-else>
-              <p class="small">用第三方认证服务器（Authlib-Injector / Yggdrasil）登录。</p>
-              <input v-model="ygg.server" class="input" placeholder="认证服务器地址" :disabled="busy" />
-              <input v-model="ygg.username" class="input" placeholder="邮箱 / 用户名" :disabled="busy" />
-              <input v-model="ygg.password" class="input" type="password" placeholder="密码" :disabled="busy" />
-              <button class="btn primary" :disabled="busy || !ygg.server.trim() || !ygg.username.trim() || !ygg.password" @click="addYgg">登录</button>
+              <p class="small">{{ $t("onboarding.yggHint") }}</p>
+              <input v-model="ygg.server" class="input" :placeholder="$t('onboarding.yggServer')" :disabled="busy" />
+              <input v-model="ygg.username" class="input" :placeholder="$t('account.yggUser')" :disabled="busy" />
+              <input v-model="ygg.password" class="input" type="password" :placeholder="$t('account.password')" :disabled="busy" />
+              <button class="btn primary" :disabled="busy || !ygg.server.trim() || !ygg.username.trim() || !ygg.password" @click="addYgg">{{ $t("shell.login") }}</button>
             </template>
             <p v-if="message" :class="message.ok ? 'ok-text' : 'error-text'" class="small break">{{ message.text }}</p>
           </div>
         </template>
 
         <template v-else>
-          <p v-if="addedName" class="ok-text">已登录：{{ addedName }}</p>
-          <p v-else class="muted">还没有登录账号。到「个人空间」添加账号后才能启动游戏。</p>
-          <p>接下来到「下载中心」安装一个游戏版本，回首页点启动就行。</p>
+          <p v-if="addedName" class="ok-text">{{ $t("onboarding.loggedIn", { name: addedName }) }}</p>
+          <p v-else class="muted">{{ $t("onboarding.noAccount") }}</p>
+          <p>{{ $t("onboarding.next") }}</p>
         </template>
       </div>
       <div class="actions">
-        <a v-if="step < 3" class="skip" @click="finish">跳过全部</a>
+        <a v-if="step < 3" class="skip" @click="finish">{{ $t("onboarding.skipAll") }}</a>
         <span class="grow" />
-        <button v-if="step > 0 && step < 3" class="btn" :disabled="busy" @click="step--">上一步</button>
-        <button v-if="step === 0" class="btn primary" @click="step = 1">开始</button>
-        <button v-else-if="step === 1" class="btn primary" @click="step = 2">下一步</button>
-        <button v-else-if="step === 2" class="btn" :disabled="busy" @click="step = 3">跳过这一步</button>
-        <button v-else class="btn primary" @click="finish">开始使用</button>
+        <button v-if="step > 0 && step < 3" class="btn" :disabled="busy" @click="step--">{{ $t("onboarding.prev") }}</button>
+        <button v-if="step === 0" class="btn primary" @click="step = 1">{{ $t("onboarding.start") }}</button>
+        <button v-else-if="step === 1" class="btn primary" @click="step = 2">{{ $t("onboarding.nextStep") }}</button>
+        <button v-else-if="step === 2" class="btn" :disabled="busy" @click="step = 3">{{ $t("onboarding.skipStep") }}</button>
+        <button v-else class="btn primary" @click="finish">{{ $t("onboarding.done") }}</button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.mask { position: fixed; inset: 0; background: rgba(40, 28, 14, 0.5); display: flex; align-items: center; justify-content: center; z-index: 40; }
+.mask { position: fixed; inset: 0; background: rgba(40, 28, 14, 0.5); display: flex; align-items: center; justify-content: center; z-index: 40; transition: background 0.2s; }
+/* 选风格时遮罩调淡，背后的整个窗口就是实时预览 */
+.mask.see-through { background: rgba(0, 0, 0, 0.12); backdrop-filter: none; }
+.lang { position: fixed; right: 14px; bottom: 12px; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: var(--radius-sm); background: var(--bg-box-solid); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); font-size: 12px; }
+.lang .input { padding: 2px 4px; font-size: 12px; }
+.live { margin: 0 0 4px; }
 .dialog { width: 600px; max-width: calc(100vw - 32px); margin: 0; }
 .small { font-size: 12px; margin: 4px 0; }
 .break { word-break: break-all; }

@@ -6,6 +6,7 @@ import { useVersionsStore } from "./stores/versions";
 import { useAccountsStore } from "./stores/accounts";
 import { useModpackStore } from "./stores/modpack";
 import { currentLayout, pendingThemeImport, setupAppearance } from "./appearance";
+import { setupI18n } from "./i18n";
 import ProgressFloat from "./components/ProgressFloat.vue";
 import ModpackImportDialog from "./components/ModpackImportDialog.vue";
 import ThemeImportDialog from "./components/ThemeImportDialog.vue";
@@ -40,6 +41,7 @@ function onKey(e: KeyboardEvent) {
 }
 
 setupAppearance();
+setupI18n();
 
 // 布局在主题中心切换：经典（第一版，默认）/ 侧边栏 / 现代
 const shell = computed(() => ({ classic: ClassicShell, sidebar: SidebarShell, modern: ModernShell })[currentLayout.value]);

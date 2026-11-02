@@ -46,6 +46,8 @@ let settings: Settings = {
   buttons: { launchLabel: "", launchStyle: "stone", launchColor: "", launchSound: false, launchShortcut: true, navOrder: [], navHidden: [], quick: [] },
   customPalette: { accent: "#5e9c35", surface: "#fbf2db", text: "#3d2f1f", wood: "#6b4a2b" },
   tweaks: { radius: null, cardOpacity: null, cardBlur: null, bgBlur: 0, bgDim: 0, fontSize: 13, font: "", animations: true },
+  // 地址加 ?lang=en / ?lang=ja 可以预览别的语言
+  language: (new URLSearchParams(location.search).get("lang") as Settings["language"] | null) ?? "auto",
 };
 const installed: InstalledVersion[] = [
   { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1", playTimeSecs: 45000, lastPlayed: 1792850000, modpack: null },

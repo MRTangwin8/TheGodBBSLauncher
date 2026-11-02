@@ -2,18 +2,11 @@
 import { ref } from "vue";
 import { useVersionsStore, type InstallJob } from "../stores/versions";
 import { formatBytes } from "../utils";
+import { errText } from "../i18n";
 
 const versions = useVersionsStore();
 const collapsed = ref(false);
 
-const stageText: Record<InstallJob["stage"], string> = {
-  versionJson: "获取版本信息",
-  assetIndex: "获取资源索引",
-  files: "下载游戏文件",
-  java: "下载 Java",
-  loader: "安装加载器",
-  processor: "运行安装器",
-};
 
 function percent(job: InstallJob): number {
   const p = job.progress;
@@ -28,8 +21,8 @@ function percent(job: InstallJob): number {
   <!-- 下载进度做成"楼层"：每个任务是一层回复 -->
   <aside v-if="versions.jobList.length" class="float box">
     <div class="box-title">
-      下载任务 · 共 {{ versions.jobList.length }} 楼
-      <a class="extra" @click="collapsed = !collapsed">{{ collapsed ? "展开" : "收起" }}</a>
+      {{ $t("progress.title", { n: versions.jobList.length }) }}
+      <a class="extra" @click="collapsed = !collapsed">{{ collapsed ? $t("common.expand") : $t("common.collapse") }}</a>
     </div>
     <div v-show="!collapsed" class="floors">
       <div v-for="job in versions.jobList" :key="job.versionId" class="floor">
@@ -37,29 +30,29 @@ function percent(job: InstallJob): number {
           <span class="floor-no">{{ job.floor }}#</span>
           <b>{{ job.versionId }}</b>
           <span v-if="job.status === 'running'" class="muted">
-            {{ job.kind === "launch" ? (job.stage === "java" ? "启动准备 · 下载 Java" : "启动准备 · 补全文件") : stageText[job.stage] }}
+            {{ job.kind === "launch" ? (job.stage === "java" ? $t("progress.launchJava") : $t("progress.launchFiles")) : $t(`progress.stage.${job.stage}`) }}
           </span>
-          <span v-else-if="job.status === 'done'" class="ok">安装完成</span>
-          <span v-else class="error-text">{{ job.kind === "launch" ? "启动失败" : "失败" }}</span>
-          <a v-if="job.status !== 'running'" class="close" title="删帖" @click="versions.dismiss(job.versionId)">×</a>
+          <span v-else-if="job.status === 'done'" class="ok">{{ $t("progress.done") }}</span>
+          <span v-else class="error-text">{{ job.kind === "launch" ? $t("progress.launchFailed") : $t("progress.failed") }}</span>
+          <a v-if="job.status !== 'running'" class="close" :title="$t('progress.dismiss')" @click="versions.dismiss(job.versionId)">×</a>
         </div>
         <div class="xp-bar"><div :style="{ width: percent(job) + '%' }" /></div>
         <div v-if="job.progress && job.status === 'running' && job.stage === 'processor'" class="floor-meta muted">
-          第 {{ job.progress.finishedFiles + 1 > job.progress.totalFiles ? job.progress.totalFiles : job.progress.finishedFiles + 1 }}/{{ job.progress.totalFiles }} 步（Forge 安装器在打补丁，可能要一两分钟）
+          {{ $t("progress.processorStep", { i: job.progress.finishedFiles + 1 > job.progress.totalFiles ? job.progress.totalFiles : job.progress.finishedFiles + 1, n: job.progress.totalFiles }) }}
         </div>
         <div v-else-if="job.progress && job.status === 'running'" class="floor-meta muted">
-          {{ job.progress.finishedFiles }}/{{ job.progress.totalFiles }} 个文件 ·
+          {{ $t("progress.files", { done: job.progress.finishedFiles, total: job.progress.totalFiles }) }} ·
           {{ formatBytes(job.progress.downloadedBytes) }}/{{ formatBytes(job.progress.totalBytes) }} ·
           {{ formatBytes(job.progress.speed) }}/s
         </div>
         <div v-else-if="job.status === 'done' && job.doneText" class="floor-meta muted">{{ job.doneText }}</div>
         <div v-else-if="job.status === 'done' && job.resultId" class="floor-meta muted">
-          已生成版本 <b>{{ job.resultId }}</b>，去 <RouterLink to="/versions">版本管理</RouterLink> 启动
+          <i18n-t keypath="progress.generated"><b>{{ job.resultId }}</b><RouterLink to="/versions">{{ $t("nav.versions") }}</RouterLink></i18n-t>
         </div>
         <div v-else-if="job.status === 'done' && job.report" class="floor-meta muted">
-          新下载 {{ job.report.downloaded }} 个，已存在跳过 {{ job.report.skipped }} 个
+          {{ $t("progress.report", { downloaded: job.report.downloaded, skipped: job.report.skipped }) }}
         </div>
-        <div v-else-if="job.error" class="floor-meta error-text">{{ job.error }}</div>
+        <div v-else-if="job.error" class="floor-meta error-text">{{ errText(job.error) }}</div>
       </div>
     </div>
   </aside>

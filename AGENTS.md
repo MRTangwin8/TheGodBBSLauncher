@@ -23,7 +23,7 @@
    - **密钥文件永远不放在仓库目录里**：生成更新签名密钥等文件时用仓库外的**绝对路径**（`~` 在有的 Windows 终端里不会展开，会在当前目录建出一个叫 `~` 的文件夹）；`.gitignore` 已忽略 `*.key`、`*.key.pub`、`.tauri/` 和 `/~/` 作为兜底。
    - **提交前必须看一眼 `git status`**，不要无脑 `git add -A`；用户刚在仓库里生成或下载过东西时尤其要看。2026-10-26 就是这样把更新私钥提交并推送到了公开仓库，只能作废重新生成。
 4. **快捷键屏蔽**：`src/shortcuts.ts` 屏蔽了 F12、Ctrl+P、Ctrl+R 等浏览器行为，新增功能不要依赖这些按键。
-5. **界面文案用简体中文**，可以带一点论坛味（"神权""版主提示"），但要说清楚。
+5. **界面文案不写死在组件里**：一律写进 `src/i18n/` 的语言包，简体中文是原文，English、日本語要同步补齐（见第 4 节「多语言」）。中文可以带一点论坛味（"神权""版主提示"），但要说清楚。
 6. **只在维护者明确要求时提交**。提交信息用中文，一行概括，例如 `资源中心：……`。
 
 ## 3. 目录与职责
@@ -99,6 +99,14 @@ src/
   - 首页、主题中心、设置不能从导航栏隐藏（`ALWAYS_VISIBLE`），免得用户把自己锁在设置外面。
   - 「启动并进服务器」：`launch_game` 的 `server` 参数经 `engine/launch/server.rs` 校验后才变成启动参数（1.20 起用 `--quickPlayMultiplayer`，更早的用 `--server/--port`）。
 - **公告栏**：`engine/announce.rs` 启动时从仓库根目录的 `announcements.json` 拉一次（运行期间不拉），格式、发布方法、限制见 [docs/ANNOUNCEMENTS.md](docs/ANNOUNCEMENTS.md)。内容全部当纯文本、链接只放行 http(s)；提交公告时在提交说明里写 `[skip ci]`，免得白白跑一次构建。
+
+### 多语言
+- 用 `vue-i18n`：`src/i18n/index.ts` 建实例、解析语言偏好；语言包是 `zh-CN.ts`（原文，也是 key 的标准）、`en.ts`、`ja.ts`，后两个用 `typeof zhCN` 约束，缺 key 时类型检查报错。
+- 模板里用 `$t("ns.key", { n })`，带链接或加粗的句子用 `<i18n-t keypath="…">` 加插槽；`.ts` 里 `import { t } from "./i18n"`。放在 `computed` 或模板里取值，切语言时才会跟着变，别在模块顶层把翻译结果存进常量。
+- 消息里的 `{ } @ $ |` 是语法字符；占位符名三种语言要一致。
+- `Settings.language`：`auto`（默认）/ `zh-CN` / `en` / `ja`。`auto` 按系统语言：中文（含繁体）→ 中文，日语 → 日文，其余一律英文。浏览器预览加 `?lang=en` / `?lang=ja`。
+- 后端错误：常见的用 `Error::coded("launch.xxx", &[("n", &n)], "中文原文")`，前端 `errText(e)` 按语言包 `err.launch.xxx` 翻译，没有这个 key 就显示中文原文。界面显示后端错误一律过 `errText`，不要直接 `String(e)`。覆盖范围见 docs/STATUS.md。
+- 纯逻辑文件（如 `buttons-logic.ts`）不引 i18n，返回语言包 key，由界面翻译，方便单测。
 
 ### 长任务与进度
 - 用事件推送：`install-progress`、`game-log`、`game-exit`。前端用 `api/index.ts` 导出的 `onInstallProgress` / `onGameLog` / `onGameExit` 订阅；新事件照此加一个导出。

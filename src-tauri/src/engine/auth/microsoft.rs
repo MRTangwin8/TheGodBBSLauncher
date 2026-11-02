@@ -75,10 +75,10 @@ pub async fn poll_device_code(client: &reqwest::Client, dc: &DeviceCode, cancel:
     loop {
         tokio::time::sleep(Duration::from_secs(interval)).await;
         if cancel.load(Ordering::Relaxed) {
-            return Err(Error::Other("已取消登录".into()));
+            return Err(Error::coded("auth.cancelled", &[], "已取消登录"));
         }
         if Instant::now() > deadline {
-            return Err(Error::Other("验证码已过期，请重新登录".into()));
+            return Err(Error::coded("auth.codeExpired", &[], "验证码已过期，请重新登录"));
         }
         let resp = client
             .post(format!("{AUTHORITY}/token"))
@@ -97,8 +97,8 @@ pub async fn poll_device_code(client: &reqwest::Client, dc: &DeviceCode, cancel:
         match err.error.as_str() {
             "authorization_pending" => {}
             "slow_down" => interval += 5,
-            "authorization_declined" => return Err(Error::Other("你在浏览器里拒绝了授权".into())),
-            "expired_token" => return Err(Error::Other("验证码已过期，请重新登录".into())),
+            "authorization_declined" => return Err(Error::coded("auth.declined", &[], "你在浏览器里拒绝了授权")),
+            "expired_token" => return Err(Error::coded("auth.codeExpired", &[], "验证码已过期，请重新登录")),
             _ => return Err(oauth_error(err)),
         }
     }
@@ -117,10 +117,8 @@ pub async fn refresh(client: &reqwest::Client, refresh_token: &str) -> Result<Mc
         .send()
         .await?;
     if !resp.status().is_success() {
-        return Err(Error::Other(format!(
-            "正版登录已失效，请重新登录（{}）",
-            resp.json::<OAuthError>().await.map(|e| e.error).unwrap_or_default()
-        )));
+        let code = resp.json::<OAuthError>().await.map(|e| e.error).unwrap_or_default();
+        return Err(Error::coded("auth.msInvalid", &[("code", &code)], format!("正版登录已失效，请重新登录（{code}）")));
     }
     let token: MsToken = resp.json().await?;
     let mut session = login_minecraft(client, &token).await?;
@@ -158,7 +156,7 @@ async fn login_minecraft(client: &reqwest::Client, ms: &MsToken) -> Result<McSes
         }),
     )
     .await?;
-    let xbl_token = xbl["Token"].as_str().ok_or_else(|| Error::Other(format!("Xbox Live 登录失败（HTTP {status}）")))?;
+    let xbl_token = xbl["Token"].as_str().ok_or_else(|| Error::coded("auth.xbl", &[("status", &status)], format!("Xbox Live 登录失败（HTTP {status}）")))?;
 
     // 2. XSTS
     let (status, xsts) = post_json(
@@ -174,7 +172,7 @@ async fn login_minecraft(client: &reqwest::Client, ms: &MsToken) -> Result<McSes
     if let Some(xerr) = xsts["XErr"].as_u64() {
         return Err(Error::Other(xsts_error(xerr)));
     }
-    let xsts_token = xsts["Token"].as_str().ok_or_else(|| Error::Other(format!("XSTS 授权失败（HTTP {status}）")))?;
+    let xsts_token = xsts["Token"].as_str().ok_or_else(|| Error::coded("auth.xsts", &[("status", &status)], format!("XSTS 授权失败（HTTP {status}）")))?;
     let uhs = xsts["DisplayClaims"]["xui"][0]["uhs"].as_str().unwrap_or_default();
 
     // 3. Minecraft
@@ -188,7 +186,7 @@ async fn login_minecraft(client: &reqwest::Client, ms: &MsToken) -> Result<McSes
         if status == 403 {
             Error::Other("Minecraft 服务拒绝了登录：Entra 应用可能还没获得 Minecraft API 权限".into())
         } else {
-            Error::Other(format!("Minecraft 登录失败（HTTP {status}）"))
+            Error::coded("auth.mc", &[("status", &status)], format!("Minecraft 登录失败（HTTP {status}）"))
         }
     })?;
     let expires_in = mc["expires_in"].as_u64().unwrap_or(86400);
@@ -200,10 +198,11 @@ async fn login_minecraft(client: &reqwest::Client, ms: &MsToken) -> Result<McSes
         .send()
         .await?;
     if resp.status().as_u16() == 404 {
-        return Err(Error::Other("这个微软账号没有购买 Minecraft Java 版（或还没创建游戏档案）".into()));
+        return Err(Error::coded("auth.noGame", &[], "这个微软账号没有购买 Minecraft Java 版（或还没创建游戏档案）"));
     }
     if !resp.status().is_success() {
-        return Err(Error::Other(format!("获取游戏档案失败（HTTP {}）", resp.status().as_u16())));
+        let status = resp.status().as_u16();
+        return Err(Error::coded("auth.profile", &[("status", &status)], format!("获取游戏档案失败（HTTP {status}）")));
     }
     let profile: Value = resp.json().await?;
     Ok(McSession {

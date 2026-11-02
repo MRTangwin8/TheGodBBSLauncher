@@ -10,6 +10,7 @@ import { useVersionsStore } from "../stores/versions";
 import { formatBytes, formatDuration, loaderLabel, timeAgo } from "../utils";
 import ScreenshotGallery from "../components/instance/ScreenshotGallery.vue";
 import ServerList from "../components/instance/ServerList.vue";
+import { errText, locale, t } from "../i18n";
 
 // 版本管理 → 管理：单个版本的 Java / 内存 / 参数、模组、存档
 const route = useRoute();
@@ -23,22 +24,16 @@ const version = computed(() => versions.installed.find((v) => v.id === id.value)
 const running = computed(() => game.running.some((r) => r.versionId === id.value));
 
 type Tab = "settings" | "mods" | "saves" | "servers" | "screenshots";
-const tabs: { key: Tab; label: string }[] = [
-  { key: "settings", label: "启动设置" },
-  { key: "mods", label: "模组" },
-  { key: "saves", label: "存档" },
-  { key: "servers", label: "服务器" },
-  { key: "screenshots", label: "截图" },
-];
-const tab = ref<Tab>(tabs.find((t) => t.key === route.query.tab)?.key ?? "settings");
-watch(tab, (t) => router.replace({ query: { tab: t } }));
+const tabs: Tab[] = ["settings", "mods", "saves", "servers", "screenshots"];
+const tab = ref<Tab>(tabs.find((k) => k === route.query.tab) ?? "settings");
+watch(tab, (k) => router.replace({ query: { tab: k } }));
 
 const info = ref<InstanceInfo | null>(null);
 const loadError = ref("");
 const message = ref<{ ok: boolean; text: string } | null>(null);
 
 function fail(e: unknown) {
-  message.value = { ok: false, text: `${e}` };
+  message.value = { ok: false, text: errText(e) };
 }
 
 async function openFolder(path: string) {
@@ -52,7 +47,7 @@ onMounted(async () => {
     info.value = await api.instanceInfo(id.value);
     form.value = { ...info.value.settings };
   } catch (e) {
-    loadError.value = `${e}`;
+    loadError.value = errText(e);
     return;
   }
   javas.value = await api.listJava().catch(() => []);
@@ -73,11 +68,11 @@ const memory = ref<MemoryInfo | null>(null);
 const saving = ref(false);
 const dirty = computed(() => !!info.value && !!form.value && JSON.stringify(form.value) !== JSON.stringify(info.value.settings));
 
-const globalJava = computed(() => settings.settings?.javaPath ?? "自动选择合适的版本");
+const globalJava = computed(() => settings.settings?.javaPath ?? t("instance.javaAuto"));
 const globalMemory = computed(() => settings.settings?.memoryMb ?? memory.value?.autoMb ?? null);
 /** 选中的 Java 不在扫描列表里（手动选的）也要能显示出来 */
 const javaOptions = computed(() => {
-  const list = javas.value.map((j) => ({ path: j.path, label: `Java ${j.major}（${j.version}，${j.vendor ?? j.arch}）` }));
+  const list = javas.value.map((j) => ({ path: j.path, label: `Java ${j.major} (${j.version}, ${j.vendor ?? j.arch})` }));
   const cur = form.value?.javaPath;
   if (cur && !list.some((j) => j.path === cur)) list.push({ path: cur, label: cur });
   return list;
@@ -90,8 +85,8 @@ const customMemory = computed({
 });
 
 async function pickJava() {
-  if (!inTauri) return fail("浏览器预览模式不能选择文件");
-  const chosen = await open({ multiple: false, directory: false, title: "选择 java 可执行文件（javaw.exe / java）" });
+  if (!inTauri) return fail(t("theme.previewNoPick"));
+  const chosen = await open({ multiple: false, directory: false, title: t("instance.pickJava") });
   if (typeof chosen === "string" && form.value) form.value.javaPath = chosen;
 }
 
@@ -102,7 +97,7 @@ async function saveSettings() {
   try {
     info.value = await api.instanceSave(id.value, { ...form.value, javaPath: form.value.javaPath || null });
     form.value = { ...info.value.settings };
-    message.value = { ok: true, text: running.value ? "已保存，下次启动时生效。" : "已保存。" };
+    message.value = { ok: true, text: running.value ? t("instance.savedNext") : t("instance.saved") };
   } catch (e) {
     fail(e);
   } finally {
@@ -194,7 +189,7 @@ async function applyUpdates() {
     optional: [],
     incompatible: [],
   };
-  const jobId = `更新 ${chosen.length} 个模组 → ${id.value}`;
+  const jobId = t("instance.updateJob", { n: chosen.length, id: id.value });
   const job = versions.startJob(jobId);
   updating.value = true;
   try {
@@ -202,14 +197,14 @@ async function applyUpdates() {
     job.report = r;
     job.status = r.failed.length ? "failed" : "done";
     if (r.failed.length) {
-      job.error = `${r.failed.length} 个文件下载失败：${r.failed[0].reason}`;
-      message.value = { ok: false, text: `${r.failed.length} 个模组没更新成功，旧版本保留着。` };
+      job.error = t("progress.filesFailed", { n: r.failed.length, reason: r.failed[0].reason });
+      message.value = { ok: false, text: t("instance.updateFailed", { n: r.failed.length }) };
     } else {
-      message.value = { ok: true, text: `已更新 ${chosen.length} 个模组。` };
+      message.value = { ok: true, text: t("instance.updated", { n: chosen.length }) };
     }
   } catch (e) {
     job.status = "failed";
-    job.error = String(e);
+    job.error = errText(e);
     fail(e);
   } finally {
     updating.value = false;
@@ -219,7 +214,7 @@ async function applyUpdates() {
 }
 
 async function deleteMod(m: LocalResource) {
-  if (!confirm(`删除「${m.title ?? m.filename}」？\n文件会直接删掉，不进回收站。只是暂时不想用的话，点「禁用」就行。`)) return;
+  if (!confirm(t("instance.confirmDeleteMod", { name: m.title ?? m.filename }))) return;
   try {
     await api.localResourceDelete(id.value, "mod", m.filename);
     mods.value = (mods.value ?? []).filter((x) => x !== m);
@@ -248,7 +243,7 @@ async function backupWorld(w: World) {
   try {
     const b = await api.worldBackup(id.value, w.folder);
     backups.value = [b, ...backups.value];
-    message.value = { ok: true, text: `已备份「${w.folder}」（${formatBytes(b.size)}）。` };
+    message.value = { ok: true, text: t("instance.backedUp", { name: w.folder, size: formatBytes(b.size) }) };
   } catch (e) {
     fail(e);
   } finally {
@@ -258,13 +253,13 @@ async function backupWorld(w: World) {
 
 async function restore(b: WorldBackup) {
   const exists = worlds.value?.some((w) => w.folder === b.world);
-  const tip = exists ? "\n现在的「" + b.world + "」会先自动备份一份，然后被替换。" : "";
-  if (!confirm(`把「${b.world}」恢复到 ${fullTime(b.created)} 的样子？${tip}`)) return;
+  const tip = exists ? `\n${t("instance.restoreTip", { name: b.world })}` : "";
+  if (!confirm(t("instance.confirmRestore", { name: b.world, time: fullTime(b.created) }) + tip)) return;
   savesBusy.value = b.file;
   message.value = null;
   try {
     const auto = await api.worldRestore(id.value, b.file);
-    message.value = { ok: true, text: `已恢复「${b.world}」。${auto ? "恢复前的样子也存了一份备份，后悔了可以再恢复回去。" : ""}` };
+    message.value = { ok: true, text: t("instance.restored", { name: b.world }) + (auto ? t("instance.restoredAuto") : "") };
     await loadSaves();
   } catch (e) {
     fail(e);
@@ -274,7 +269,7 @@ async function restore(b: WorldBackup) {
 }
 
 async function deleteBackup(b: WorldBackup) {
-  if (!confirm(`删除 ${fullTime(b.created)} 的「${b.world}」备份？删了就找不回来了。`)) return;
+  if (!confirm(t("instance.confirmDeleteBackup", { time: fullTime(b.created), name: b.world }))) return;
   try {
     await api.worldBackupDelete(id.value, b.file);
     backups.value = backups.value.filter((x) => x !== b);
@@ -284,47 +279,47 @@ async function deleteBackup(b: WorldBackup) {
 }
 
 function fullTime(unix: number) {
-  return new Date(unix * 1000).toLocaleString("zh-CN", { hour12: false });
+  return new Date(unix * 1000).toLocaleString(locale.value, { hour12: false });
 }
 </script>
 
 <template>
   <div class="box">
     <div class="box-title">
-      <RouterLink to="/versions">版本管理</RouterLink> › {{ id }}
+      <RouterLink to="/versions">{{ $t("nav.versions") }}</RouterLink> › {{ id }}
       <span v-if="version?.loader" class="tag" :class="'ld-' + version.loader">{{ loaderLabel[version.loader] }}</span>
       <span class="extra">
-        <template v-if="info">已玩 {{ formatDuration(info.playTimeSecs) }} · 上次 {{ timeAgo(info.lastPlayed) }}</template>
+        <template v-if="info">{{ $t("quickLaunch.played", { time: formatDuration(info.playTimeSecs) }) }} · {{ $t("instance.last", { time: timeAgo(info.lastPlayed) }) }}</template>
       </span>
     </div>
 
     <div v-if="loadError" class="box-body">
-      <div class="mod-tip">【版主提示】{{ loadError }}</div>
-      <p><RouterLink to="/versions">返回版本管理</RouterLink></p>
+      <div class="mod-tip">{{ $t("common.modTip") }}{{ loadError }}</div>
+      <p><RouterLink to="/versions">{{ $t("instance.backToVersions") }}</RouterLink></p>
     </div>
 
     <template v-else-if="info && form">
       <div class="box-body bar">
         <div class="tabs">
-          <a v-for="t in tabs" :key="t.key" :class="{ active: tab === t.key }" @click="tab = t.key">{{ t.label }}</a>
+          <a v-for="k in tabs" :key="k" :class="{ active: tab === k }" @click="tab = k">{{ $t(`instance.tab.${k}`) }}</a>
         </div>
-        <span v-if="running" class="playing">● 游戏中</span>
-        <button class="btn small" @click="openFolder(info.gameDir)">打开游戏目录</button>
+        <span v-if="running" class="playing">● {{ $t("versions.playing") }}</span>
+        <button class="btn small" @click="openFolder(info.gameDir)">{{ $t("instance.openGameDir") }}</button>
       </div>
       <div v-if="message" class="box-body msg" :class="message.ok ? 'ok-text' : 'error-text'">{{ message.text }}</div>
 
       <!-- 启动设置 -->
       <div v-if="tab === 'settings'" class="box-body form">
-        <p class="muted small">这里的设置只对「{{ id }}」生效；留空 / 选「跟随全局」的项使用 <RouterLink to="/settings">设置</RouterLink> 里的值。</p>
+        <p class="muted small"><i18n-t keypath="instance.scopeHint"><span>{{ id }}</span><RouterLink to="/settings">{{ $t("nav.settings") }}</RouterLink></i18n-t></p>
 
         <label class="row">
-          <span class="label">版本隔离</span>
+          <span class="label">{{ $t("settings.isolate") }}</span>
           <span class="field">
             <label class="check"><input v-model="form.isolated" type="checkbox" :disabled="!!info.modpack || info.globalIsolate" />
-              存档、模组、配置单独放在这个版本自己的文件夹里</label>
-            <span v-if="info.modpack" class="muted small">整合包「{{ info.modpack.name }}」必须隔离，不能关闭。</span>
-            <span v-else-if="info.globalIsolate" class="muted small">全局设置已经开启了版本隔离，所有版本都是隔离的。</span>
-            <span v-else-if="form.isolated !== info.settings.isolated" class="warn small">切换后游戏目录会变，原来的存档和模组不会跟着搬过去。</span>
+              {{ $t("instance.isolateHint") }}</label>
+            <span v-if="info.modpack" class="muted small">{{ $t("instance.modpackIsolated", { name: info.modpack.name }) }}</span>
+            <span v-else-if="info.globalIsolate" class="muted small">{{ $t("instance.globalIsolate") }}</span>
+            <span v-else-if="form.isolated !== info.settings.isolated" class="warn small">{{ $t("instance.isolateWarn") }}</span>
             <code class="small break">{{ info.gameDir }}</code>
           </span>
         </label>
@@ -334,46 +329,46 @@ function fullTime(unix: number) {
           <span class="field">
             <span class="line">
               <select v-model="form.javaPath" class="input grow">
-                <option :value="null">跟随全局（{{ globalJava }}）</option>
+                <option :value="null">{{ $t("instance.followGlobal", { v: globalJava }) }}</option>
                 <option v-for="j in javaOptions" :key="j.path" :value="j.path">{{ j.label }}</option>
               </select>
-              <button class="btn small" @click="pickJava">选择…</button>
+              <button class="btn small" @click="pickJava">{{ $t("common.browse") }}</button>
             </span>
             <span v-if="form.javaPath" class="muted small break">{{ form.javaPath }}</span>
           </span>
         </div>
 
         <div class="row">
-          <span class="label">最大内存</span>
+          <span class="label">{{ $t("settings.memory") }}</span>
           <span class="field">
-            <label class="check"><input v-model="customMemory" type="checkbox" /> 这个版本单独设置</label>
+            <label class="check"><input v-model="customMemory" type="checkbox" /> {{ $t("instance.customMemory") }}</label>
             <span v-if="form.memoryMb != null" class="line">
               <input v-model.number="form.memoryMb" type="range" min="1024" :max="memory?.totalMb ?? 16384" step="256" class="grow" />
               <input v-model.number="form.memoryMb" type="number" min="512" step="256" class="input num" /> MB
             </span>
-            <span v-else class="muted small">跟随全局：{{ globalMemory ? `${globalMemory} MB` : "自动" }}</span>
-            <span v-if="memory && form.memoryMb != null && form.memoryMb > memory.totalMb * 0.8" class="warn small">超过了本机内存（{{ memory.totalMb }} MB）的八成，系统可能会卡。</span>
+            <span v-else class="muted small">{{ $t("instance.followGlobalMemory", { v: globalMemory ? `${globalMemory} MB` : $t("settings.auto") }) }}</span>
+            <span v-if="memory && form.memoryMb != null && form.memoryMb > memory.totalMb * 0.8" class="warn small">{{ $t("instance.memoryWarn", { mb: memory.totalMb }) }}</span>
           </span>
         </div>
 
         <label class="row">
-          <span class="label">JVM 参数</span>
+          <span class="label">{{ $t("settings.jvmArgs") }}</span>
           <span class="field">
-            <input v-model="form.jvmArgs" class="input" placeholder="例如 -XX:+UseZGC，追加在全局 JVM 参数之后" />
+            <input v-model="form.jvmArgs" class="input" :placeholder="$t('instance.jvmPlaceholder')" />
           </span>
         </label>
         <label class="row">
-          <span class="label">游戏参数</span>
+          <span class="label">{{ $t("settings.gameArgs") }}</span>
           <span class="field">
-            <input v-model="form.gameArgs" class="input" placeholder="追加在全局游戏参数之后" />
+            <input v-model="form.gameArgs" class="input" :placeholder="$t('instance.gameArgsPlaceholder')" />
           </span>
         </label>
 
         <div class="row">
           <span class="label" />
           <span class="field"><span class="line">
-            <button class="btn primary" :disabled="saving || !dirty" @click="saveSettings">{{ saving ? "保存中…" : "保存" }}</button>
-            <button class="btn" :disabled="saving || !dirty" @click="form = { ...info.settings }">撤销修改</button>
+            <button class="btn primary" :disabled="saving || !dirty" @click="saveSettings">{{ saving ? $t("instance.saving") : $t("common.save") }}</button>
+            <button class="btn" :disabled="saving || !dirty" @click="form = { ...info.settings }">{{ $t("instance.revert") }}</button>
           </span></span>
         </div>
       </div>
@@ -381,23 +376,23 @@ function fullTime(unix: number) {
       <!-- 模组 -->
       <template v-else-if="tab === 'mods'">
         <div class="box-body bar">
-          <input v-model="modFilter" class="input grow" placeholder="搜索已装的模组…" />
-          <button class="btn small" :disabled="modsBusy" @click="loadMods">刷新</button>
-          <button class="btn small" :disabled="checking || updating || !mods?.length" @click="checkUpdates">{{ checking ? "检查中…" : "检查更新" }}</button>
-          <button class="btn small" @click="openFolder(sub('mods'))">打开模组文件夹</button>
-          <RouterLink :to="{ path: '/resources', query: { version: id } }" class="btn small primary">下载模组</RouterLink>
+          <input v-model="modFilter" class="input grow" :placeholder="$t('instance.searchMods')" />
+          <button class="btn small" :disabled="modsBusy" @click="loadMods">{{ $t("common.refresh") }}</button>
+          <button class="btn small" :disabled="checking || updating || !mods?.length" @click="checkUpdates">{{ checking ? $t("settings.checking") : $t("settings.checkUpdate") }}</button>
+          <button class="btn small" @click="openFolder(sub('mods'))">{{ $t("instance.openMods") }}</button>
+          <RouterLink :to="{ path: '/resources', query: { version: id } }" class="btn small primary">{{ $t("instance.downloadMods") }}</RouterLink>
         </div>
         <div v-if="version && !version.loader" class="box-body">
-          <div class="mod-tip">【版主提示】这个版本没有装模组加载器（Fabric / Forge 等），放进去的模组不会生效。到「下载中心」装一个带加载器的版本吧。</div>
+          <div class="mod-tip">{{ $t("common.modTip") }}{{ $t("instance.noLoader") }}</div>
         </div>
         <div v-if="updates" class="box-body updates">
           <template v-if="updates.length">
             <div class="line">
-              <b>发现 {{ updates.length }} 个模组可以更新</b>
-              <span class="muted small grow">新版本按这个版本的游戏版本和加载器挑选；测试版默认不勾。</span>
-              <button class="btn small" @click="updates = null">收起</button>
-              <button class="btn small primary" :disabled="!picked.size || updating || running" :title="running ? '先退出游戏' : ''" @click="applyUpdates">
-                {{ updating ? "更新中…" : `更新选中（${picked.size}）` }}
+              <b>{{ $t("instance.updatesFound", { n: updates.length }) }}</b>
+              <span class="muted small grow">{{ $t("instance.updatesHint") }}</span>
+              <button class="btn small" @click="updates = null">{{ $t("common.collapse") }}</button>
+              <button class="btn small primary" :disabled="!picked.size || updating || running" :title="running ? $t('instance.quitFirst') : ''" @click="applyUpdates">
+                {{ updating ? $t("update.updating") : $t("instance.updateSelected", { n: picked.size }) }}
               </button>
             </div>
             <label v-for="u in updates" :key="u.filename" class="check up-row">
@@ -405,36 +400,36 @@ function fullTime(unix: number) {
               <b>{{ u.title }}</b>
               <span class="muted small">{{ u.current }} → </span><span class="ok-text small">{{ u.latest.versionNumber }}</span>
               <span class="muted small">{{ u.latest.source === "curseforge" ? "CurseForge" : "Modrinth" }}</span>
-              <span v-if="u.latest.releaseType !== 'release'" class="tag pre-tag">{{ u.latest.releaseType === "beta" ? "测试版" : "开发版" }}</span>
+              <span v-if="u.latest.releaseType !== 'release'" class="tag pre-tag">{{ u.latest.releaseType === "beta" ? $t("instance.beta") : $t("instance.alpha") }}</span>
             </label>
           </template>
           <div v-else class="line">
-            <span class="ok-text">已识别的模组都是最新的。</span>
-            <button class="btn small" @click="updates = null">收起</button>
+            <span class="ok-text">{{ $t("instance.allLatest") }}</span>
+            <button class="btn small" @click="updates = null">{{ $t("common.collapse") }}</button>
           </div>
-          <div v-if="unknownCount" class="muted small">还有 {{ unknownCount }} 个模组在 Modrinth 和 CurseForge 上都认不出来（比如自己改过或从别处下载的），没法检查更新。</div>
+          <div v-if="unknownCount" class="muted small">{{ $t("instance.unknownMods", { n: unknownCount }) }}</div>
         </div>
         <table class="thread-table">
           <thead>
-            <tr><th>模组（已启用 {{ enabledCount }} / {{ mods?.length ?? 0 }}）</th><th class="num">大小</th><th class="num">操作</th></tr>
+            <tr><th>{{ $t("instance.modsHeader", { on: enabledCount, total: mods?.length ?? 0 }) }}</th><th class="num">{{ $t("instance.size") }}</th><th class="num">{{ $t("common.actions") }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="m in shownMods" :key="m.filename" :class="{ off: !m.enabled }">
               <td>
                 <b>{{ m.title ?? m.filename.replace(/\.disabled$/, "") }}</b>
                 <span v-if="m.version" class="muted small ver">{{ m.version }}</span>
-                <span v-if="!m.enabled" class="tag off-tag">已禁用</span>
-                <span v-if="updateFor.get(m.filename)" class="tag new-tag">可更新</span>
+                <span v-if="!m.enabled" class="tag off-tag">{{ $t("resources.disabledTag") }}</span>
+                <span v-if="updateFor.get(m.filename)" class="tag new-tag">{{ $t("instance.updatable") }}</span>
                 <div v-if="m.title" class="muted small break">{{ m.filename }}</div>
               </td>
               <td class="num muted">{{ formatBytes(m.size) }}</td>
               <td class="num"><span class="row-actions">
-                <button class="btn small" :disabled="running" :title="running ? '先退出游戏' : ''" @click="toggleMod(m)">{{ m.enabled ? "禁用" : "启用" }}</button>
-                <button class="btn small" :disabled="running" @click="deleteMod(m)">删除</button>
+                <button class="btn small" :disabled="running" :title="running ? $t('instance.quitFirst') : ''" @click="toggleMod(m)">{{ m.enabled ? $t("resources.disable") : $t("resources.enable") }}</button>
+                <button class="btn small" :disabled="running" @click="deleteMod(m)">{{ $t("common.delete") }}</button>
               </span></td>
             </tr>
-            <tr v-if="modsBusy && !mods"><td colspan="3" class="muted">正在读取模组列表…</td></tr>
-            <tr v-else-if="!shownMods.length"><td colspan="3" class="muted">{{ modFilter ? "没有找到匹配的模组" : "还没有装模组" }}</td></tr>
+            <tr v-if="modsBusy && !mods"><td colspan="3" class="muted">{{ $t("instance.readingMods") }}</td></tr>
+            <tr v-else-if="!shownMods.length"><td colspan="3" class="muted">{{ modFilter ? $t("instance.noMatch") : $t("instance.noMods") }}</td></tr>
           </tbody>
         </table>
       </template>
@@ -448,13 +443,13 @@ function fullTime(unix: number) {
       <!-- 存档 -->
       <template v-else>
         <div class="box-body bar">
-          <span class="muted small grow">备份存在 <code>godbbs-backups</code> 文件夹里。游戏开着时也能备份，但最好先退出到标题画面，避免备份到写了一半的数据。</span>
-          <button class="btn small" @click="loadSaves">刷新</button>
-          <button class="btn small" @click="openFolder(sub('saves'))">打开存档文件夹</button>
+          <span class="muted small grow"><i18n-t keypath="instance.backupHint"><code>godbbs-backups</code></i18n-t></span>
+          <button class="btn small" @click="loadSaves">{{ $t("common.refresh") }}</button>
+          <button class="btn small" @click="openFolder(sub('saves'))">{{ $t("instance.openSaves") }}</button>
         </div>
         <table class="thread-table">
           <thead>
-            <tr><th>存档</th><th class="num">上次游玩</th><th class="num">大小</th><th class="num">操作</th></tr>
+            <tr><th>{{ $t("instance.world") }}</th><th class="num">{{ $t("instance.lastPlayed") }}</th><th class="num">{{ $t("instance.size") }}</th><th class="num">{{ $t("common.actions") }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="w in worlds ?? []" :key="w.folder">
@@ -462,18 +457,18 @@ function fullTime(unix: number) {
               <td class="num muted">{{ timeAgo(w.modified) }}</td>
               <td class="num muted">{{ formatBytes(w.size) }}</td>
               <td class="num"><span class="row-actions">
-                <button class="btn small" :disabled="!!savesBusy" @click="backupWorld(w)">{{ savesBusy === w.folder ? "备份中…" : "备份" }}</button>
+                <button class="btn small" :disabled="!!savesBusy" @click="backupWorld(w)">{{ savesBusy === w.folder ? $t("instance.backingUp") : $t("instance.backup") }}</button>
               </span></td>
             </tr>
-            <tr v-if="worlds && !worlds.length"><td colspan="4" class="muted">还没有存档，进游戏创建一个世界吧</td></tr>
-            <tr v-if="!worlds"><td colspan="4" class="muted">正在读取存档…</td></tr>
+            <tr v-if="worlds && !worlds.length"><td colspan="4" class="muted">{{ $t("instance.noWorlds") }}</td></tr>
+            <tr v-if="!worlds"><td colspan="4" class="muted">{{ $t("instance.readingWorlds") }}</td></tr>
           </tbody>
         </table>
 
-        <div class="box-title sub-title">备份</div>
+        <div class="box-title sub-title">{{ $t("instance.backups") }}</div>
         <table class="thread-table">
           <thead>
-            <tr><th>存档</th><th class="num">备份时间</th><th class="num">大小</th><th class="num">操作</th></tr>
+            <tr><th>{{ $t("instance.world") }}</th><th class="num">{{ $t("instance.backupTime") }}</th><th class="num">{{ $t("instance.size") }}</th><th class="num">{{ $t("common.actions") }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="b in backups" :key="b.file">
@@ -481,17 +476,17 @@ function fullTime(unix: number) {
               <td class="num muted">{{ fullTime(b.created) }}</td>
               <td class="num muted">{{ formatBytes(b.size) }}</td>
               <td class="num"><span class="row-actions">
-                <button class="btn small" :disabled="!!savesBusy || running" :title="running ? '先退出游戏' : ''" @click="restore(b)">{{ savesBusy === b.file ? "恢复中…" : "恢复" }}</button>
-                <button class="btn small" :disabled="!!savesBusy" @click="deleteBackup(b)">删除</button>
+                <button class="btn small" :disabled="!!savesBusy || running" :title="running ? $t('instance.quitFirst') : ''" @click="restore(b)">{{ savesBusy === b.file ? $t("instance.restoring") : $t("instance.restore") }}</button>
+                <button class="btn small" :disabled="!!savesBusy" @click="deleteBackup(b)">{{ $t("common.delete") }}</button>
               </span></td>
             </tr>
-            <tr v-if="!backups.length"><td colspan="4" class="muted">还没有备份</td></tr>
+            <tr v-if="!backups.length"><td colspan="4" class="muted">{{ $t("instance.noBackups") }}</td></tr>
           </tbody>
         </table>
       </template>
     </template>
 
-    <div v-else class="box-body muted">正在读取…</div>
+    <div v-else class="box-body muted">{{ $t("instance.reading") }}</div>
   </div>
 </template>
 

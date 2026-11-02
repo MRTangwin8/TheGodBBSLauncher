@@ -67,7 +67,7 @@ pub struct LaunchResult {
 async fn launch_auth(state: &AppState) -> Result<(LaunchAuth, Option<String>)> {
     let (account, secret) = {
         let store = state.accounts.lock().await;
-        let acc = store.selected().cloned().ok_or_else(|| Error::Other("还没有账号，先去「个人空间」添加一个吧".into()))?;
+        let acc = store.selected().cloned().ok_or_else(|| Error::coded("launch.noAccount", &[], "还没有账号，先去「个人空间」添加一个吧"))?;
         crate::edition::check_account_kind(acc.kind)?;
         let secret = store.secret(&acc.id)?;
         (acc, secret)
@@ -84,10 +84,10 @@ async fn launch_auth(state: &AppState) -> Result<(LaunchAuth, Option<String>)> {
             None,
         )),
         AccountKind::Microsoft => {
-            let mut secret = secret.ok_or_else(|| Error::Other("正版登录信息丢失，请重新登录".into()))?;
+            let mut secret = secret.ok_or_else(|| Error::coded("auth.msLost", &[], "正版登录信息丢失，请重新登录"))?;
             let mut account = account;
             if secret.is_expired() {
-                let refresh = secret.refresh_token.clone().ok_or_else(|| Error::Other("正版登录已过期，请重新登录".into()))?;
+                let refresh = secret.refresh_token.clone().ok_or_else(|| Error::coded("auth.msExpired", &[], "正版登录已过期，请重新登录"))?;
                 let session = microsoft::refresh(&state.client, &refresh).await?;
                 account.name = session.name;
                 account.uuid = session.uuid;
@@ -100,8 +100,8 @@ async fn launch_auth(state: &AppState) -> Result<(LaunchAuth, Option<String>)> {
             ))
         }
         AccountKind::Yggdrasil => {
-            let api = account.server.clone().ok_or_else(|| Error::Other("外置登录缺少服务器地址".into()))?;
-            let mut secret = secret.ok_or_else(|| Error::Other("外置登录信息丢失，请重新登录".into()))?;
+            let api = account.server.clone().ok_or_else(|| Error::coded("auth.yggNoServer", &[], "外置登录缺少服务器地址"))?;
+            let mut secret = secret.ok_or_else(|| Error::coded("auth.yggLost", &[], "外置登录信息丢失，请重新登录"))?;
             let mut account = account;
             if let Some(session) = yggdrasil::ensure_valid(&state.client, &api, &secret).await? {
                 account.name = session.name;
@@ -154,7 +154,7 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
             let task = DownloadTask { url: idx.url.clone(), path: path.clone(), sha1: idx.sha1.clone(), size: idx.size };
             let r = downloader.download_all(vec![task], reporter(Stage::AssetIndex)).await;
             if let Some(f) = r.failed.first() {
-                return Err(Error::Other(format!("资源索引下载失败：{}", f.reason)));
+                return Err(Error::coded("launch.assetIndex", &[("reason", &f.reason)], format!("资源索引下载失败：{}", f.reason)));
             }
             Some(serde_json::from_str::<AssetIndex>(&tokio::fs::read_to_string(&path).await?)?)
         }
@@ -163,7 +163,11 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
     let tasks = install::collect_tasks(&game, &version, asset_index.as_ref(), &platform);
     let report = downloader.download_all(tasks, reporter(Stage::Files)).await;
     if let Some(f) = report.failed.first() {
-        return Err(Error::Other(format!("{} 个文件补全失败，例如 {}：{}", report.failed.len(), f.path, f.reason)));
+        return Err(Error::coded(
+            "launch.filesFailed",
+            &[("n", &report.failed.len()), ("path", &f.path), ("reason", &f.reason)],
+            format!("{} 个文件补全失败，例如 {}：{}", report.failed.len(), f.path, f.reason),
+        ));
     }
 
     // 单版本设置：专用 Java / 内存、强制隔离、最少内存、追加参数
@@ -214,7 +218,10 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         .stderr(Stdio::piped());
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-    let mut child = cmd.spawn().map_err(|e| Error::Other(format!("无法启动 Java（{}）：{e}", prepared.java.display())))?;
+    let mut child = cmd.spawn().map_err(|e| {
+        let java = prepared.java.display();
+        Error::coded("launch.javaSpawn", &[("java", &java), ("detail", &e)], format!("无法启动 Java（{java}）：{e}"))
+    })?;
 
     // 第一行日志写出启动命令，令牌打码
     let redactor = Arc::new(LogRedactor::new([auth.access_token.clone()]));
