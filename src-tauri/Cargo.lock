@@ -1603,7 +1603,7 @@ dependencies = [
 
 [[package]]
 name = "godbbs-launcher"
-version = "0.3.10"
+version = "0.4.0"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
