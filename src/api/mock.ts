@@ -1,5 +1,5 @@
 // 浏览器预览用的假数据，只为看界面，不做任何真实下载或登录
-import type { AccountList, InstalledVersion, Settings, VersionManifest } from "./types";
+import type { AccountList, InstalledVersion, MpState, Settings, VersionManifest } from "./types";
 
 const ids: [string, VersionManifest["versions"][number]["type"], string][] = [
   ["24w44a", "snapshot", "2024-10-30"],
@@ -92,6 +92,27 @@ async function mockShot(seed: number): Promise<ArrayBuffer> {
   g.fillRect(0, 130, 320, 50);
   const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), "image/png"));
   return blob.arrayBuffer();
+}
+
+// 联机：按开始后的秒数推进一个假状态机；地址加 ?mockMpError 会在加入后几秒进入异常
+const mp = { installed: false, mode: null as "host" | "guest" | null, since: 0 };
+function mpState(): MpState {
+  const base: MpState = { state: "waiting", index: 0, room: null, profiles: [], difficulty: null, address: null, error: null };
+  const e = (Date.now() - mp.since) / 1000;
+  const me = { name: accounts.accounts.find((a) => a.id === accounts.selected)?.name ?? "神权玩家", kind: "HOST" as const };
+  if (mp.mode === "host") {
+    if (e < 3) return { ...base, state: "host-scanning", index: 1 };
+    if (e < 4) return { ...base, state: "host-starting", index: 2, room: "U/YNZE-U61D-2206-HXRG" };
+    const profiles = e < 8 ? [me] : [me, { name: "Steve", kind: "GUEST" as const }];
+    return { ...base, state: "host-ok", index: profiles.length + 2, room: "U/YNZE-U61D-2206-HXRG", profiles };
+  }
+  if (mp.mode === "guest") {
+    if (e < 2) return { ...base, state: "guest-connecting", index: 1, room: "U/YNZE-U61D-2206-HXRG" };
+    if (e < 4) return { ...base, state: "guest-starting", index: 2, room: "U/YNZE-U61D-2206-HXRG", difficulty: "MEDIUM" };
+    if (e > 8 && location.search.includes("mockMpError")) return { ...base, state: "exception", index: 4, error: 4 };
+    return { ...base, state: "guest-ok", index: 3, address: "127.0.0.1:25566", profiles: [{ name: "房主阿祖", kind: "HOST" }, { ...me, kind: "LOCAL" }] };
+  }
+  return base;
 }
 
 export async function mock<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -210,6 +231,12 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     list_installed_versions: () => installed,
     list_accounts: () => accounts,
     select_account: () => void (accounts.selected = args!.id as string),
+    rename_offline_account: () => {
+      const a = accounts.accounts.find((x) => x.id === args!.id && x.kind === "offline");
+      if (!a) throw "找不到这个离线账号";
+      a.name = String(args!.name).trim();
+      return a;
+    },
     list_java: () => [
       { path: "C:\\Program Files\\Eclipse Adoptium\\jdk-21\\bin\\java.exe", major: 21, version: "21.0.4", arch: "x86_64", vendor: "Eclipse Adoptium" },
       { path: "C:\\Program Files\\Java\\jre1.8.0_421\\bin\\java.exe", major: 8, version: "1.8.0_421", arch: "x86_64", vendor: "Oracle Corporation" },
@@ -299,6 +326,11 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       ],
     }),
     memory_info: () => ({ totalMb: 16384, autoMb: 4096 }),
+    mp_status: () => ({ supported: true, installed: mp.installed, version: "0.4.2", running: mp.mode !== null, state: mp.mode ? mpState() : null }),
+    mp_install: () => new Promise((r) => setTimeout(() => r(void (mp.installed = true)), 1200)),
+    mp_host: () => ((mp.mode = "host"), (mp.since = Date.now()), mpState()),
+    mp_join: () => ((mp.mode = "guest"), (mp.since = Date.now()), mpState()),
+    mp_leave: () => void (mp.mode = null),
     microsoft_login_start: () => ({ userCode: "GODBBS42", verificationUri: "https://www.microsoft.com/link", expiresIn: 900, interval: 5 }),
     microsoft_login_finish: () => new Promise(() => {}),
   };

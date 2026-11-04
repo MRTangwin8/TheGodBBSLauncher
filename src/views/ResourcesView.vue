@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from "../utils";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -167,7 +168,7 @@ async function toggle(r: LocalResource) {
 }
 
 async function remove(r: LocalResource) {
-  if (!confirm(t("resources.confirmDelete", { name: r.title ?? r.filename }))) return;
+  if (!(await ask(t("resources.confirmDelete", { name: r.title ?? r.filename })))) return;
   try {
     await api.localResourceDelete(versionId.value, kind.value, r.filename);
     local.value = local.value.filter((x) => x !== r);

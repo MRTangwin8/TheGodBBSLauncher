@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from "../../utils";
 import { ref } from "vue";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, inTauri } from "../../api";
@@ -34,7 +35,7 @@ async function run(b: QuickButton) {
         break;
       case "runProgram":
         // 每次运行前都让用户看一眼完整路径；后端还会再核对这个路径确实保存在按钮里
-        if (!window.confirm(t("quickRun.confirm", { path: a.path }))) return;
+        if (!(await ask(t("quickRun.confirm", { path: a.path })))) return;
         await api.quickRunProgram(a.path);
         break;
     }

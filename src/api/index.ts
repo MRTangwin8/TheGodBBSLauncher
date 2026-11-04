@@ -49,8 +49,12 @@ import type {
   UpdateInfo,
   UpdateProgress,
   VersionManifest,
+  MpState,
+  MpStatus,
 } from "./types";
 import { mock } from "./mock";
+import { minecraftLang } from "../game-lang";
+import { locale } from "../i18n";
 
 /** 在普通浏览器里预览界面时没有 Tauri，用假数据代替 */
 export const inTauri = "__TAURI_INTERNALS__" in window;
@@ -84,6 +88,8 @@ export const api = {
 
   listAccounts: () => call<AccountList>("list_accounts"),
   addOfflineAccount: (name: string) => call<Account>("add_offline_account", { name }),
+  /** 离线账号改名，UUID 不变 */
+  renameOfflineAccount: (id: string, name: string) => call<Account>("rename_offline_account", { id, name }),
   microsoftLoginStart: () => call<DeviceCode>("microsoft_login_start"),
   microsoftLoginFinish: () => call<Account>("microsoft_login_finish"),
   microsoftLoginCancel: () => call<void>("microsoft_login_cancel"),
@@ -132,7 +138,9 @@ export const api = {
   resetCrashRules: () => call<RulesInfo>("reset_crash_rules"),
 
   /** server：启动后直接进这个服务器（可选） */
-  launchGame: (versionId: string, server?: string | null) => call<LaunchResult>("launch_game", { versionId, server: server ?? null }),
+  /** gameLanguage：版本第一次启动（还没有 options.txt）时给游戏设的语言 */
+  launchGame: (versionId: string, server?: string | null) =>
+    call<LaunchResult>("launch_game", { versionId, server: server ?? null, gameLanguage: minecraftLang(locale.value, navigator.languages ?? []) }),
   gameDirInfo: () => call<GameDirInfo>("game_dir_info"),
   dirStats: (path: string) => call<DirStats>("dir_stats", { path }),
   /** fromLegacy：把老版本默认位置里留下的数据搬到 to，而不是搬当前游戏目录 */
@@ -162,6 +170,12 @@ export const api = {
   screenshotDelete: (versionId: string, name: string) => call<void>("screenshot_delete", { versionId, name }),
   quickRunProgram: (path: string) => call<void>("quick_run_program", { path }),
   killGame: (runId: string) => call<void>("kill_game", { runId }),
+  mpStatus: () => call<MpStatus>("mp_status"),
+  /** 下载陶瓦联机，进度走 install-progress（versionId = jobId） */
+  mpInstall: (jobId: string) => call<void>("mp_install", { jobId }),
+  mpHost: () => call<MpState>("mp_host"),
+  mpJoin: (room: string) => call<MpState>("mp_join", { room }),
+  mpLeave: () => call<void>("mp_leave"),
 };
 
 export const onInstallProgress = (cb: (p: InstallProgress) => void) => on("install-progress", cb);
@@ -169,3 +183,4 @@ export const onGameLog = (cb: (p: GameLog) => void) => on("game-log", cb);
 export const onUpdateProgress = (cb: (p: UpdateProgress) => void) => on("update-progress", cb);
 export const onMigrateProgress = (cb: (p: MigrateProgress) => void) => on("migrate-progress", cb);
 export const onGameExit = (cb: (p: GameExit) => void) => on("game-exit", cb);
+export const onMultiplayerState = (cb: (p: MpState) => void) => on("multiplayer-state", cb);

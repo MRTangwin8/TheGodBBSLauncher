@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use super::vault::Vault;
-use super::{Account, Secret};
+use super::{Account, AccountKind, Secret};
 use crate::engine::{Error, Result};
 
 #[derive(Default, Serialize, Deserialize)]
@@ -92,6 +92,20 @@ impl AccountStore {
         self.save()
     }
 
+    /// 离线账号改名。UUID 不变，单人存档里的背包、位置都还认得；离线服务器按名字算 UUID，会当成新玩家
+    pub fn rename_offline(&mut self, id: &str, name: &str) -> Result<Account> {
+        let account = self
+            .data
+            .accounts
+            .iter_mut()
+            .find(|a| a.id == id && a.kind == AccountKind::Offline)
+            .ok_or_else(|| Error::Other("找不到这个离线账号".into()))?;
+        account.name = name.to_string();
+        let account = account.clone();
+        self.save()?;
+        Ok(account)
+    }
+
     pub fn select(&mut self, id: &str) -> Result<()> {
         if !self.data.accounts.iter().any(|a| a.id == id) {
             return Err(Error::Other("账号不存在".into()));
@@ -111,7 +125,6 @@ impl AccountStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::auth::AccountKind;
 
     fn acc(name: &str, uuid: &str) -> Account {
         Account { id: uuid::Uuid::new_v4().to_string(), kind: AccountKind::Microsoft, name: name.into(), uuid: uuid.into(), server: None, server_name: None }
@@ -135,6 +148,20 @@ mod tests {
         let s2 = AccountStore::load(path, Vault::from_key(&[1; 32]));
         assert_eq!(s2.selected().unwrap().name, "Alex2");
         assert_eq!(s2.secret(&a.id).unwrap().unwrap().access_token, "tok-123");
+    }
+
+    #[test]
+    fn renames_offline_accounts_only_and_keeps_uuid() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("a.json");
+        let mut s = AccountStore::load(path.clone(), Vault::from_key(&[1; 32]));
+        let ms = s.upsert(acc("Alex", "u1"), None).unwrap();
+        let off = s.upsert(Account { kind: AccountKind::Offline, ..acc("Steve", "u2") }, None).unwrap();
+        let r = s.rename_offline(&off.id, "Herobrine").unwrap();
+        assert_eq!((r.name.as_str(), r.uuid.as_str(), r.id.as_str()), ("Herobrine", "u2", off.id.as_str()));
+        assert!(s.rename_offline(&ms.id, "X_Y_Z").is_err(), "正版账号的名字不能在启动器里改");
+        let reloaded = AccountStore::load(path, Vault::from_key(&[1; 32]));
+        assert_eq!(reloaded.list().accounts.iter().find(|a| a.id == off.id).unwrap().name, "Herobrine");
     }
 
     #[test]

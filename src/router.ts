@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import { t } from "./i18n";
+import { isStore } from "./edition";
 
 const nav = (path: string, key: string, icon: string, component: () => Promise<unknown>) => ({
   path,
@@ -21,6 +22,8 @@ export const navItems = [
   nav("/download", "download", "download", () => import("./views/DownloadView.vue")),
   nav("/versions", "versions", "versions", () => import("./views/VersionsView.vue")),
   nav("/resources", "resources", "resources", () => import("./views/ResourcesView.vue")),
+  // 联机用陶瓦联机；商店版暂不提供（见 docs/MULTIPLAYER.md）
+  ...(isStore ? [] : [nav("/multiplayer", "multiplayer", "multiplayer", () => import("./views/MultiplayerView.vue"))]),
   nav("/log", "log", "log", () => import("./views/LogView.vue")),
   nav("/account", "account", "user", () => import("./views/AccountView.vue")),
   nav("/theme", "theme", "palette", () => import("./views/ThemeView.vue")),

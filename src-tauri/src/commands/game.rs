@@ -118,8 +118,15 @@ async fn launch_auth(state: &AppState) -> Result<(LaunchAuth, Option<String>)> {
 }
 
 #[tauri::command]
-/// `server`：启动后直接进这个服务器（来自首页的快捷按钮）；留空就是普通启动
-pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id: String, server: Option<String>) -> Result<LaunchResult> {
+/// `server`：启动后直接进这个服务器（来自首页的快捷按钮）；留空就是普通启动。
+/// `game_language`：这个版本第一次启动（还没有 options.txt）时给游戏设的语言，如 `zh_cn`
+pub async fn launch_game(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    version_id: String,
+    server: Option<String>,
+    game_language: Option<String>,
+) -> Result<LaunchResult> {
     let state: &AppState = &state;
     // 补文件、下 Java 这段时间游戏还没登记进 games，靠它挡住迁移；返回前游戏已经登记
     let _task = state.begin_task()?;
@@ -196,6 +203,10 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>, version_id:
         None => Vec::new(),
     };
     let game_dir = instance::game_dir(&game, &version.id, settings.isolate_versions);
+    if let Some(lang) = game_language.as_deref() {
+        // 写不进去也不影响启动，游戏会用默认的英文
+        let _ = launch::options::seed_language(&game_dir, lang, version.release_time.as_deref());
+    }
     let memory = inst.memory_mb.or(settings.memory_mb).unwrap_or_else(|| auto_memory_mb(total_memory_mb()));
     let opts = LaunchOptions {
         java: java_path,

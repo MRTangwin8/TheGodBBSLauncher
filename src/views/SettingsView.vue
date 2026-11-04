@@ -345,6 +345,7 @@ if (inTauri) getVersion().then((v) => (appVersion.value = v));
       <p><b>{{ $t("app.name") }}</b> {{ appVersion ? `v${appVersion}` : $t("settings.browserPreview") }}<template v-if="isStore">{{ $t("settings.storeEdition") }}</template> {{ $t("settings.loveLetter") }}</p>
       <i18n-t keypath="settings.unofficial" tag="p"><b>{{ $t("settings.unofficialBold") }}</b></i18n-t>
       <p>{{ $t("settings.noDistribution") }}</p>
+      <p v-if="!isStore">{{ $t("settings.thirdParty") }}</p>
       <p v-if="isStore" class="muted">{{ $t("settings.storeUpdates") }}</p>
       <div v-else class="update-row">
         <button class="btn small" :disabled="checking" @click="manualCheck">{{ checking ? $t("settings.checking") : $t("settings.checkUpdate") }}</button>

@@ -56,6 +56,7 @@ pub fn run() {
             commands::versions::rename_version,
             commands::accounts::list_accounts,
             commands::accounts::add_offline_account,
+            commands::accounts::rename_offline_account,
             commands::accounts::microsoft_login_start,
             commands::accounts::microsoft_login_finish,
             commands::accounts::microsoft_login_cancel,
@@ -109,7 +110,18 @@ pub fn run() {
             commands::crash::crash_rules_info,
             commands::crash::update_crash_rules,
             commands::crash::reset_crash_rules,
+            commands::multiplayer::mp_status,
+            commands::multiplayer::mp_install,
+            commands::multiplayer::mp_host,
+            commands::multiplayer::mp_join,
+            commands::multiplayer::mp_leave,
         ])
-        .run(tauri::generate_context!())
-        .expect("神权论坛启动器启动失败");
+        .build(tauri::generate_context!())
+        .expect("神权论坛启动器启动失败")
+        .run(|app, event| {
+            // 关掉我们拉起的陶瓦联机进程（别人在用的不关）
+            if let tauri::RunEvent::Exit = event {
+                tauri::async_runtime::block_on(commands::multiplayer::shutdown(&app.state::<AppState>()));
+            }
+        });
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from "../../utils";
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { api } from "../../api";
 import type { Screenshot } from "../../api/types";
@@ -103,7 +104,7 @@ function onKey(e: KeyboardEvent) {
 }
 
 async function remove(s: Screenshot) {
-  if (!confirm(t("shots.confirmDelete", { name: s.name }))) return;
+  if (!(await ask(t("shots.confirmDelete", { name: s.name })))) return;
   try {
     await api.screenshotDelete(props.versionId, s.name);
     if (urls[s.name]) URL.revokeObjectURL(urls[s.name]);

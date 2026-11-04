@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from "../utils";
 import { computed, onMounted, ref } from "vue";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, inTauri } from "../api";
@@ -53,7 +54,7 @@ const hasProblem = computed(() => plan.value?.items.some((i) => i.compat?.status
 
 async function confirm() {
   if (!plan.value) return;
-  if (hasProblem.value && !window.confirm(t("resource.confirmProblem"))) return;
+  if (hasProblem.value && !(await ask(t("resource.confirmProblem")))) return;
   const p = plan.value;
   const jobId = `${props.project.title} → ${props.versionId}`;
   const job = versions.startJob(jobId);

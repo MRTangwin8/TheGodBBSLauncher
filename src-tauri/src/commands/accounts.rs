@@ -1,4 +1,5 @@
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use tauri::State;
 
@@ -36,9 +37,20 @@ pub async fn add_offline_account(state: State<'_, AppState>, name: String) -> Re
 }
 
 #[tauri::command]
+pub async fn rename_offline_account(state: State<'_, AppState>, id: String, name: String) -> Result<Account> {
+    crate::edition::check_account_kind(AccountKind::Offline)?;
+    let name = name.trim().to_string();
+    if !offline::is_valid_name(&name) {
+        return Err(Error::coded("auth.offlineName", &[], "离线名字需要 3~16 位，只能用英文字母、数字和下划线"));
+    }
+    state.accounts.lock().await.rename_offline(&id, &name)
+}
+
+#[tauri::command]
 pub async fn microsoft_login_start(state: State<'_, AppState>) -> Result<DeviceCode> {
     let dc = microsoft::request_device_code(&state.client).await?;
-    state.login_cancel.store(false, Ordering::Relaxed);
+    let old = std::mem::replace(&mut *state.login_cancel.lock().await, Arc::new(AtomicBool::new(false)));
+    old.store(true, Ordering::Relaxed);
     *state.pending_login.lock().await = Some(dc.clone());
     Ok(dc)
 }
@@ -52,7 +64,8 @@ pub async fn microsoft_login_finish(state: State<'_, AppState>) -> Result<Accoun
         .await
         .take()
         .ok_or_else(|| Error::Other("请先获取登录验证码".into()))?;
-    let session = microsoft::poll_device_code(&state.client, &dc, &state.login_cancel).await?;
+    let cancel = state.login_cancel.lock().await.clone();
+    let session = microsoft::poll_device_code(&state.client, &dc, &cancel).await?;
     let account = Account {
         id: new_id(),
         kind: AccountKind::Microsoft,
@@ -66,7 +79,8 @@ pub async fn microsoft_login_finish(state: State<'_, AppState>) -> Result<Accoun
 
 #[tauri::command]
 pub async fn microsoft_login_cancel(state: State<'_, AppState>) -> Result<()> {
-    state.login_cancel.store(true, Ordering::Relaxed);
+    state.login_cancel.lock().await.store(true, Ordering::Relaxed);
+    *state.pending_login.lock().await = None;
     Ok(())
 }
 

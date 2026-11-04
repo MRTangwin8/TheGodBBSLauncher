@@ -20,6 +20,7 @@ pub mod screenshots;
 pub mod servers;
 pub mod theme;
 pub mod update;
+pub mod multiplayer;
 pub(crate) mod http;
 
 pub use error::{Error, Result};

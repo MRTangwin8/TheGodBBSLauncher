@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from "../../utils";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "../../api";
@@ -80,7 +81,7 @@ async function saveEdit() {
 }
 
 async function remove(index: number, s: SavedServer) {
-  if (!confirm(t("servers.confirmDelete", { name: s.name, ip: s.ip }))) return;
+  if (!(await ask(t("servers.confirmDelete", { name: s.name, ip: s.ip })))) return;
   await edit(() => api.serverRemove(props.versionId, index));
 }
 

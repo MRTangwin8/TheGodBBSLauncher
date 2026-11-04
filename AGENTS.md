@@ -51,7 +51,8 @@ src-tauri/src/
     resources/        Modrinth / CurseForge 搜索、依赖解析、兼容性检查（classfile / Mixin）
     modpack/          mrpack / CurseForge / MCBBS 整合包导入导出
     crash/            崩溃分析：rules.json 规则库、测试样例（fixtures）
-  examples/           命令行冒烟测试（install / launch / loader / resources / compat / analyze / modpack）
+    multiplayer/      联机：陶瓦联机发行包（版本和 SHA256 写死）、进程、本机 HTTP 接口、房间码校验
+  examples/           命令行冒烟测试（install / launch / loader / resources / compat / analyze / modpack / multiplayer）
 
 src/
   main.ts             挂载应用，引入主题 CSS，安装快捷键屏蔽
@@ -97,7 +98,14 @@ src/
   - 设置文件里的值按不可信数据处理：`Settings::sanitized` 在保存和读取时都过一遍，不合格的整个丢掉；前端校验（`buttons-logic.ts`）和后端规则要保持一致，改一边要改另一边。
   - 「运行程序」：后端 `quick_run_program` 只允许运行**已保存在按钮里**的路径，界面每次运行前还会弹窗确认；不要加"任意路径"的入口。
   - 首页、主题中心、设置不能从导航栏隐藏（`ALWAYS_VISIBLE`），免得用户把自己锁在设置外面。
+  - 游戏语言：`launch_game` 的 `gameLanguage`（`src/game-lang.ts` 按启动器 / 系统语言算出，如 `zh_tw`）只在版本目录里还没有 `options.txt` 时写进去（`engine/launch/options.rs`），不会改玩家自己的设置。
   - 「启动并进服务器」：`launch_game` 的 `server` 参数经 `engine/launch/server.rs` 校验后才变成启动参数（1.20 起用 `--quickPlayMultiplayer`，更早的用 `--server/--port`）。
+- **联机（陶瓦联机）**：设计见 [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md)。
+  - 只下载并运行**未经修改**的陶瓦官方发行包，通过它的本机 HTTP 接口控制，不链接、不改它的代码；按它 AGPL 许可的例外条款，联机页底部和「关于」里的版权标注**不能去掉**。
+  - 版本和每个平台的 SHA256 写死在 `engine/multiplayer/release.rs`，升级陶瓦就改这张表。
+  - 陶瓦全局只跑一个实例，别的程序可能也在用：启动器退出时只关自己拉起、且没有别人房间的实例（`commands/multiplayer.rs` 的 `shutdown`）。
+  - 商店版不提供联机（导航不显示，后端命令拒绝）；macOS 版陶瓦要配合安装包装的后台服务，暂不支持。
+  - 以后如果改成自己实现（Scaffolding 协议 + EasyTier），**不能抄或改写陶瓦的源码**（AGPL），只按协议文档写。
 - **公告栏**：`engine/announce.rs` 启动时从仓库根目录的 `announcements.json` 拉一次（运行期间不拉），格式、发布方法、限制见 [docs/ANNOUNCEMENTS.md](docs/ANNOUNCEMENTS.md)。内容全部当纯文本、链接只放行 http(s)；提交公告时在提交说明里写 `[skip ci]`，免得白白跑一次构建。
 
 ### 多语言
@@ -107,6 +115,9 @@ src/
 - `Settings.language`：`auto`（默认）/ `zh-CN` / `en` / `ja`。`auto` 按系统语言：中文（含繁体）→ 中文，日语 → 日文，其余一律英文。浏览器预览加 `?lang=en` / `?lang=ja`。
 - 后端错误：常见的用 `Error::coded("launch.xxx", &[("n", &n)], "中文原文")`，前端 `errText(e)` 按语言包 `err.launch.xxx` 翻译，没有这个 key 就显示中文原文。界面显示后端错误一律过 `errText`，不要直接 `String(e)`。覆盖范围见 docs/STATUS.md。
 - 纯逻辑文件（如 `buttons-logic.ts`）不引 i18n，返回语言包 key，由界面翻译，方便单测。
+
+### 确认框
+- 二次确认一律 `if (!(await ask(...))) return;`（`src/utils.ts`），**不要直接用 `confirm()`**：Tauri 的对话框插件把 `window.confirm` 换成了返回 Promise 的版本，`!confirm(...)` 永远是假，用户还没点就已经执行了。浏览器预览里看不出这个问题，只在真实窗口里出现。
 
 ### 长任务与进度
 - 用事件推送：`install-progress`、`game-log`、`game-exit`。前端用 `api/index.ts` 导出的 `onInstallProgress` / `onGameLog` / `onGameExit` 订阅；新事件照此加一个导出。
@@ -168,6 +179,7 @@ src/
 | 资源中心 | `engine/resources`，`commands/resources.rs`，`ResourcesView`，`ResourceDialog` | |
 | 整合包 | `engine/modpack`，`commands/modpack.rs`，`Modpack*Dialog` | |
 | 崩溃分析 | `engine/crash`（`rules.json` + fixtures），`CrashPanel` | 新规则要配一个 fixture 测试 |
+| 联机 | `engine/multiplayer`，`commands/multiplayer.rs`，`MultiplayerView` | 用 `examples/multiplayer` 冒烟；设计和限制见 docs/MULTIPLAYER.md |
 | 外观 / 布局 | `layouts/`，`themes/`，`appearance.ts`，`ThemeView`，`BackgroundLayer`，图标组件 | 纯前端 |
 | 首页 | `components/home/`，`composables/useLauncher.ts` | |
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from "../utils";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -214,7 +215,7 @@ async function applyUpdates() {
 }
 
 async function deleteMod(m: LocalResource) {
-  if (!confirm(t("instance.confirmDeleteMod", { name: m.title ?? m.filename }))) return;
+  if (!(await ask(t("instance.confirmDeleteMod", { name: m.title ?? m.filename })))) return;
   try {
     await api.localResourceDelete(id.value, "mod", m.filename);
     mods.value = (mods.value ?? []).filter((x) => x !== m);
@@ -254,7 +255,7 @@ async function backupWorld(w: World) {
 async function restore(b: WorldBackup) {
   const exists = worlds.value?.some((w) => w.folder === b.world);
   const tip = exists ? `\n${t("instance.restoreTip", { name: b.world })}` : "";
-  if (!confirm(t("instance.confirmRestore", { name: b.world, time: fullTime(b.created) }) + tip)) return;
+  if (!(await ask(t("instance.confirmRestore", { name: b.world, time: fullTime(b.created) }) + tip))) return;
   savesBusy.value = b.file;
   message.value = null;
   try {
@@ -269,7 +270,7 @@ async function restore(b: WorldBackup) {
 }
 
 async function deleteBackup(b: WorldBackup) {
-  if (!confirm(t("instance.confirmDeleteBackup", { time: fullTime(b.created), name: b.world }))) return;
+  if (!(await ask(t("instance.confirmDeleteBackup", { time: fullTime(b.created), name: b.world })))) return;
   try {
     await api.worldBackupDelete(id.value, b.file);
     backups.value = backups.value.filter((x) => x !== b);

@@ -10,6 +10,7 @@ pub mod instance;
 pub mod java;
 pub mod loaders;
 pub mod modpack;
+pub mod multiplayer;
 pub mod resources;
 pub mod settings;
 pub mod versions;
@@ -46,7 +47,8 @@ pub struct AppState {
     pub installing: Mutex<HashSet<String>>,
     pub accounts: Mutex<AccountStore>,
     pub pending_login: Mutex<Option<DeviceCode>>,
-    pub login_cancel: Arc<AtomicBool>,
+    /// 当前这次微软登录的取消标志；每次重新开始都换一个新的，并把上一次的置位，免得旧的轮询还在跑
+    pub login_cancel: Mutex<Arc<AtomicBool>>,
     pub java_cache: Mutex<Option<Vec<JavaInstall>>>,
     pub games: Mutex<HashMap<String, RunningGame>>,
     pub crash_rules: RwLock<Arc<RuleSet>>,
@@ -55,6 +57,8 @@ pub struct AppState {
     pub migrate_cancel: AtomicBool,
     /// 正在进行、会写游戏目录的任务数（安装、导入、下载资源、启动前的准备……），见 `begin_task`
     pub busy: AtomicUsize,
+    /// 联机（陶瓦）进程和状态轮询，用到时才启动
+    pub multiplayer: Mutex<Option<multiplayer::MpSession>>,
 }
 
 /// 商店版（MSIX）往 AppData 写的文件会被重定向到应用私有目录：启动器自己读得到，
@@ -88,13 +92,14 @@ impl AppState {
             installing: Mutex::new(HashSet::new()),
             accounts: Mutex::new(accounts),
             pending_login: Mutex::new(None),
-            login_cancel: Arc::new(AtomicBool::new(false)),
+            login_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             java_cache: Mutex::new(None),
             games: Mutex::new(HashMap::new()),
             crash_rules,
             migrating: AtomicBool::new(false),
             migrate_cancel: AtomicBool::new(false),
             busy: AtomicUsize::new(0),
+            multiplayer: Mutex::new(None),
         }
     }
 

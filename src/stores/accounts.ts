@@ -42,10 +42,15 @@ export const useAccountsStore = defineStore("accounts", () => {
     await load();
   }
 
+  async function rename(id: string, name: string) {
+    await api.renameOfflineAccount(id, name);
+    await load();
+  }
+
   /** 新增账号的命令都会把它设为当前账号，完成后统一刷新 */
   async function added(_: Account) {
     await load();
   }
 
-  return { accounts, selectedId, selected, skins, load, loadSkin, select, remove, added };
+  return { accounts, selectedId, selected, skins, load, loadSkin, select, remove, rename, added };
 });

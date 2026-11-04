@@ -546,3 +546,41 @@ export interface Screenshot {
   /** Unix 秒 */
   modified: number;
 }
+
+/** 联机房间里的一个人；名字是对方自己填的，只当纯文本显示 */
+export interface MpProfile {
+  name: string;
+  kind: "HOST" | "LOCAL" | "GUEST";
+}
+
+/** 陶瓦联机的状态（后端整理过的 /state），stopped 表示陶瓦进程已经退出 */
+export interface MpState {
+  state:
+    | "waiting"
+    | "host-scanning"
+    | "host-starting"
+    | "host-ok"
+    | "guest-connecting"
+    | "guest-starting"
+    | "guest-ok"
+    | "exception"
+    | "stopped"
+    | "unknown";
+  index: number;
+  room: string | null;
+  profiles: MpProfile[];
+  difficulty: "UNKNOWN" | "EASIEST" | "SIMPLE" | "MEDIUM" | "TOUGH" | null;
+  /** 加入成功后的本机地址，如 127.0.0.1:25566 */
+  address: string | null;
+  /** exception 的类型 0~5 */
+  error: number | null;
+}
+
+export interface MpStatus {
+  /** 这个平台 / 发行版本能不能用联机 */
+  supported: boolean;
+  installed: boolean;
+  version: string;
+  running: boolean;
+  state: MpState | null;
+}

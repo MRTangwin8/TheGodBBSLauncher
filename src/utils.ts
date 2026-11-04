@@ -1,5 +1,14 @@
 import { locale, t } from "./i18n";
 
+/**
+ * 二次确认。所有确认框都要用它，不要直接用 confirm()：
+ * Tauri 的对话框插件把 window.confirm 换成了返回 Promise 的异步版本，
+ * `if (!confirm(...))` 拿到的 Promise 永远是真值，用户还没点就已经继续执行了。
+ */
+export async function ask(message: string): Promise<boolean> {
+  return Boolean(await (window.confirm(message) as boolean | Promise<boolean>));
+}
+
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   const units = ["KB", "MB", "GB"];

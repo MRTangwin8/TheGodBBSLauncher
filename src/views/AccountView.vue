@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from "../utils";
 import { computed, onMounted, ref } from "vue";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, inTauri } from "../api";
@@ -21,9 +22,12 @@ const message = ref<{ ok: boolean; text: string } | null>(null);
 const offlineName = ref("");
 // 外置
 const ygg = ref({ server: "", username: "", password: "" });
-// 微软
+// 微软：和另外两种登录分开记"忙"，等浏览器授权期间也能切到离线 / 外置登录
 const device = ref<DeviceCode | null>(null);
 const copied = ref(false);
+const msBusy = ref(false);
+/** 每次开始登录加一；取消或重新开始后，旧的那次结果直接丢掉 */
+let msAttempt = 0;
 
 function done(text: string) {
   message.value = { ok: true, text };
@@ -48,20 +52,26 @@ async function addOffline() {
 }
 
 async function startMicrosoft() {
-  busy.value = true;
+  const attempt = ++msAttempt;
+  msBusy.value = true;
   message.value = null;
   copied.value = false;
   try {
-    device.value = await api.microsoftLoginStart();
-    // 一直等到用户在浏览器里完成授权
+    const dc = await api.microsoftLoginStart();
+    if (attempt !== msAttempt) return;
+    device.value = dc;
+    // 一直等到用户在浏览器里完成授权（或过期 / 取消）
     const a = await api.microsoftLoginFinish();
+    if (attempt !== msAttempt) return;
     await store.added(a);
     done(t("account.msLoggedIn", { name: a.name }));
   } catch (e) {
-    fail(e);
+    if (attempt === msAttempt) fail(e);
   } finally {
-    device.value = null;
-    busy.value = false;
+    if (attempt === msAttempt) {
+      device.value = null;
+      msBusy.value = false;
+    }
   }
 }
 
@@ -77,8 +87,16 @@ async function copyAndOpen() {
   else window.open(device.value.verificationUri, "_blank");
 }
 
+/** 不等后端轮询结束，界面立刻回到可以重新选择的状态 */
 async function cancelMicrosoft() {
-  await api.microsoftLoginCancel();
+  msAttempt++;
+  device.value = null;
+  msBusy.value = false;
+  try {
+    await api.microsoftLoginCancel();
+  } catch {
+    /* 取消失败也无所谓，那次登录的结果已经不会被采用 */
+  }
 }
 
 async function addYgg() {
@@ -96,8 +114,28 @@ async function addYgg() {
   }
 }
 
+// 离线账号改名
+const renamingId = ref<string | null>(null);
+const newName = ref("");
+function startRename(id: string, name: string) {
+  renamingId.value = id;
+  newName.value = name;
+  message.value = null;
+}
+async function saveRename() {
+  const id = renamingId.value;
+  if (!id) return;
+  try {
+    await store.rename(id, newName.value);
+    done(t("account.renamed", { name: newName.value.trim() }));
+    renamingId.value = null;
+  } catch (e) {
+    fail(e);
+  }
+}
+
 async function remove(id: string, name: string) {
-  if (!confirm(t("account.confirmDelete", { name }))) return;
+  if (!(await ask(t("account.confirmDelete", { name })))) return;
   await store.remove(id);
 }
 
@@ -124,12 +162,21 @@ const tabs = computed(() =>
               <td class="head-cell"><AccountAvatar :account="a" :size="32" /></td>
               <td>
                 <span class="tag" :class="'acc-' + a.kind">{{ kindLabel(a.kind) }}</span>
-                <b>{{ a.name }}</b>
+                <form v-if="renamingId === a.id" class="rename" @click.stop @submit.prevent="saveRename">
+                  <input v-model="newName" class="input" maxlength="16" :placeholder="$t('account.offlinePlaceholder')" @keyup.esc="renamingId = null" />
+                  <button class="btn small primary" :disabled="!newName.trim()">{{ $t("common.save") }}</button>
+                  <button type="button" class="btn small" @click="renamingId = null">{{ $t("common.cancel") }}</button>
+                </form>
+                <b v-else>{{ a.name }}</b>
                 <span v-if="a.id === store.selectedId" class="current-mark">✔ {{ $t("account.current") }}</span>
                 <span v-if="storeBlocks(a.kind)" class="tag blocked">{{ $t("account.storeBlocked") }}</span>
-                <div class="muted small">{{ a.serverName ?? (a.kind === "microsoft" ? $t("account.msAccount") : $t("account.offlineOnly")) }}</div>
+                <div v-if="renamingId === a.id" class="muted small">{{ $t("account.renameHint") }}</div>
+                <div v-else class="muted small">{{ a.serverName ?? (a.kind === "microsoft" ? $t("account.msAccount") : $t("account.offlineOnly")) }}</div>
               </td>
-              <td class="num"><a class="del" @click.stop="remove(a.id, a.name)">{{ $t("common.delete") }}</a></td>
+              <td class="num">
+                <a v-if="a.kind === 'offline' && renamingId !== a.id" class="del" @click.stop="startRename(a.id, a.name)">{{ $t("account.rename") }}</a>
+                <a class="del" @click.stop="remove(a.id, a.name)">{{ $t("common.delete") }}</a>
+              </td>
             </tr>
             <tr v-if="!store.accounts.length">
               <td colspan="3" class="muted">{{ $t("account.empty") }}</td>
@@ -157,7 +204,8 @@ const tabs = computed(() =>
             </div>
             <div v-else>
               <p>{{ $t("account.msHint") }}</p>
-              <button class="btn primary" :disabled="busy" @click="startMicrosoft">{{ busy ? $t("account.requesting") : $t("account.msLogin") }}</button>
+              <button class="btn primary" :disabled="msBusy" @click="startMicrosoft">{{ msBusy ? $t("account.requesting") : $t("account.msLogin") }}</button>
+              <button v-if="msBusy" class="btn" @click="cancelMicrosoft">{{ $t("common.cancel") }}</button>
             </div>
           </template>
 
@@ -202,7 +250,9 @@ const tabs = computed(() =>
 .head-cell { width: 48px; }
 .current-mark { color: var(--grass); font-size: 12px; margin-left: 6px; }
 .small { font-size: 12px; }
-.del { color: var(--text-muted); }
+.del { color: var(--text-muted); margin-left: 10px; }
+.rename { display: inline-flex; gap: 6px; align-items: center; }
+.rename .input { width: 180px; }
 .tag.acc-microsoft { background: #2f7d32; }
 .tag.acc-offline { background: #8b8b8b; }
 .tag.acc-yggdrasil { background: #7b6a9e; }
