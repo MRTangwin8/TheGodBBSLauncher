@@ -129,6 +129,8 @@ function dismiss() {
 }
 .progress { margin: 6px 0; }
 .small { font-size: 12px; margin: 4px 0; }
-.actions { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+/* 日语等文案较长的语言一行放不下，按钮换行而不是溢出对话框 */
+.actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+.actions .btn { white-space: nowrap; }
 .grow { flex: 1; }
 </style>
