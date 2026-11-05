@@ -51,6 +51,8 @@ store = []
 # 应用内更新只有桌面端有
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+# 只开一个启动器：桌面快捷方式再次打开时把参数转给已有窗口
+tauri-plugin-single-instance = "2"
 
 [dev-dependencies]
 tempfile = "3"

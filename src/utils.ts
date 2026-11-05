@@ -45,6 +45,7 @@ export const loaderLabel: Record<string, string> = {
   quilt: "Quilt",
   forge: "Forge",
   neoforge: "NeoForge",
+  optifine: "OptiFine",
 };
 
 /** 秒 → "3.5 小时" / "25 分钟" */

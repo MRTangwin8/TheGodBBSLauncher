@@ -293,6 +293,12 @@ const ja: typeof zhCN = {
     addAccountFirst: "先にアカウントを追加してください",
     manage: "管理",
     rename: "名前変更",
+    copy: "複製",
+    copyPrompt: "「{id}」を複製します。新しいバージョン名は？（バージョン分離時は MOD とワールドも複製）",
+    copyJob: "複製 {id} → {name}",
+    shortcut: "ショートカット",
+    shortcutTip: "このバージョンを直接起動するショートカットをデスクトップに作成",
+    shortcutDone: "デスクトップにショートカットを作成しました：\n{path}\n\nダブルクリックするとランチャーが開き、このバージョンがすぐ起動します。",
     export: "エクスポート",
     empty: "まだスレッドがありません。{0} からインストールしましょう",
   },
@@ -309,6 +315,10 @@ const ja: typeof zhCN = {
     running: "実行中",
     filter: "ログを絞り込む…",
     copyAll: "すべてコピー",
+    share: "ログを共有",
+    sharing: "アップロード中…",
+    shared: "アップロードしました。このリンクを相談相手に送ってください：",
+    shareConfirm: "ログを公開のログ共有サイト mclo.gs にアップロードします。リンクを知っている人は誰でも見られます。トークンは伏せ字にし、ユーザーフォルダーは ~ に置き換えますが、それ以外の内容（プレイヤー名、サーバーアドレス、MOD 一覧など）はそのままアップロードされます。よろしいですか？",
     crashTitle: "ゲームがクラッシュしました。モデレーターが調べた結果です",
   },
   install: {
@@ -319,6 +329,7 @@ const ja: typeof zhCN = {
       quilt: "Fabric の派生版で、多くの Fabric Mod が動作",
       forge: "老舗のローダー。Mod が最も多く、古いバージョンならこれ",
       neoforge: "Forge のコミュニティ派生版。1.20.2 以降の主流",
+      optifine: "画質と FPS の改善、シェーダー対応。単独のバージョンとして入り、他の MOD とは併用できません",
     },
     loading: "{loader} のバージョン一覧を取得中…",
     unsupported: "{loader} はまだ Minecraft {mc} に対応していません",
@@ -331,6 +342,10 @@ const ja: typeof zhCN = {
     nameTaken: "同じ名前のバージョンがすでにあります",
     installLoader: "{mc} + {loader} をインストール",
     installVanilla: "バニラ {mc} をインストール",
+    optifineNote: "OptiFine は BMCLAPI ミラーから取得します。インストール時に同梱のパッチツールを Java で実行し、「バニラ + OptiFine」のバージョンを作ります。MOD と一緒に使うには Forge を選び「OptiFine も入れる」にチェックしてください。",
+    withOptifine: "OptiFine も入れる（MOD として mods に配置）",
+    optifineNoForge: "{mc} の Forge に入れられる OptiFine がありません",
+    optifineForge: "推奨 {forge}",
   },
   export: {
     previewOnly: "ブラウザープレビューではエクスポートできません。npm run tauri dev で起動してください",
@@ -956,6 +971,20 @@ const ja: typeof zhCN = {
     credit: "マルチプレイ機能は {0} によって提供され、AGPL-3.0（例外条項付き）で公開されています。ランチャーは改変していない公式プログラムを呼び出すだけです。",
   },
   err: {
+    shortcut: {
+      unsupported: "このシステムではまだデスクトップショートカットを作成できません",
+      failed: "ショートカットの作成に失敗しました：{detail}",
+      store: "Microsoft Store 版ではまだデスクトップショートカットを作成できません",
+    },
+    share: {
+      empty: "ログが空なので共有できません",
+      failed: "ログのアップロードに失敗しました：{reason}",
+    },
+    optifine: {
+      download: "OptiFine のダウンロードに失敗しました：{reason}",
+      badJar: "ダウンロードしたファイルは OptiFine のインストーラーではないため削除しました。しばらくしてから再試行してください",
+      patch: "OptiFine のインストールに失敗しました（パッチツールのエラー）：\n{log}",
+    },
     cancelled: "キャンセルしました",
     mp: {
       download: "Terracotta のダウンロードに失敗しました：{reason}",

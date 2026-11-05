@@ -29,6 +29,8 @@ export interface InstalledVersion {
   modpack: string | null;
   /** 上次安装 / 补全没有完成（取消、断网等），补全文件或直接启动会接着下 */
   incomplete: boolean;
+  /** 单独安装的 OptiFine 版本，如 HD_U_J1 */
+  optifine: string | null;
 }
 
 export type SourcePref = "auto" | "official" | "bmclapi";
@@ -315,6 +317,17 @@ export interface RulesInfo {
 }
 
 export type LoaderKind = "fabric" | "quilt" | "forge" | "neoforge";
+
+/** OptiFine 的一个版本（来自 BMCLAPI） */
+export interface OptiFineVersion {
+  /** 如 HD_U、HD_U_J1 */
+  type: string;
+  /** 如 J1、pre10 */
+  patch: string;
+  /** 推荐搭配的 Forge；不能装进 Forge 时为 null */
+  forge: string | null;
+  preview: boolean;
+}
 
 export interface LoaderVersion {
   id: string;

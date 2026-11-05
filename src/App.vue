@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { inTauri } from "./api";
+import { api, inTauri, onLaunchRequest } from "./api";
 import { useSettingsStore } from "./stores/settings";
 import { useVersionsStore } from "./stores/versions";
 import { useAccountsStore } from "./stores/accounts";
@@ -40,6 +40,12 @@ function onKey(e: KeyboardEvent) {
   launcher.launch();
 }
 
+async function launchFromShortcut(id: string) {
+  await Promise.all([accounts.load(), versions.loadInstalled()]);
+  if (!versions.installed.some((v) => v.id === id) || launcher.game.launching) return;
+  launcher.launch(id);
+}
+
 setupAppearance();
 setupI18n();
 
@@ -57,6 +63,13 @@ onMounted(() => {
   });
   versions.loadInstalled();
   accounts.load();
+  // 桌面快捷方式：启动参数里带的版本（刚打开），或已经开着时又从快捷方式打开
+  if (inTauri) {
+    api.takePendingLaunch().then((id) => {
+      if (id) launchFromShortcut(id);
+    });
+    onLaunchRequest(launchFromShortcut);
+  }
   // 把整合包或主题文件拖进窗口直接导入
   if (inTauri) {
     getCurrentWebview().onDragDropEvent((e) => {

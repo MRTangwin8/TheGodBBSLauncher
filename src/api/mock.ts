@@ -50,9 +50,9 @@ let settings: Settings = {
   language: (new URLSearchParams(location.search).get("lang") as Settings["language"] | null) ?? "auto",
 };
 const installed: InstalledVersion[] = [
-  { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1", playTimeSecs: 45000, lastPlayed: 1792850000, modpack: null, incomplete: false },
-  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null, incomplete: false },
-  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null, incomplete: true },
+  { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1", playTimeSecs: 45000, lastPlayed: 1792850000, modpack: null, incomplete: false, optifine: null },
+  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null, incomplete: false, optifine: null },
+  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null, incomplete: true, optifine: null },
 ];
 const accounts: AccountList = {
   accounts: [
@@ -332,6 +332,21 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     mp_join: () => ((mp.mode = "guest"), (mp.since = Date.now()), mpState()),
     mp_leave: () => void (mp.mode = null),
     cancel_job: () => undefined,
+    take_pending_launch: () => null,
+    create_shortcut: () => `C:/Users/Steve/Desktop/${args!.versionId} - 神权论坛启动器.lnk`,
+    share_log: () => "https://mclo.gs/AbC123x",
+    copy_version: () => {
+      const src = installed.find((v) => v.id === args!.id);
+      if (!src) throw "找不到这个版本";
+      installed.push({ ...src, id: String(args!.newName), playTimeSecs: 0, lastPlayed: null });
+      return args!.newName;
+    },
+    list_optifine: () => [
+      { type: "HD_U", patch: "J1", forge: "Forge 52.0.16", preview: false },
+      { type: "HD_U", patch: "I9", forge: null, preview: false },
+      { type: "HD_U_J2", patch: "pre3", forge: "Forge 52.0.20", preview: true },
+    ],
+    install_optifine: () => new Promise((r) => setTimeout(() => r(args?.name ?? "1.21.1-OptiFine_HD_U_J1"), 1500)),
     microsoft_login_start: () => ({ userCode: "GODBBS42", verificationUri: "https://www.microsoft.com/link", expiresIn: 900, interval: 5 }),
     microsoft_login_finish: () => new Promise(() => {}),
   };

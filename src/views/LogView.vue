@@ -5,6 +5,9 @@ import { api } from "../api";
 import type { CrashAnalysis } from "../api/types";
 import CrashPanel from "../components/CrashPanel.vue";
 import { errText, t } from "../i18n";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { inTauri } from "../api";
+import { ask } from "../utils";
 
 const game = useGameStore();
 
@@ -56,6 +59,31 @@ watch(
 function onScroll() {
   const el = box.value;
   if (el) follow.value = el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
+}
+
+// 分享到 mclo.gs：任何拿到链接的人都能看，先确认
+const sharing = ref(false);
+const shared = ref<{ runId: string; url: string } | null>(null);
+const shareError = ref<string | null>(null);
+async function share() {
+  const r = run.value;
+  if (!r || !(await ask(t("log.shareConfirm")))) return;
+  sharing.value = true;
+  shareError.value = null;
+  try {
+    shared.value = { runId: r.runId, url: await api.shareLog(r.lines.join("\n")) };
+  } catch (e) {
+    shareError.value = errText(e);
+  } finally {
+    sharing.value = false;
+  }
+}
+function copyText(text: string) {
+  navigator.clipboard.writeText(text);
+}
+async function openShared(url: string) {
+  if (inTauri) await openUrl(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
 }
 
 function copyAll() {
@@ -110,9 +138,15 @@ const exitText = computed(() => {
         </span>
         <input v-model="filter" class="input" :placeholder="$t('log.filter')" />
         <button class="btn" @click="copyAll">{{ $t("log.copyAll") }}</button>
+        <button class="btn" :disabled="sharing || !run.lines.length" @click="share">{{ sharing ? $t("log.sharing") : $t("log.share") }}</button>
         <button v-if="run.status === 'running'" class="btn" @click="game.kill(run.runId)">{{ $t("launchHome.kill") }}</button>
         <button v-else class="btn" @click="game.clear(run.runId)">{{ $t("progress.dismiss") }}</button>
       </div>
+      <div v-if="shared?.runId === run.runId" class="share-row">
+        {{ $t("log.shared") }} <a @click="openShared(shared.url)">{{ shared.url }}</a>
+        <a @click="copyText(shared.url)">{{ $t("mp.copy") }}</a>
+      </div>
+      <div v-else-if="shareError" class="share-row error-text">{{ shareError }}</div>
       <CrashPanel v-if="run.analysis" :analysis="run.analysis" :title="$t('log.crashTitle')" />
       <div ref="box" class="log" @scroll="onScroll">
         <div v-for="(l, i) in lines" :key="i" :class="levelClass(l)">{{ l }}</div>
@@ -129,6 +163,7 @@ const exitText = computed(() => {
 .toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
 .toolbar > span { margin-right: auto; }
 .running { color: var(--grass); font-weight: bold; }
+.share-row { display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-bottom: 1px dashed var(--border); font-size: 12px; }
 .tool-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px dashed var(--border); font-size: 12px; }
 .file-analysis { position: relative; border-bottom: 1px solid var(--border); }
 .close-file { position: absolute; right: 24px; bottom: 16px; font-size: 12px; }

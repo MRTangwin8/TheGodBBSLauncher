@@ -106,6 +106,9 @@ src/
   - 陶瓦全局只跑一个实例，别的程序可能也在用：启动器退出时只关自己拉起、且没有别人房间的实例（`commands/multiplayer.rs` 的 `shutdown`）。
   - 商店版不提供联机（导航不显示，后端命令拒绝）；macOS 版陶瓦要配合安装包装的后台服务，暂不支持。
   - 以后如果改成自己实现（Scaffolding 协议 + EasyTier），**不能抄或改写陶瓦的源码**（AGPL），只按协议文档写。
+- **OptiFine**（`engine/loader/optifine.rs`）：列表和安装包只从 BMCLAPI 拿。单独安装 = 运行安装包自带的 `optifine.Patcher <原版 jar> <安装包> <输出>` 生成补丁库 + 解出 `launchwrapper-of` + 写继承原版、主类 LaunchWrapper、带 `--tweakClass optifine.OptiFineTweaker` 的版本 json；装进 Forge = 安装包直接放进 mods。安装包缓存在 `runtime_dir` 下（商店版的 Java 读不到 AppData）。不是 `LoaderKind`：资源中心把单独的 OptiFine 版本当原版。
+- **桌面快捷方式**（`engine/shortcut.rs`）：运行 `<启动器> --launch <版本>`。`tauri-plugin-single-instance` 必须第一个注册，已开着时把参数转给已有窗口（`launch-request` 事件），没开着就放进 `AppState::pending_launch` 等界面来取。Windows 写 `.lnk`（PowerShell 的值走环境变量），Linux 写 `.desktop`，macOS 和商店版不支持。
+- **分享日志**（`engine/logshare.rs`）：上传到 mclo.gs，前端先 `ask` 确认；上传前换掉用户目录、只留结尾 24000 行。只认 `https://mclo.gs/` 开头的返回链接。
 - **公告栏**：`engine/announce.rs` 启动时从仓库根目录的 `announcements.json` 拉一次（运行期间不拉），格式、发布方法、限制见 [docs/ANNOUNCEMENTS.md](docs/ANNOUNCEMENTS.md)。内容全部当纯文本、链接只放行 http(s)；提交公告时在提交说明里写 `[skip ci]`，免得白白跑一次构建。
 
 ### 多语言

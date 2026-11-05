@@ -293,6 +293,12 @@ const en: typeof zhCN = {
     addAccountFirst: "Add an account first",
     manage: "Manage",
     rename: "Rename",
+    copy: "Copy",
+    copyPrompt: "Copy \"{id}\" as… (with version isolation, mods and saves are copied too)",
+    copyJob: "Copy {id} → {name}",
+    shortcut: "Shortcut",
+    shortcutTip: "Create a desktop shortcut that launches this version directly",
+    shortcutDone: "Desktop shortcut created:\n{path}\n\nDouble-click it to open the launcher and start this version right away.",
     export: "Export",
     empty: "No versions here yet. Install one from {0}.",
   },
@@ -309,6 +315,10 @@ const en: typeof zhCN = {
     running: "Running",
     filter: "Filter log…",
     copyAll: "Copy all",
+    share: "Share log",
+    sharing: "Uploading…",
+    shared: "Uploaded. Send this link to whoever is helping you:",
+    shareConfirm: "The log will be uploaded to mclo.gs, a public log-sharing site; anyone with the link can read it. Tokens are masked and your user folder is replaced with ~, but everything else in the log (player name, server addresses, mod list, etc.) is uploaded as is. Upload?",
     crashTitle: "The game crashed. Here's what the moderators found",
   },
   install: {
@@ -319,6 +329,7 @@ const en: typeof zhCN = {
       quilt: "A Fabric fork that runs most Fabric mods",
       forge: "The classic loader with the most mods; best for older versions",
       neoforge: "Community fork of Forge; the go-to choice from 1.20.2 on",
+      optifine: "Better visuals and FPS, shader support; installed as its own version and cannot be combined with other mods",
     },
     loading: "Loading {loader} versions…",
     unsupported: "{loader} doesn't support Minecraft {mc} yet",
@@ -331,6 +342,10 @@ const en: typeof zhCN = {
     nameTaken: "A version with this name already exists",
     installLoader: "Install {mc} + {loader}",
     installVanilla: "Install vanilla {mc}",
+    optifineNote: "OptiFine is provided by the BMCLAPI mirror. Installing runs its bundled patcher with Java to create a \"vanilla + OptiFine\" version. To use it with mods, pick Forge and tick \"Add OptiFine\".",
+    withOptifine: "Add OptiFine (as a mod in the mods folder)",
+    optifineNoForge: "No OptiFine build works with Forge for {mc}",
+    optifineForge: "recommended {forge}",
   },
   export: {
     previewOnly: "Exporting isn't available in the browser preview. Start the app with npm run tauri dev.",
@@ -956,6 +971,20 @@ const en: typeof zhCN = {
     credit: "Multiplayer is powered by {0}, released under AGPL-3.0 with exceptions. The launcher only runs its unmodified official program.",
   },
   err: {
+    shortcut: {
+      unsupported: "Desktop shortcuts are not supported on this system yet",
+      failed: "Failed to create the shortcut: {detail}",
+      store: "Desktop shortcuts are not available in the Microsoft Store edition yet",
+    },
+    share: {
+      empty: "The log is empty; there is nothing to share",
+      failed: "Failed to upload the log: {reason}",
+    },
+    optifine: {
+      download: "Failed to download OptiFine: {reason}",
+      badJar: "The downloaded file is not an OptiFine installer. It was deleted; please try again later",
+      patch: "OptiFine installation failed (patcher error):\n{log}",
+    },
     cancelled: "Cancelled",
     mp: {
       download: "Failed to download Terracotta: {reason}",

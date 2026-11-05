@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, reactive, ref } from "vue";
 import { api, onInstallProgress } from "../api";
-import type { DownloadReport, InstalledVersion, LoaderKind, LoaderVersion, Progress, Stage, VersionManifest } from "../api/types";
+import type { DownloadReport, InstalledVersion, LoaderKind, LoaderVersion, OptiFineVersion, Progress, Stage, VersionManifest } from "../api/types";
 import { loaderLabel } from "../utils";
 import { t } from "../i18n";
 
@@ -90,6 +90,22 @@ export const useVersionsStore = defineStore("versions", () => {
     await loadInstalled();
   }
 
+  /** forge 给了就装 Forge + OptiFine（作为模组），否则原版 + OptiFine */
+  async function installOptifine(mc: string, of: OptiFineVersion, forge: LoaderVersion | null, name: string | null) {
+    const jobId = name || `${mc} + OptiFine ${of.type}_${of.patch}`;
+    if (jobs[jobId]?.status === "running") return;
+    jobs[jobId] = { versionId: jobId, kind: "install", floor: ++floorCounter, stage: "versionJson", progress: null, status: "running", cancellable: true };
+    const job = jobs[jobId];
+    try {
+      job.resultId = await api.installOptifine(jobId, mc, of, forge?.id ?? null, name);
+      job.status = "done";
+    } catch (e) {
+      job.status = "failed";
+      job.error = String(e);
+    }
+    await loadInstalled();
+  }
+
   /** 请求取消；任务随后以失败结束，界面显示「已取消」 */
   async function cancel(versionId: string) {
     const job = jobs[versionId];
@@ -114,5 +130,5 @@ export const useVersionsStore = defineStore("versions", () => {
     return jobs[versionId];
   }
 
-  return { manifest, manifestError, installed, installedIds, jobs, jobList, running, loadManifest, loadInstalled, install, installLoader, cancel, dismiss, trackLaunch, startJob };
+  return { manifest, manifestError, installed, installedIds, jobs, jobList, running, loadManifest, loadInstalled, install, installLoader, installOptifine, cancel, dismiss, trackLaunch, startJob };
 });

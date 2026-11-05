@@ -259,6 +259,56 @@ pub fn rename_version(game: &GameDir, old: &str, new: &str) -> Result<()> {
     Ok(())
 }
 
+/// 复制版本：整个版本文件夹（版本隔离时包括模组、配置、存档）复制一份，再改 json 里的 id 和 jar 文件名。
+/// 复制品的游玩时长从零算。符号链接不跟进去，直接跳过
+pub fn copy_version(game: &GameDir, old: &str, new: &str) -> Result<()> {
+    validate_version_name(new)?;
+    if !crate::engine::safepath::name_ok(old) || !game.version_json(old).is_file() {
+        return Err(Error::VersionNotFound(old.into()));
+    }
+    let dest = game.versions().join(new);
+    if dest.exists() {
+        return Err(Error::Other(format!("已经有名为「{new}」的版本了")));
+    }
+    let result = (|| {
+        copy_dir(&game.versions().join(old), &dest)?;
+        let mut v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dest.join(format!("{old}.json")))?)?;
+        v["id"] = serde_json::Value::String(new.to_string());
+        std::fs::write(game.version_json(new), serde_json::to_string_pretty(&v)?)?;
+        let _ = std::fs::remove_file(dest.join(format!("{old}.json")));
+        let old_jar = dest.join(format!("{old}.jar"));
+        if old_jar.is_file() {
+            std::fs::rename(old_jar, game.version_jar(new))?;
+        }
+        let mut inst = crate::engine::instance::load(game, new);
+        inst.play_time_secs = 0;
+        inst.last_played = None;
+        crate::engine::instance::save(game, new, &inst)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+    result
+}
+
+fn copy_dir(from: &Path, to: &Path) -> Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        crate::engine::cancel::check()?;
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        let target = to.join(entry.file_name());
+        if kind.is_symlink() {
+            continue;
+        } else if kind.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else {
+            std::fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
 /// 新建一个只继承原版的版本（没有加载器的整合包用，让它有自己的文件夹）
 pub fn create_inheriting_version(game: &GameDir, name: &str, mc: &str) -> Result<()> {
     validate_version_name(name)?;
@@ -296,6 +346,8 @@ pub struct InstalledVersion {
     pub modpack: Option<String>,
     /// 上次安装 / 补全没有完成（见 `mark_incomplete`）
     pub incomplete: bool,
+    /// 单独安装的 OptiFine 版本，如 `HD_U_J1`（作为模组装进 Forge 的认不出来）
+    pub optifine: Option<String>,
 }
 
 pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
@@ -324,6 +376,7 @@ pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
             incomplete: game.versions().join(&id).join(INCOMPLETE_MARK).exists(),
             id,
             loader: crate::engine::loader::detect(&v),
+            optifine: crate::engine::loader::optifine::detect(&v),
             kind: v.kind,
             inherits_from: v.inherits_from,
             release_time: v.release_time,
@@ -398,6 +451,32 @@ mod tests {
         assert!(rename_version(&game, "other", "a/b").is_err());
         assert!(rename_version(&game, "other", "con?").is_err());
         assert!(rename_version(&game, "other", " other2").is_err());
+    }
+
+    #[test]
+    fn copies_version_with_new_id_and_fresh_play_time() {
+        let dir = tempfile::tempdir().unwrap();
+        let game = GameDir::new(dir.path());
+        let src = game.versions().join("pack");
+        std::fs::create_dir_all(src.join("mods")).unwrap();
+        std::fs::write(game.version_json("pack"), r#"{"id": "pack", "inheritsFrom": "1.21.1"}"#).unwrap();
+        std::fs::write(src.join("pack.jar"), b"jar").unwrap();
+        std::fs::write(src.join("mods").join("a.jar"), b"mod").unwrap();
+        let mut inst = crate::engine::instance::load(&game, "pack");
+        inst.play_time_secs = 99;
+        crate::engine::instance::save(&game, "pack", &inst).unwrap();
+
+        copy_version(&game, "pack", "pack 2").unwrap();
+        let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(game.version_json("pack 2")).unwrap()).unwrap();
+        assert_eq!(v["id"], "pack 2");
+        assert_eq!(v["inheritsFrom"], "1.21.1");
+        assert!(game.version_jar("pack 2").is_file());
+        assert!(!game.versions().join("pack 2").join("pack.json").exists());
+        assert_eq!(std::fs::read(game.versions().join("pack 2").join("mods").join("a.jar")).unwrap(), b"mod");
+        assert_eq!(crate::engine::instance::load(&game, "pack 2").play_time_secs, 0);
+        assert_eq!(crate::engine::instance::load(&game, "pack").play_time_secs, 99, "原版本不动");
+        assert!(copy_version(&game, "pack", "pack 2").is_err(), "重名");
+        assert!(copy_version(&game, "pack", "CON").is_err());
     }
 
     #[test]

@@ -3,7 +3,7 @@ mod config;
 mod edition;
 pub mod engine;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use commands::AppState;
 use engine::auth::store::AccountStore;
@@ -12,6 +12,16 @@ use engine::auth::vault::Vault;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 必须第一个注册：已经开着启动器时，第二次打开（比如桌面快捷方式）只把参数交给这个窗口
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+            if let Some(id) = engine::shortcut::launch_arg(&argv) {
+                let _ = app.emit("launch-request", id);
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -30,7 +40,9 @@ pub fn run() {
             }
             let vault = Vault::open(&config_dir.join("account.key"));
             let accounts = AccountStore::load(config_dir.join("accounts.json"), vault);
-            app.manage(AppState::new(settings, config_dir.join("settings.json"), data_dir, accounts));
+            let state = AppState::new(settings, config_dir.join("settings.json"), data_dir, accounts);
+            *state.pending_launch.lock().unwrap_or_else(|e| e.into_inner()) = engine::shortcut::launch_arg(&std::env::args().collect::<Vec<_>>());
+            app.manage(state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -55,6 +67,7 @@ pub fn run() {
             commands::versions::install_version,
             commands::versions::cancel_job,
             commands::versions::rename_version,
+            commands::versions::copy_version,
             commands::accounts::list_accounts,
             commands::accounts::add_offline_account,
             commands::accounts::rename_offline_account,
@@ -67,11 +80,15 @@ pub fn run() {
             commands::accounts::select_account,
             commands::loaders::list_loader_versions,
             commands::loaders::install_loader,
+            commands::loaders::list_optifine,
+            commands::loaders::install_optifine,
             commands::java::list_java,
             commands::java::memory_info,
             commands::game::launch_game,
             commands::game::kill_game,
             commands::game::list_running,
+            commands::game::take_pending_launch,
+            commands::game::create_shortcut,
             commands::resources::resource_target,
             commands::resources::resource_search,
             commands::resources::klpbbs_search,
@@ -111,6 +128,7 @@ pub fn run() {
             commands::crash::crash_rules_info,
             commands::crash::update_crash_rules,
             commands::crash::reset_crash_rules,
+            commands::crash::share_log,
             commands::multiplayer::mp_status,
             commands::multiplayer::mp_install,
             commands::multiplayer::mp_host,

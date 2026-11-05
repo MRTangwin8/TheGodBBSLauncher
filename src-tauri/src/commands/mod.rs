@@ -60,6 +60,8 @@ pub struct AppState {
     pub busy: AtomicUsize,
     /// 正在进行、可以取消的任务：任务 id（界面上的 jobId）→ 取消标志，见 `cancellable`
     pub jobs: std::sync::Mutex<HashMap<String, CancelToken>>,
+    /// 命令行 `--launch <版本>`（桌面快捷方式）要启动的版本，界面加载完后取走
+    pub pending_launch: std::sync::Mutex<Option<String>>,
     /// 联机（陶瓦）进程和状态轮询，用到时才启动
     pub multiplayer: Mutex<Option<multiplayer::MpSession>>,
 }
@@ -151,6 +153,7 @@ impl AppState {
             migrate_cancel: AtomicBool::new(false),
             busy: AtomicUsize::new(0),
             jobs: std::sync::Mutex::new(HashMap::new()),
+            pending_launch: std::sync::Mutex::new(None),
             multiplayer: Mutex::new(None),
         }
     }

@@ -69,3 +69,10 @@ pub async fn reset_crash_rules(state: State<'_, AppState>) -> Result<RulesInfo> 
     *state.crash_rules.write().await = Arc::new(rules);
     Ok(info)
 }
+
+/// 把日志上传到 mclo.gs，返回分享链接（上传前换掉用户目录、截到上限以内，见 engine::logshare）
+#[tauri::command]
+pub async fn share_log(state: tauri::State<'_, super::AppState>, text: String) -> crate::engine::Result<String> {
+    let text = crate::engine::logshare::prepare(&text, dirs::home_dir().as_deref());
+    crate::engine::http::within(crate::engine::http::SEARCH_TIMEOUT, crate::engine::logshare::upload(&state.client, &text)).await
+}

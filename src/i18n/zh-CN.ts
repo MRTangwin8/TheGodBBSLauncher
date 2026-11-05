@@ -292,6 +292,12 @@ export default {
     addAccountFirst: "先添加一个账号",
     manage: "管理",
     rename: "重命名",
+    copy: "复制",
+    copyPrompt: "复制「{id}」，新版本叫什么？（版本隔离时模组、存档一起复制）",
+    copyJob: "复制 {id} → {name}",
+    shortcut: "快捷方式",
+    shortcutTip: "在桌面建一个快捷方式，双击直接启动这个版本",
+    shortcutDone: "已在桌面创建快捷方式：\n{path}\n\n双击它会打开启动器并直接启动这个版本。",
     export: "导出",
     empty: "本版块暂无主题，去 {0} 安装一个吧",
   },
@@ -308,6 +314,10 @@ export default {
     running: "运行中",
     filter: "筛选日志…",
     copyAll: "复制全部",
+    share: "分享日志",
+    sharing: "正在上传…",
+    shared: "已上传，把链接发给帮你看的人：",
+    shareConfirm: "日志会上传到 mclo.gs（公开的日志分享网站），拿到链接的人都能看到。上传前会把令牌打码、把用户目录换成 ~，但日志里的其他内容（玩家名、服务器地址、模组列表等）会原样上传。确定上传吗？",
     crashTitle: "游戏崩溃了，版主帮你看了看",
   },
   install: {
@@ -318,6 +328,7 @@ export default {
       quilt: "Fabric 的分支，兼容大部分 Fabric 模组",
       forge: "老牌加载器，模组最多，旧版本首选",
       neoforge: "Forge 的社区分支，1.20.2 以后的主流选择",
+      optifine: "画质和帧率优化、光影支持；单独装成一个版本，不能再装其他模组",
     },
     loading: "正在获取 {loader} 版本列表…",
     unsupported: "{loader} 还不支持 Minecraft {mc}",
@@ -330,6 +341,10 @@ export default {
     nameTaken: "已经有同名版本了",
     installLoader: "安装 {mc} + {loader}",
     installVanilla: "安装原版 {mc}",
+    optifineNote: "OptiFine 由 BMCLAPI 镜像提供。安装时会用 Java 运行它自带的补丁程序，生成「原版 + OptiFine」版本。想和模组一起用，请选 Forge 并勾选「加装 OptiFine」。",
+    withOptifine: "加装 OptiFine（作为模组放进 mods）",
+    optifineNoForge: "没有能装进这个 Forge 的 OptiFine（{mc}）",
+    optifineForge: "推荐 {forge}",
   },
   export: {
     previewOnly: "浏览器预览模式不能导出，请用 npm run tauri dev 启动",
@@ -955,6 +970,20 @@ export default {
     credit: "联机功能由 {0} 提供，按 AGPL-3.0（附例外条款）发布；启动器只调用它未经修改的官方程序。",
   },
   err: {
+    shortcut: {
+      unsupported: "这个系统暂时不支持创建桌面快捷方式",
+      failed: "创建快捷方式失败：{detail}",
+      store: "微软商店版暂时不支持创建桌面快捷方式",
+    },
+    share: {
+      empty: "日志是空的，没有可分享的内容",
+      failed: "日志上传失败：{reason}",
+    },
+    optifine: {
+      download: "OptiFine 下载失败：{reason}",
+      badJar: "下载到的文件不是 OptiFine 安装包，已删除，请稍后重试",
+      patch: "OptiFine 安装失败（补丁程序出错）：\n{log}",
+    },
     cancelled: "已取消",
     mp: {
       download: "陶瓦联机下载失败：{reason}",

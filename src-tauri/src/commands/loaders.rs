@@ -8,6 +8,7 @@ use super::versions::{cached_manifest, INSTALL_PROGRESS_EVENT};
 use super::AppState;
 use crate::engine::download::{Downloader, Progress};
 use crate::engine::install::{self, GameDir, Stage};
+use crate::engine::loader::optifine::{self, OptiFineVersion};
 use crate::engine::loader::{self, LoaderContext, LoaderKind, LoaderVersion};
 use crate::engine::meta::{Platform, VersionJson};
 use crate::engine::{Error, Result};
@@ -120,5 +121,79 @@ pub async fn loader_id_for(state: &AppState, kind: LoaderKind, mc: &str, version
     match kind {
         LoaderKind::Forge => format!("{mc}-{version}"),
         _ => version.to_string(),
+    }
+}
+
+#[tauri::command]
+pub async fn list_optifine(state: State<'_, AppState>, mc_version: String) -> Result<Vec<OptiFineVersion>> {
+    crate::engine::http::within(crate::engine::http::SEARCH_TIMEOUT, optifine::list(&state.client, &mc_version)).await
+}
+
+/// 安装 OptiFine，返回版本 id。
+/// - `forge` 为空：原版 + OptiFine 单独成一个版本；
+/// - `forge` 给了 Forge 的 loader id：先装 Forge，再把 OptiFine 安装包作为模组放进这个版本的 mods
+#[tauri::command]
+pub async fn install_optifine(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    job_id: String,
+    mc_version: String,
+    optifine: OptiFineVersion,
+    forge: Option<String>,
+    name: Option<String>,
+) -> Result<String> {
+    let state: &AppState = &state;
+    let _task = state.begin_task()?;
+    if !state.installing.lock().await.insert(job_id.clone()) {
+        return Err(Error::coded("install.loaderBusy", &[], "这个加载器已经在安装了，别急"));
+    }
+    let name = name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());
+    let job = state.cancellable(&job_id);
+    let result = job.run(do_install_optifine(&app, state, &job_id, &mc_version, &optifine, forge.as_deref(), name.as_deref())).await;
+    state.installing.lock().await.remove(&job_id);
+    result
+}
+
+async fn do_install_optifine(
+    app: &AppHandle,
+    state: &AppState,
+    job_id: &str,
+    mc: &str,
+    of: &OptiFineVersion,
+    forge: Option<&str>,
+    name: Option<&str>,
+) -> Result<String> {
+    let report = job_reporter(app, job_id);
+    let (game, isolate, concurrency) = {
+        let s = state.settings.read().await;
+        (GameDir::new(s.game_dir.clone()), s.isolate_versions, s.concurrency)
+    };
+    // Patcher 由 Java 读这个文件：放在 runtime 目录（商店版不在 AppData，见 AppState::runtime_dir）
+    let cache = state.runtime_dir().join("cache").join("optifine");
+    std::fs::create_dir_all(&cache)?;
+    let downloader = Downloader::new(state.client.clone(), state.source().await, concurrency);
+    let r = report.clone();
+
+    match forge {
+        Some(forge_id) => {
+            let id = install_game(state, report.clone(), mc, Some((LoaderKind::Forge, forge_id)), name).await?;
+            let jar = optifine::download(&downloader, &cache, mc, of, Arc::new(move |p| r(Stage::Loader, p))).await?;
+            let mods = crate::engine::instance::game_dir(&game, &id, isolate).join("mods");
+            std::fs::create_dir_all(&mods)?;
+            std::fs::copy(&jar, mods.join(of.jar_name(mc)))?;
+            Ok(id)
+        }
+        None => {
+            install_game(state, report.clone(), mc, None, None).await?;
+            let jar = optifine::download(&downloader, &cache, mc, of, Arc::new(move |p| r(Stage::Loader, p))).await?;
+            let vanilla = VersionJson::resolve(&game.versions(), mc).await?;
+            let r = report.clone();
+            let java = ensure_java(state, &vanilla, &downloader, Arc::new(move |p| r(Stage::Java, p))).await?;
+            report(Stage::Processor, Progress { total_files: 1, ..Default::default() });
+            let name = name.map(str::to_string).unwrap_or_else(|| optifine::default_version_name(mc, of));
+            let id = optifine::install(&game, &java, &jar, mc, of, &name).await?;
+            report(Stage::Processor, Progress { total_files: 1, finished_files: 1, ..Default::default() });
+            Ok(id)
+        }
     }
 }

@@ -400,3 +400,29 @@ pub async fn list_running(state: State<'_, AppState>) -> Result<Vec<RunningInfo>
         .map(|(id, g)| RunningInfo { run_id: id.clone(), version_id: g.version_id.clone() })
         .collect())
 }
+
+/// 桌面快捷方式带来的「启动这个版本」请求（只取一次）
+#[tauri::command]
+pub async fn take_pending_launch(state: State<'_, AppState>) -> Result<Option<String>> {
+    Ok(state.pending_launch.lock().unwrap_or_else(|e| e.into_inner()).take())
+}
+
+/// 在桌面建一个直接启动这个版本的快捷方式，返回文件路径
+#[tauri::command]
+pub async fn create_shortcut(state: State<'_, AppState>, version_id: String) -> Result<String> {
+    if crate::edition::STORE {
+        // 商店版程序在 WindowsApps 里，不能用路径直接启动
+        return Err(Error::coded("shortcut.store", &[], "微软商店版暂时不支持创建桌面快捷方式"));
+    }
+    let game = GameDir::new(state.settings.read().await.game_dir.clone());
+    if !game.version_json(&version_id).is_file() {
+        return Err(Error::VersionNotFound(version_id));
+    }
+    // AppImage 运行时 current_exe 是临时挂载点里的程序，要用 AppImage 文件本身
+    let exe = std::env::var_os("APPIMAGE").map(PathBuf::from).filter(|p| p.is_file()).map_or_else(std::env::current_exe, Ok)?;
+    let desktop = dirs::desktop_dir().ok_or_else(|| Error::Other("找不到桌面文件夹".into()))?;
+    let path = tokio::task::spawn_blocking(move || crate::engine::shortcut::create(&desktop, &exe, &version_id))
+        .await
+        .map_err(|e| Error::Other(e.to_string()))??;
+    Ok(path.display().to_string())
+}

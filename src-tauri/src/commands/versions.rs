@@ -75,6 +75,17 @@ pub async fn rename_version(state: State<'_, AppState>, id: String, new_name: St
     install::rename_version(&game, &id, new_name.trim())
 }
 
+/// 复制一个已安装的版本（版本隔离时连模组、存档一起），返回新版本 id
+#[tauri::command]
+pub async fn copy_version(state: State<'_, AppState>, id: String, new_name: String) -> Result<String> {
+    let _task = state.begin_task()?;
+    let game = GameDir::new(state.settings.read().await.game_dir.clone());
+    let new_name = new_name.trim().to_string();
+    let n = new_name.clone();
+    tokio::task::spawn_blocking(move || install::copy_version(&game, &id, &n)).await.map_err(|e| Error::Other(e.to_string()))??;
+    Ok(new_name)
+}
+
 pub async fn cached_manifest(state: &AppState) -> Result<VersionManifest> {
     if let Some(m) = state.manifest.lock().await.clone() {
         return Ok(m);

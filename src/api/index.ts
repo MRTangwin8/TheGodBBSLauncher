@@ -51,6 +51,7 @@ import type {
   VersionManifest,
   MpState,
   MpStatus,
+  OptiFineVersion,
 } from "./types";
 import { mock } from "./mock";
 import { minecraftLang } from "../game-lang";
@@ -172,6 +173,18 @@ export const api = {
   killGame: (runId: string) => call<void>("kill_game", { runId }),
   /** 取消下载 / 安装 / 导入 / 启动准备；jobId 就是进度浮窗里的任务 id */
   cancelJob: (jobId: string) => call<void>("cancel_job", { jobId }),
+  listOptifine: (mcVersion: string) => call<OptiFineVersion[]>("list_optifine", { mcVersion }),
+  /** forge 为空：原版 + OptiFine 单独成版本；给了 Forge 的 loader id：装 Forge，OptiFine 作为模组放进 mods */
+  installOptifine: (jobId: string, mcVersion: string, optifine: OptiFineVersion, forge: string | null, name: string | null) =>
+    call<string>("install_optifine", { jobId, mcVersion, optifine, forge, name }),
+  /** 复制版本，返回新版本 id */
+  copyVersion: (id: string, newName: string) => call<string>("copy_version", { id, newName }),
+  /** 上传日志到 mclo.gs，返回分享链接 */
+  shareLog: (text: string) => call<string>("share_log", { text }),
+  /** 桌面快捷方式带来的启动请求（只取一次） */
+  takePendingLaunch: () => call<string | null>("take_pending_launch"),
+  /** 在桌面建启动这个版本的快捷方式，返回文件路径 */
+  createShortcut: (versionId: string) => call<string>("create_shortcut", { versionId }),
   mpStatus: () => call<MpStatus>("mp_status"),
   /** 下载陶瓦联机，进度走 install-progress（versionId = jobId） */
   mpInstall: (jobId: string) => call<void>("mp_install", { jobId }),
@@ -186,3 +199,5 @@ export const onUpdateProgress = (cb: (p: UpdateProgress) => void) => on("update-
 export const onMigrateProgress = (cb: (p: MigrateProgress) => void) => on("migrate-progress", cb);
 export const onGameExit = (cb: (p: GameExit) => void) => on("game-exit", cb);
 export const onMultiplayerState = (cb: (p: MpState) => void) => on("multiplayer-state", cb);
+/** 启动器已经开着时又从桌面快捷方式打开：要启动的版本 id */
+export const onLaunchRequest = (cb: (versionId: string) => void) => on("launch-request", cb);

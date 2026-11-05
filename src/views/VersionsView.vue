@@ -9,6 +9,19 @@ import { useGameStore } from "../stores/game";
 import { useAccountsStore } from "../stores/accounts";
 import { formatDate, kindLabel, loaderLabel } from "../utils";
 import { errText, t } from "../i18n";
+import { isMac } from "../platform";
+import { isStore } from "../edition";
+
+/** 桌面快捷方式：Windows / Linux 的普通版 */
+const canShortcut = !isMac && !isStore;
+async function shortcut(id: string) {
+  try {
+    const path = await api.createShortcut(id);
+    alert(t("versions.shortcutDone", { path }));
+  } catch (e) {
+    alert(errText(e));
+  }
+}
 
 const versions = useVersionsStore();
 const game = useGameStore();
@@ -26,6 +39,22 @@ async function rename(id: string) {
   } catch (e) {
     alert(errText(e));
   }
+}
+
+/** 复制版本：大的整合包可能要复制一阵，借进度浮窗显示 */
+async function copy(id: string) {
+  const next = prompt(t("versions.copyPrompt", { id }), `${id} (2)`)?.trim();
+  if (!next || next === id) return;
+  const job = versions.startJob(t("versions.copyJob", { id, name: next }), false);
+  try {
+    await api.copyVersion(id, next);
+    job.status = "done";
+    job.resultId = next;
+  } catch (e) {
+    job.status = "failed";
+    job.error = errText(e);
+  }
+  await versions.loadInstalled();
 }
 
 async function launch(id: string) {
@@ -58,6 +87,7 @@ async function launch(id: string) {
           <td>
             <span v-if="v.loader" class="tag" :class="'ld-' + v.loader">{{ loaderLabel[v.loader] }}</span>
             <span v-else class="tag" :class="v.kind">{{ kindLabel(v.kind) }}</span>
+            <span v-if="v.optifine" class="tag ld-optifine" :title="v.optifine">OptiFine</span>
             <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="name" :title="$t('versions.manageTip')"><b>{{ v.id }}</b></RouterLink>
             <span v-if="!v.hasJar" class="error-text"> {{ $t("versions.noJar") }}</span>
             <span v-else-if="v.incomplete" class="error-text" :title="$t('download.incompleteTip')"> {{ $t("download.incomplete") }}</span>
@@ -83,6 +113,8 @@ async function launch(id: string) {
             </button>
             <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="btn small">{{ $t("versions.manage") }}</RouterLink>
             <button class="btn small" :disabled="game.running.some((r) => r.versionId === v.id)" @click="rename(v.id)">{{ $t("versions.rename") }}</button>
+            <button class="btn small" @click="copy(v.id)">{{ $t("versions.copy") }}</button>
+            <button v-if="canShortcut" class="btn small" :title="$t('versions.shortcutTip')" @click="shortcut(v.id)">{{ $t("versions.shortcut") }}</button>
             <button class="btn small" @click="exportFor = v.id">{{ $t("versions.export") }}</button>
           </td>
         </tr>
@@ -103,4 +135,5 @@ async function launch(id: string) {
 .tag.ld-quilt { background: #8e5fb4; }
 .tag.ld-forge { background: #3e4b61; }
 .tag.ld-neoforge { background: #d2691e; }
+.tag.ld-optifine { background: #a33b3b; margin-left: 4px; }
 </style>

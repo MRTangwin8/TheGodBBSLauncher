@@ -2,6 +2,7 @@
 
 pub mod fabric;
 pub mod forge;
+pub mod optifine;
 
 use std::path::PathBuf;
 use std::sync::Arc;

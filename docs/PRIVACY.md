@@ -2,7 +2,7 @@
 
 [中文](#中文) · [English](#english)
 
-更新日期 / Last updated：2026-11-04
+更新日期 / Last updated：2026-11-06
 
 ---
 
@@ -29,6 +29,8 @@
 |---|---|---|
 | 下载游戏、版本列表、资源文件 | Mojang 官方服务器（`*.mojang.com`、`libraries.minecraft.net`、`resources.download.minecraft.net`）、BMCLAPI 镜像（`bmclapi2.bangbang93.com`） | 安装或启动游戏时；下载源可在设置里选择，自动模式会对两边测速 |
 | 安装模组加载器 | Fabric、Quilt、Forge、NeoForge 的官方元数据和 Maven 仓库 | 安装加载器时 |
+| 安装 OptiFine | BMCLAPI 镜像（`bmclapi2.bangbang93.com`），OptiFine 官网没有可供程序调用的下载接口 | 安装 OptiFine 时，不管下载源选的是哪个 |
+| 分享日志 | mclo.gs（`api.mclo.gs`，公开的 Minecraft 日志分享网站） | 只在你点「分享日志」并确认后。上传前把令牌打码、把用户目录换成 `~`，其余内容原样上传，任何拿到链接的人都能看到 |
 | 下载 Java | Mojang 官方 Java 运行时；官方没有的平台用 Azul（`api.azul.com`、`cdn.azul.com`） | 找不到合适的 Java、需要自动下载时 |
 | 微软账号登录 | Microsoft（`login.microsoftonline.com`）、Xbox Live、Minecraft 服务（`api.minecraftservices.com`） | 添加或刷新微软账号、启动游戏时 |
 | 外置登录 | 你自己填写的认证服务器（如 LittleSkin），以及 `authlib-injector.yushi.moe` | 只在你添加了外置登录账号时 |
@@ -74,6 +76,8 @@ The launcher connects directly to the following third-party services, only when 
 |---|---|---|
 | Game downloads, version lists, assets | Mojang (`*.mojang.com`, `libraries.minecraft.net`, `resources.download.minecraft.net`) and the BMCLAPI mirror (`bmclapi2.bangbang93.com`) | When installing or launching the game. The download source is selectable; automatic mode measures the speed of both |
 | Mod loader installation | Official Fabric, Quilt, Forge and NeoForge metadata and Maven repositories | When installing a mod loader |
+| OptiFine installation | The BMCLAPI mirror (`bmclapi2.bangbang93.com`); OptiFine's own site has no download API for programs | When installing OptiFine, regardless of the download source setting |
+| Log sharing | mclo.gs (`api.mclo.gs`, a public Minecraft log-sharing site) | Only when you click "Share log" and confirm. Tokens are masked and your user folder is replaced with `~` before upload; everything else is uploaded as is and anyone with the link can read it |
 | Java downloads | Mojang Java runtimes; Azul (`api.azul.com`, `cdn.azul.com`) for platforms Mojang does not cover | When no suitable Java is installed |
 | Microsoft account login | Microsoft (`login.microsoftonline.com`), Xbox Live, Minecraft services (`api.minecraftservices.com`) | When adding or refreshing a Microsoft account and when launching |
 | Third-party (authlib-injector) login | The authentication server you enter (e.g. LittleSkin) and `authlib-injector.yushi.moe` | Only if you add such an account |
