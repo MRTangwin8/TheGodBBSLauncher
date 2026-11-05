@@ -140,11 +140,21 @@ impl Downloader {
             })
         };
 
+        // 任务被取消时：正在下的文件立刻停（留着 .part 下次续传），排队的直接跳过，都记为失败
+        let cancel = crate::engine::cancel::current();
         let results: Vec<(DownloadTask, Result<Outcome>)> = futures::stream::iter(tasks)
             .map(|task| {
                 let counters = counters.clone();
+                let cancel = cancel.clone();
                 async move {
-                    let r = self.download_one(&task, &counters).await;
+                    let r = match cancel {
+                        Some(token) => tokio::select! {
+                            biased;
+                            _ = token.cancelled() => Err(crate::engine::cancel::error()),
+                            r = self.download_one(&task, &counters) => r,
+                        },
+                        None => self.download_one(&task, &counters).await,
+                    };
                     match &r {
                         Ok(Outcome::Skipped) => {
                             counters.skipped.fetch_add(1, Ordering::Relaxed);

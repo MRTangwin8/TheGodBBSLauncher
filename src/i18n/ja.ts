@@ -202,6 +202,8 @@ const ja: typeof zhCN = {
     launchFailed: "起動に失敗",
     failed: "失敗",
     dismiss: "削除",
+    cancelling: "キャンセル中…",
+    cancelled: "キャンセルしました",
     processorStep: "ステップ {i}/{n}（Forge インストーラーがパッチを適用中です。1〜2 分かかることがあります）",
     files: "{done}/{total} ファイル",
     generated: "バージョン {0} を作成しました。{1} から起動できます",
@@ -271,6 +273,9 @@ const ja: typeof zhCN = {
     manifestFailed: "バージョン一覧を取得できませんでした：{err}",
     loading: "バージョン一覧を読み込み中…",
     installed: "インストール済み",
+    incomplete: "未完了",
+    resume: "インストールを再開",
+    incompleteTip: "前回のインストールが完了していません（キャンセルまたは通信切断）。「インストールを再開」を押すか、そのまま起動すると続きからダウンロードします。",
     new: "新",
     installing: "インストール中…",
     addLoader: "ローダー追加",
@@ -951,6 +956,7 @@ const ja: typeof zhCN = {
     credit: "マルチプレイ機能は {0} によって提供され、AGPL-3.0（例外条項付き）で公開されています。ランチャーは改変していない公式プログラムを呼び出すだけです。",
   },
   err: {
+    cancelled: "キャンセルしました",
     mp: {
       download: "Terracotta のダウンロードに失敗しました：{reason}",
       unsupported: "このプラットフォーム（{platform}）ではまだマルチプレイを利用できません",

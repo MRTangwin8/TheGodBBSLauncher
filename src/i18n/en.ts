@@ -202,6 +202,8 @@ const en: typeof zhCN = {
     launchFailed: "Launch failed",
     failed: "Failed",
     dismiss: "Remove post",
+    cancelling: "Cancelling…",
+    cancelled: "Cancelled",
     processorStep: "Step {i}/{n} (the Forge installer is patching; this can take a minute or two)",
     files: "{done}/{total} files",
     generated: "Created version {0}. Launch it from {1}.",
@@ -271,6 +273,9 @@ const en: typeof zhCN = {
     manifestFailed: "Couldn't load the version list: {err}",
     loading: "Loading version list…",
     installed: "Installed",
+    incomplete: "Incomplete",
+    resume: "Resume",
+    incompleteTip: "The last install did not finish (cancelled or offline). Click Resume or just launch it to continue where it stopped.",
     new: "New",
     installing: "Installing…",
     addLoader: "Add loader",
@@ -951,6 +956,7 @@ const en: typeof zhCN = {
     credit: "Multiplayer is powered by {0}, released under AGPL-3.0 with exceptions. The launcher only runs its unmodified official program.",
   },
   err: {
+    cancelled: "Cancelled",
     mp: {
       download: "Failed to download Terracotta: {reason}",
       unsupported: "Multiplayer is not available on this platform yet ({platform})",

@@ -324,6 +324,7 @@ async fn install_modern(ctx: &LoaderContext<'_>, mc: &str, installer: &Path, pro
     let total = processors.len();
     let sep = crate::engine::launch::classpath_separator(ctx.platform);
     for (i, p) in processors.iter().enumerate() {
+        crate::engine::cancel::check()?;
         (ctx.report)(Stage::Processor, Progress { total_files: total, finished_files: i, ..Default::default() });
 
         let mut outputs = Vec::new();

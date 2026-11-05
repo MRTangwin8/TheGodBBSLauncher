@@ -196,21 +196,18 @@ pub struct Modpack {
     manifest: Manifest,
 }
 
-/// 包内路径只能是相对路径且不能跳出游戏目录（防 zip slip）
+/// 包内路径只能是相对路径、不能跳出游戏目录（防 zip slip），也不能用 Windows 设备名等（规则见 `engine::safepath`）
 pub fn safe_rel(path: &str) -> Option<String> {
-    let p = path.replace('\\', "/");
-    if p.starts_with('/') || p.contains(':') {
-        return None;
-    }
-    let parts: Vec<&str> = p.split('/').filter(|s| !s.is_empty() && *s != ".").collect();
-    if parts.is_empty() || parts.contains(&"..") {
-        return None;
-    }
-    Some(parts.join("/"))
+    crate::engine::safepath::rel(path)
 }
 
 fn join_safe(base: &Path, rel: &str) -> Option<PathBuf> {
-    safe_rel(rel).map(|r| r.split('/').fold(base.to_path_buf(), |p, s| p.join(s)))
+    crate::engine::safepath::join(base, rel)
+}
+
+/// zip 条目是不是符号链接（Unix 上打的包会把链接存成条目）
+fn is_symlink_entry<R: std::io::Read>(entry: &zip::read::ZipFile<'_, R>) -> bool {
+    entry.unix_mode().is_some_and(|m| m & 0o170000 == 0o120000)
 }
 
 fn loader_from_id(id: &str) -> Option<LoaderKind> {
@@ -386,18 +383,27 @@ impl Modpack {
 
     /// 把包内直接带的文件解压到游戏目录，返回文件数
     pub fn extract_overrides(&self, game_dir: &Path) -> Result<usize> {
+        self.extract_overrides_with(game_dir, None)
+    }
+
+    /// 同上；`cancel` 被取消时在下一个文件前停下
+    pub fn extract_overrides_with(&self, game_dir: &Path, cancel: Option<&crate::engine::cancel::CancelToken>) -> Result<usize> {
         let mut zip = zip::ZipArchive::new(std::fs::File::open(&self.path)?).map_err(|e| Error::Other(e.to_string()))?;
         let mut count = 0;
         // 顺序有意义：mrpack 的 client-overrides 覆盖 overrides
         for dir in override_dirs(&self.manifest, &self.prefix) {
             for i in 0..zip.len() {
+                if cancel.is_some_and(|c| c.is_cancelled()) {
+                    return Err(crate::engine::cancel::error());
+                }
                 let mut entry = zip.by_index(i).map_err(|e| Error::Other(e.to_string()))?;
                 let name = entry.name().to_string();
                 let Some(rel) = name.strip_prefix(&dir) else { continue };
-                if entry.is_dir() || rel.is_empty() {
+                if entry.is_dir() || rel.is_empty() || is_symlink_entry(&entry) {
                     continue;
                 }
                 let Some(dest) = join_safe(game_dir, rel) else { continue };
+                crate::engine::safepath::no_links(game_dir, &dest)?;
                 if let Some(parent) = dest.parent() {
                     std::fs::create_dir_all(parent)?;
                 }

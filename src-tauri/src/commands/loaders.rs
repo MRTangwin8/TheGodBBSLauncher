@@ -42,7 +42,8 @@ pub async fn install_loader(
         return Err(Error::coded("install.loaderBusy", &[], "这个加载器已经在安装了，别急"));
     }
     let name = name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());
-    let result = do_install(&app, state, &job_id, &mc_version, kind, &loader_id, name.as_deref()).await;
+    let job = state.cancellable(&job_id);
+    let result = job.run(do_install(&app, state, &job_id, &mc_version, kind, &loader_id, name.as_deref())).await;
     state.installing.lock().await.remove(&job_id);
     result
 }

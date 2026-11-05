@@ -152,10 +152,17 @@ pub async fn resource_install(
     let settings = state.settings.read().await.clone();
     let downloader = Downloader::new(state.client.clone(), state.source().await, settings.concurrency)
         .with_curseforge_key(Some(&settings.curseforge_api_key));
+    let job_id2 = job_id.clone();
     let report = Arc::new(move |progress| {
         let _ = app.emit(INSTALL_PROGRESS_EVENT, JobProgress { version_id: job_id.clone(), stage: Stage::Files, progress });
     });
-    resolve::execute(&downloader, &t.dir, &plan, Some(&cache_dir(&state)), report).await
+    let job = state.cancellable(&job_id2);
+    let r = job.run(resolve::execute(&downloader, &t.dir, &plan, Some(&cache_dir(&state)), report)).await?;
+    // 下载失败记在报告里而不是报错；被取消时统一报「已取消」
+    if job.is_cancelled() {
+        return Err(crate::engine::cancel::error());
+    }
+    Ok(r)
 }
 
 #[tauri::command]

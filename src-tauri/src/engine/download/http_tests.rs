@@ -195,3 +195,29 @@ async fn configured_keys_are_not_sent_to_an_unrelated_download_server() {
     assert!(!request.contains("x-api-key"));
     assert!(!request.contains("local-test-key"));
 }
+
+#[tokio::test]
+async fn cancelling_the_task_stops_hanging_and_queued_downloads() {
+    // 服务器只接受连接、一直不回：不取消的话要等到超时
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/file", listener.local_addr().unwrap());
+    let _hold = tokio::spawn(async move {
+        let mut sockets = Vec::new();
+        while let Ok((s, _)) = listener.accept().await {
+            sockets.push(s);
+        }
+    });
+    let dir = tempfile::tempdir().unwrap();
+    let tasks = vec![task(url.clone(), dir.path().join("a")), task(url, dir.path().join("b"))];
+    let token = crate::engine::cancel::CancelToken::default();
+    let t = token.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        t.cancel();
+    });
+    let started = std::time::Instant::now();
+    let report = crate::engine::cancel::scope(token, downloader().download_all(tasks, Arc::new(|_| {}))).await;
+    assert!(started.elapsed() < Duration::from_secs(2), "取消后应该马上返回");
+    assert_eq!(report.failed.len(), 2, "正在下的和排队的都算失败");
+    assert!(report.failed.iter().all(|f| f.reason == "已取消"));
+}

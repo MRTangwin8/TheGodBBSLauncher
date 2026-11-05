@@ -61,21 +61,30 @@ pub async fn modpack_import(app: AppHandle, state: State<'_, AppState>, job_id: 
     if game.versions().join(&name).exists() {
         return Err(Error::Other(format!("已经有名为「{name}」的版本了")));
     }
-    let p = PathBuf::from(&path);
+    let job = state.cancellable(&job_id);
+    let result = job.run(import_into(&app, state, &job_id, &game, PathBuf::from(&path), &name)).await;
+    if result.is_err() {
+        // 失败或取消：删掉这次新建的版本目录（导入前已经确认没有这个名字的版本），免得留下装了一半的版本
+        let _ = std::fs::remove_dir_all(game.versions().join(&name));
+    }
+    result
+}
+
+async fn import_into(app: &AppHandle, state: &AppState, job_id: &str, game: &GameDir, p: PathBuf, name: &str) -> Result<String> {
     let pack = tokio::task::spawn_blocking(move || Modpack::open(&p)).await.map_err(|e| Error::Other(e.to_string()))??;
     let info = pack.info.clone();
-    let report = job_reporter(&app, &job_id);
+    let report = job_reporter(app, job_id);
 
     // 1. 游戏 + 加载器
     let loader_id = match (info.loader, &info.loader_version) {
         (Some(kind), Some(v)) => Some((kind, loader_id_for(state, kind, &info.mc, v).await)),
         _ => None,
     };
-    let id = install_game(state, report.clone(), &info.mc, loader_id.as_ref().map(|(k, v)| (*k, v.as_str())), Some(&name)).await?;
+    let id = install_game(state, report.clone(), &info.mc, loader_id.as_ref().map(|(k, v)| (*k, v.as_str())), Some(name)).await?;
 
     // 2. 实例设置：整合包必须隔离
     instance::save(
-        &game,
+        game,
         &id,
         &InstanceConfig {
             isolated: true,
@@ -102,6 +111,9 @@ pub async fn modpack_import(app: AppHandle, state: State<'_, AppState>, job_id: 
             size: (f.size > 0).then_some(f.size),
         })
         .collect();
+    for t in &tasks {
+        crate::engine::safepath::no_links(&dir, &t.path)?;
+    }
     let r = report.clone();
     let result = downloader.download_all(tasks, Arc::new(move |p| r(Stage::Files, p))).await;
     if let Some(f) = result.failed.first() {
@@ -109,8 +121,8 @@ pub async fn modpack_import(app: AppHandle, state: State<'_, AppState>, job_id: 
     }
 
     // 4. 包内自带的文件（配置、脚本等）
-    let d = dir.clone();
-    tokio::task::spawn_blocking(move || pack.extract_overrides(&d)).await.map_err(|e| Error::Other(e.to_string()))??;
+    let (d, cancel) = (dir.clone(), crate::engine::cancel::current());
+    tokio::task::spawn_blocking(move || pack.extract_overrides_with(&d, cancel.as_ref())).await.map_err(|e| Error::Other(e.to_string()))??;
 
     if !warnings.is_empty() {
         // 不致命的问题写进实例目录，方便排查
@@ -128,6 +140,11 @@ pub async fn modpack_versions(state: State<'_, AppState>, source: ResourceSource
 /// 把资源中心选中的整合包版本下载到缓存目录，返回本地路径；之后走和拖进窗口一样的导入流程
 #[tauri::command]
 pub async fn modpack_download(app: AppHandle, state: State<'_, AppState>, job_id: String, version: ResourceVersion) -> Result<String> {
+    let job = state.cancellable(&job_id);
+    job.run(download_pack(&app, &state, &job_id, version)).await
+}
+
+async fn download_pack(app: &AppHandle, state: &AppState, job_id: &str, version: ResourceVersion) -> Result<String> {
     let file = version
         .file
         .ok_or_else(|| Error::Other("这个版本没有提供下载地址（作者可能限制了第三方下载），请到项目页面手动下载后拖进窗口导入".into()))?;
@@ -142,7 +159,7 @@ pub async fn modpack_download(app: AppHandle, state: State<'_, AppState>, job_id
     let settings = state.settings.read().await.clone();
     let downloader = Downloader::new(state.client.clone(), state.source().await, settings.concurrency)
         .with_curseforge_key(Some(&settings.curseforge_api_key));
-    let report = job_reporter(&app, &job_id);
+    let report = job_reporter(app, job_id);
     let task = DownloadTask { url: file.url, path: path.clone(), sha1: file.sha1, size: (file.size > 0).then_some(file.size) };
     let result = downloader.download_all(vec![task], Arc::new(move |p| report(Stage::Files, p))).await;
     if let Some(f) = result.failed.first() {

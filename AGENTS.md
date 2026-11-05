@@ -122,6 +122,11 @@ src/
 ### 长任务与进度
 - 用事件推送：`install-progress`、`game-log`、`game-exit`。前端用 `api/index.ts` 导出的 `onInstallProgress` / `onGameLog` / `onGameExit` 订阅；新事件照此加一个导出。
 - 下载任务带 `jobId`，进度显示在 `ProgressFloat`。
+- **取消**：长任务命令里写 `let job = state.cancellable(&job_id); job.run(…).await`，界面的「取消」调 `cancel_job`。
+  - 取消标志是 task-local（`engine/cancel.rs`）：`Downloader::download_all` 自动停下（`.part` 留着续传），其他长步骤里调 `cancel::check()?`；`spawn_blocking` 里拿不到，先 `cancel::current()` 取出来传进去。
+  - `JobGuard::run` 只把**失败**换成「已取消」，已经成功的结果原样返回（比如游戏刚好启动了）。
+  - 前端 `startJob(id, cancellable)`：后端没登记取消的任务（如导出整合包）传 `false`，不显示按钮。
+- **外部来源的路径**（整合包条目、版本 json 里的库路径和 inheritsFrom、资源平台给的文件名）一律过 `engine/safepath.rs`：`rel` / `join` 不合格就拒绝，必须拼出路径的地方用 `join_lossy`；往新建目录里写之前用 `no_links` 确认路径上没有符号链接 / junction。
 
 ### Settings 加字段（四处都要改）
 1. `src-tauri/src/config/mod.rs`：字段要带 `#[serde(default)]` 或默认值函数，这样旧的 settings.json 才能读。

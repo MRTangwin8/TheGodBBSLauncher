@@ -60,6 +60,7 @@ async function launch(id: string) {
             <span v-else class="tag" :class="v.kind">{{ kindLabel(v.kind) }}</span>
             <RouterLink :to="`/versions/${encodeURIComponent(v.id)}`" class="name" :title="$t('versions.manageTip')"><b>{{ v.id }}</b></RouterLink>
             <span v-if="!v.hasJar" class="error-text"> {{ $t("versions.noJar") }}</span>
+            <span v-else-if="v.incomplete" class="error-text" :title="$t('download.incompleteTip')"> {{ $t("download.incomplete") }}</span>
             <span v-if="game.running.some((r) => r.versionId === v.id)" class="playing">● {{ $t("versions.playing") }}</span>
           </td>
           <td class="muted">{{ v.mcVersion ?? v.inheritsFrom ?? "-" }}</td>

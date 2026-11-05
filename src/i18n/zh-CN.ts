@@ -201,6 +201,8 @@ export default {
     launchFailed: "启动失败",
     failed: "失败",
     dismiss: "删帖",
+    cancelling: "正在取消…",
+    cancelled: "已取消",
     processorStep: "第 {i}/{n} 步（Forge 安装器在打补丁，可能要一两分钟）",
     files: "{done}/{total} 个文件",
     generated: "已生成版本 {0}，去 {1} 启动",
@@ -270,6 +272,9 @@ export default {
     manifestFailed: "版本列表获取失败：{err}",
     loading: "正在加载版本列表…",
     installed: "已安装",
+    incomplete: "未装完",
+    resume: "继续安装",
+    incompleteTip: "上次安装没有完成（取消或断网了）。点「继续安装」或直接启动，会从断点接着下。",
     new: "新",
     installing: "安装中…",
     addLoader: "装加载器",
@@ -950,6 +955,7 @@ export default {
     credit: "联机功能由 {0} 提供，按 AGPL-3.0（附例外条款）发布；启动器只调用它未经修改的官方程序。",
   },
   err: {
+    cancelled: "已取消",
     mp: {
       download: "陶瓦联机下载失败：{reason}",
       unsupported: "联机功能暂时不支持这个平台（{platform}）",

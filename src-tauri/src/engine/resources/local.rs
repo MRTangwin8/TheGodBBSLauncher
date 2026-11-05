@@ -33,9 +33,9 @@ fn extensions(kind: ResourceKind) -> &'static [&'static str] {
     }
 }
 
-/// 文件名只能是单个文件名，防止 ../ 之类越出目录
+/// 文件名只能是单个文件名，防止 ../ 之类越出目录，也不能是设备名等（见 `engine::safepath`）
 pub fn safe_path(dir: &Path, filename: &str) -> Result<PathBuf> {
-    let ok = !filename.is_empty() && !filename.contains(['/', '\\']) && filename != "." && filename != "..";
+    let ok = crate::engine::safepath::name_ok(filename);
     if !ok {
         return Err(Error::Other(format!("非法文件名：{filename}")));
     }

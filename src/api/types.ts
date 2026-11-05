@@ -27,6 +27,8 @@ export interface InstalledVersion {
   playTimeSecs: number;
   lastPlayed: number | null;
   modpack: string | null;
+  /** 上次安装 / 补全没有完成（取消、断网等），补全文件或直接启动会接着下 */
+  incomplete: boolean;
 }
 
 export type SourcePref = "auto" | "official" | "bmclapi";

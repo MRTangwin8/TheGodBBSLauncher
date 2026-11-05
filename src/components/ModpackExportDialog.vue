@@ -50,7 +50,7 @@ async function start() {
   }
   const out = await save({ defaultPath: fileName, filters: [{ name: t("export.filter", { format: f.label }), extensions: [f.ext] }] });
   if (!out) return;
-  const job = versions.startJob(t("export.job", { file: fileName }));
+  const job = versions.startJob(t("export.job", { file: fileName }), false);
   emit("close");
   try {
     const r = await api.modpackExport(job.versionId, props.versionId, {

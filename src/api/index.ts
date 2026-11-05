@@ -170,6 +170,8 @@ export const api = {
   screenshotDelete: (versionId: string, name: string) => call<void>("screenshot_delete", { versionId, name }),
   quickRunProgram: (path: string) => call<void>("quick_run_program", { path }),
   killGame: (runId: string) => call<void>("kill_game", { runId }),
+  /** 取消下载 / 安装 / 导入 / 启动准备；jobId 就是进度浮窗里的任务 id */
+  cancelJob: (jobId: string) => call<void>("cancel_job", { jobId }),
   mpStatus: () => call<MpStatus>("mp_status"),
   /** 下载陶瓦联机，进度走 install-progress（versionId = jobId） */
   mpInstall: (jobId: string) => call<void>("mp_install", { jobId }),

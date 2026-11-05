@@ -128,6 +128,12 @@ pub async fn launch_game(
     game_language: Option<String>,
 ) -> Result<LaunchResult> {
     let state: &AppState = &state;
+    // 补文件、下 Java 的阶段可以取消；游戏一旦启动就不受影响（见 JobGuard::run）
+    let job = state.cancellable(&version_id);
+    job.run(prepare_and_launch(app, state, version_id.clone(), server, game_language)).await
+}
+
+async fn prepare_and_launch(app: AppHandle, state: &AppState, version_id: String, server: Option<String>, game_language: Option<String>) -> Result<LaunchResult> {
     // 补文件、下 Java 这段时间游戏还没登记进 games，靠它挡住迁移；返回前游戏已经登记
     let _task = state.begin_task()?;
     let settings = state.settings.read().await.clone();
@@ -176,6 +182,11 @@ pub async fn launch_game(
             format!("{} 个文件补全失败，例如 {}：{}", report.failed.len(), f.path, f.reason),
         ));
     }
+    // 启动前的补全把整条继承链的文件都下齐了，之前没装完的标记可以去掉
+    install::mark_complete(&game, &version_id);
+    if let Ok(base) = crate::engine::meta::version::base_minecraft_version(&game.versions(), &version_id).await {
+        install::mark_complete(&game, &base);
+    }
 
     // 单版本设置：专用 Java / 内存、强制隔离、最少内存、追加参数
     let inst = instance::load(&game, &version.id);
@@ -219,6 +230,8 @@ pub async fn launch_game(
         auth: auth.clone(),
     };
     let prepared = launch::prepare(&game, &version, &opts, &platform).await?;
+    // 准备期间点了取消：到这里为止什么都还没启动，直接停
+    crate::engine::cancel::check()?;
 
     let run_id = uuid::Uuid::new_v4().simple().to_string();
     let mut cmd = tokio::process::Command::new(&prepared.java);

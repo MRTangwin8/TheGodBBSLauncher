@@ -48,6 +48,8 @@ function switchTab(key: VersionKind | "old") {
   filter.value = key;
   limit.value = PAGE;
 }
+/** 上次没装完的版本：显示「未装完」和「继续安装」 */
+const incompleteIds = computed(() => new Set(versions.installed.filter((v) => v.incomplete).map((v) => v.id)));
 </script>
 
 <template>
@@ -83,7 +85,8 @@ function switchTab(key: VersionKind | "old") {
           <td>
             <span class="tag" :class="v.type">{{ kindLabel(v.type) }}</span>
             <b>{{ v.id }}</b>
-            <span v-if="versions.installedIds.has(v.id)" class="tag installed">{{ $t("download.installed") }}</span>
+            <span v-if="incompleteIds.has(v.id)" class="tag incomplete" :title="$t('download.incompleteTip')">{{ $t("download.incomplete") }}</span>
+            <span v-else-if="versions.installedIds.has(v.id)" class="tag installed">{{ $t("download.installed") }}</span>
             <span v-if="v.id === versions.manifest.latest.release" class="hot">{{ $t("download.new") }}</span>
           </td>
           <td class="num">{{ formatDate(v.releaseTime) }}</td>
@@ -95,7 +98,7 @@ function switchTab(key: VersionKind | "old") {
                 :disabled="versions.jobs[v.id]?.status === 'running'"
                 @click="versions.install(v.id)"
               >
-                {{ $t("common.completeFiles") }}
+                {{ incompleteIds.has(v.id) ? $t("download.resume") : $t("common.completeFiles") }}
               </button>
               <button
                 class="btn small primary"
@@ -118,6 +121,7 @@ function switchTab(key: VersionKind | "old") {
 </template>
 
 <style scoped>
+.tag.incomplete { background: var(--red); margin-left: 6px; }
 .toolbar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); }
 .tabs { display: flex; margin-right: auto; }
 .tabs a { padding: 4px 12px; border: 1px solid var(--border); margin-right: -1px; background: var(--bg-box-alt); color: var(--text); }

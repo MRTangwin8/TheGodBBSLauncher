@@ -1,5 +1,6 @@
 //! 启动器核心：和 Tauri 无关的纯逻辑，方便单元测试和以后复用。
 
+pub mod cancel;
 pub mod download;
 pub mod error;
 pub mod install;
@@ -15,6 +16,7 @@ pub mod migrate;
 pub mod mirror;
 pub mod modpack;
 pub mod resources;
+pub mod safepath;
 pub mod saves;
 pub mod screenshots;
 pub mod servers;

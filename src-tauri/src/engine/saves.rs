@@ -232,7 +232,7 @@ fn extract(zip_path: &Path, world: &str, dest: &Path) -> Result<()> {
             return Err(Error::Other(format!("备份里有不属于「{world}」的文件：{}", entry.name())));
         }
         let rel: PathBuf = parts.collect();
-        if rel.components().any(|c| !matches!(c, Component::Normal(_))) {
+        if rel.components().any(|c| !matches!(c, Component::Normal(n) if n.to_str().is_some_and(crate::engine::safepath::name_ok))) {
             return Err(Error::Other(format!("备份里有不安全的路径：{}", entry.name())));
         }
         if rel.as_os_str().is_empty() {

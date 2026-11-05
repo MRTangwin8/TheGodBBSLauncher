@@ -85,6 +85,18 @@ pub enum Stage {
 pub type ReportFn = Arc<dyn Fn(Stage, Progress) + Send + Sync>;
 
 /// 安装（或补全）一个原版版本。已存在且校验通过的文件会被跳过，所以重复调用就是"补全文件"。
+/// 安装 / 补全开始时在版本目录里放这个文件，全部文件到齐才删；还在就说明上次没装完（取消、断网、关了启动器）
+const INCOMPLETE_MARK: &str = ".installing";
+
+pub fn mark_incomplete(game: &GameDir, id: &str) {
+    let dir = game.versions().join(id);
+    let _ = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(dir.join(INCOMPLETE_MARK), b""));
+}
+
+pub fn mark_complete(game: &GameDir, id: &str) {
+    let _ = std::fs::remove_file(game.versions().join(id).join(INCOMPLETE_MARK));
+}
+
 pub async fn install_vanilla(
     downloader: &Downloader,
     game: &GameDir,
@@ -97,6 +109,7 @@ pub async fn install_vanilla(
         Arc::new(move |p| report(stage, p))
     };
 
+    mark_incomplete(game, &entry.id);
     let json_path = game.version_json(&entry.id);
     let r = downloader
         .download_all(
@@ -123,7 +136,11 @@ pub async fn install_vanilla(
     };
 
     let tasks = collect_tasks(game, &version, asset_index.as_ref(), platform);
-    Ok(downloader.download_all(tasks, stage_fn(Stage::Files)).await)
+    let report = downloader.download_all(tasks, stage_fn(Stage::Files)).await;
+    if report.failed.is_empty() {
+        mark_complete(game, &entry.id);
+    }
+    Ok(report)
 }
 
 fn ensure_ok(r: &DownloadReport) -> Result<()> {
@@ -190,21 +207,17 @@ pub fn collect_tasks(
     tasks
 }
 
-/// 把 `a/b/c.jar` 这种正斜杠相对路径拼到目录下（Windows 也能用）
+/// 把 `a/b/c.jar` 这种正斜杠相对路径拼到目录下（Windows 也能用）。路径来自版本 json 等外部数据，
+/// 用 `safepath::join_lossy` 保证结果一定在 `base` 里、不会写到设备名上
 pub fn join_rel(base: &Path, rel: &str) -> PathBuf {
-    rel.split('/').filter(|s| !s.is_empty() && *s != "..").fold(base.to_path_buf(), |p, seg| p.join(seg))
+    crate::engine::safepath::join_lossy(base, rel)
 }
 
-/// 版本名会成为文件夹名，不能有路径分隔符和 Windows 不允许的字符
+/// 版本名会成为文件夹名，不能有路径分隔符和 Windows 不允许的字符，也不能是 CON、NUL 这类设备名
 pub fn validate_version_name(name: &str) -> Result<()> {
-    let bad = name.is_empty()
-        || name != name.trim()
-        || name == "."
-        || name == ".."
-        || name.ends_with('.')
-        || name.chars().any(|c| "/\\:*?\"<>|".contains(c) || c.is_control());
+    let bad = name.is_empty() || name != name.trim() || !crate::engine::safepath::name_ok(name);
     if bad {
-        return Err(Error::Other(format!("版本名「{name}」不合法：不能为空，不能包含 / \\ : * ? \" < > |")));
+        return Err(Error::Other(format!("版本名「{name}」不合法：不能为空，不能包含 / \\ : * ? \" < > |，也不能是 CON、NUL 这类系统保留名")));
     }
     Ok(())
 }
@@ -281,6 +294,8 @@ pub struct InstalledVersion {
     pub last_played: Option<u64>,
     /// 来自哪个整合包（名字）
     pub modpack: Option<String>,
+    /// 上次安装 / 补全没有完成（见 `mark_incomplete`）
+    pub incomplete: bool,
 }
 
 pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
@@ -306,6 +321,7 @@ pub async fn list_installed(game: &GameDir) -> Result<Vec<InstalledVersion>> {
             play_time_secs: inst.play_time_secs,
             last_played: inst.last_played,
             modpack: inst.modpack.map(|m| m.name),
+            incomplete: game.versions().join(&id).join(INCOMPLETE_MARK).exists(),
             id,
             loader: crate::engine::loader::detect(&v),
             kind: v.kind,
@@ -387,5 +403,17 @@ mod tests {
     #[test]
     fn join_rel_strips_parent_segments() {
         assert_eq!(join_rel(Path::new("/l"), "../../etc/x"), Path::new("/l").join("etc").join("x"));
+    }
+
+    #[tokio::test]
+    async fn unfinished_installs_are_listed_as_incomplete() {
+        let dir = tempfile::tempdir().unwrap();
+        let game = GameDir::new(dir.path());
+        std::fs::create_dir_all(game.versions().join("26.2")).unwrap();
+        std::fs::write(game.version_json("26.2"), r#"{"id": "26.2", "type": "release"}"#).unwrap();
+        mark_incomplete(&game, "26.2");
+        assert!(list_installed(&game).await.unwrap()[0].incomplete);
+        mark_complete(&game, "26.2");
+        assert!(!list_installed(&game).await.unwrap()[0].incomplete);
     }
 }

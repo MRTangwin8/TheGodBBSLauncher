@@ -33,7 +33,11 @@ function percent(job: InstallJob): number {
             {{ job.kind === "launch" ? (job.stage === "java" ? $t("progress.launchJava") : $t("progress.launchFiles")) : $t(`progress.stage.${job.stage}`) }}
           </span>
           <span v-else-if="job.status === 'done'" class="ok">{{ $t("progress.done") }}</span>
+          <span v-else-if="job.cancelling" class="muted">{{ $t("progress.cancelled") }}</span>
           <span v-else class="error-text">{{ job.kind === "launch" ? $t("progress.launchFailed") : $t("progress.failed") }}</span>
+          <a v-if="job.status === 'running' && job.cancellable" class="cancel" :class="{ muted: job.cancelling }" @click="versions.cancel(job.versionId)">
+            {{ job.cancelling ? $t("progress.cancelling") : $t("common.cancel") }}
+          </a>
           <a v-if="job.status !== 'running'" class="close" :title="$t('progress.dismiss')" @click="versions.dismiss(job.versionId)">×</a>
         </div>
         <div class="xp-bar"><div :style="{ width: percent(job) + '%' }" /></div>
@@ -52,7 +56,7 @@ function percent(job: InstallJob): number {
         <div v-else-if="job.status === 'done' && job.report" class="floor-meta muted">
           {{ $t("progress.report", { downloaded: job.report.downloaded, skipped: job.report.skipped }) }}
         </div>
-        <div v-else-if="job.error" class="floor-meta error-text">{{ errText(job.error) }}</div>
+        <div v-else-if="job.error && !job.cancelling" class="floor-meta error-text">{{ errText(job.error) }}</div>
       </div>
     </div>
   </aside>
@@ -67,5 +71,6 @@ function percent(job: InstallJob): number {
 .floor-no { color: var(--text-muted); font-family: var(--font-pixel); }
 .floor-meta { margin-top: 4px; font-size: 12px; }
 .ok { color: var(--grass); }
+.cancel { margin-left: auto; font-size: 12px; }
 .close { margin-left: auto; font-size: 16px; line-height: 1; color: var(--text-muted); }
 </style>

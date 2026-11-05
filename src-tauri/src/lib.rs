@@ -53,6 +53,7 @@ pub fn run() {
             commands::versions::get_version_manifest,
             commands::versions::list_installed_versions,
             commands::versions::install_version,
+            commands::versions::cancel_job,
             commands::versions::rename_version,
             commands::accounts::list_accounts,
             commands::accounts::add_offline_account,

@@ -50,9 +50,9 @@ let settings: Settings = {
   language: (new URLSearchParams(location.search).get("lang") as Settings["language"] | null) ?? "auto",
 };
 const installed: InstalledVersion[] = [
-  { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1", playTimeSecs: 45000, lastPlayed: 1792850000, modpack: null },
-  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null },
-  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null },
+  { id: "fabric-loader-0.16.9-1.21.1", kind: "release", releaseTime: "2024-08-08T10:00:00+00:00", hasJar: true, loader: "fabric", inheritsFrom: "1.21.1", mcVersion: "1.21.1", playTimeSecs: 45000, lastPlayed: 1792850000, modpack: null, incomplete: false },
+  { id: "1.20.1", kind: "release", releaseTime: "2023-06-12T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null, incomplete: false },
+  { id: "1.12.2", kind: "release", releaseTime: "2017-09-18T10:00:00+00:00", hasJar: true, loader: null, mcVersion: null, playTimeSecs: 3600, lastPlayed: 1792700000, modpack: null, incomplete: true },
 ];
 const accounts: AccountList = {
   accounts: [
@@ -331,6 +331,7 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     mp_host: () => ((mp.mode = "host"), (mp.since = Date.now()), mpState()),
     mp_join: () => ((mp.mode = "guest"), (mp.since = Date.now()), mpState()),
     mp_leave: () => void (mp.mode = null),
+    cancel_job: () => undefined,
     microsoft_login_start: () => ({ userCode: "GODBBS42", verificationUri: "https://www.microsoft.com/link", expiresIn: 900, interval: 5 }),
     microsoft_login_finish: () => new Promise(() => {}),
   };

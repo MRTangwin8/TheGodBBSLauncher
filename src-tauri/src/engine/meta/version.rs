@@ -434,6 +434,10 @@ impl VersionJson {
         let mut chain = Vec::new();
         let mut next = Some(id.to_string());
         while let Some(cur) = next {
+            // id 和 inheritsFrom 都会拼成 versions/<id>/ 路径，必须是单个合法的文件夹名
+            if !crate::engine::safepath::name_ok(&cur) {
+                return Err(Error::Other(format!("版本名「{cur}」不合法")));
+            }
             if chain.iter().any(|v: &VersionJson| v.id == cur) {
                 return Err(Error::Other(format!("版本 {cur} 的 inheritsFrom 出现循环")));
             }
@@ -457,6 +461,9 @@ impl VersionJson {
 pub async fn base_minecraft_version(versions_dir: &Path, id: &str) -> Result<String> {
     let mut cur = id.to_string();
     for _ in 0..8 {
+        if !crate::engine::safepath::name_ok(&cur) {
+            return Err(Error::Other(format!("版本名「{cur}」不合法")));
+        }
         let path = versions_dir.join(&cur).join(format!("{cur}.json"));
         let text = tokio::fs::read_to_string(&path).await.map_err(|_| Error::VersionNotFound(cur.clone()))?;
         let v: VersionJson = serde_json::from_str(&text)?;

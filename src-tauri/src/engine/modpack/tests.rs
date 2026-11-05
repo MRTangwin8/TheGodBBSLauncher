@@ -185,3 +185,29 @@ fn curseforge_pack_files_have_safe_paths_and_known_resource_types() {
     }
     assert!(curseforge_pack_files(&[cf_version("mod.jar")], &refs, &HashMap::new()).is_err());
 }
+
+#[test]
+fn overrides_skip_device_names_and_symlink_entries_and_stop_when_cancelled() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut w = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let opts = zip::write::SimpleFileOptions::default();
+    w.start_file("modrinth.index.json", opts).unwrap();
+    w.write_all(MRPACK_INDEX.as_bytes()).unwrap();
+    for (name, data) in [("overrides/config/ok.txt", &b"ok"[..]), ("overrides/CON", b"x"), ("overrides/config/nul.txt", b"x"), ("overrides/a:b", b"x")] {
+        w.start_file(name, opts).unwrap();
+        w.write_all(data).unwrap();
+    }
+    w.add_symlink("overrides/link", "/etc/passwd", opts).unwrap();
+    let pack = dir.path().join("p.mrpack");
+    std::fs::write(&pack, w.finish().unwrap().into_inner()).unwrap();
+
+    let p = Modpack::open(&pack).unwrap();
+    let game = dir.path().join("game");
+    assert_eq!(p.extract_overrides(&game).unwrap(), 1, "只有 config/ok.txt 是正常文件");
+    assert!(game.join("config/ok.txt").is_file());
+    assert!(std::fs::symlink_metadata(game.join("link")).is_err(), "链接条目不落地");
+
+    let token = crate::engine::cancel::CancelToken::default();
+    token.cancel();
+    assert!(p.extract_overrides_with(&dir.path().join("game2"), Some(&token)).is_err());
+}

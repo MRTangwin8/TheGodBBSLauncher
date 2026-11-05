@@ -81,7 +81,8 @@ pub async fn mp_install(app: AppHandle, state: State<'_, AppState>, job_id: Stri
     }
     let downloader = Downloader::new(state.client.clone(), state.source().await, 1);
     let report = job_reporter(&app, &job_id);
-    let result = release::install(&downloader, &state.runtime_dir(), &platform, Arc::new(move |p| report(Stage::Files, p))).await;
+    let job = state.cancellable(&job_id);
+    let result = job.run(release::install(&downloader, &state.runtime_dir(), &platform, Arc::new(move |p| report(Stage::Files, p)))).await;
     state.installing.lock().await.remove(&job_id);
     result.map(drop)
 }

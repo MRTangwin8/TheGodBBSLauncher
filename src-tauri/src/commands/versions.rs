@@ -39,9 +39,17 @@ pub async fn install_version(app: AppHandle, state: State<'_, AppState>, id: Str
     if !state.installing.lock().await.insert(id.clone()) {
         return Err(Error::coded("install.busy", &[("id", &id)], format!("{id} 已经在安装了，别急")));
     }
-    let result = do_install(&app, &state, &id).await;
+    let job = state.cancellable(&id);
+    let result = job.run(do_install(&app, &state, &id)).await;
     state.installing.lock().await.remove(&id);
     result
+}
+
+/// 取消下载 / 安装 / 导入 / 启动前准备；id 就是界面上的任务 id
+#[tauri::command]
+pub async fn cancel_job(state: State<'_, AppState>, job_id: String) -> Result<()> {
+    state.cancel_job(&job_id);
+    Ok(())
 }
 
 async fn do_install(app: &AppHandle, state: &AppState, id: &str) -> Result<DownloadReport> {
