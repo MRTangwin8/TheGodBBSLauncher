@@ -19,9 +19,13 @@ pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings> {
 
 #[tauri::command]
 pub async fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<()> {
-    let settings = settings.sanitized();
+    let mut settings = settings.sanitized();
+    let mut current = state.settings.write().await;
+    // 「上次启动的版本」只由启动命令记录：界面那份设置可能是启动之前读的，不能让它把新记录盖回去
+    settings.last_version = current.last_version.clone();
     config::save(&state.config_path, &settings)?;
-    *state.settings.write().await = settings;
+    *current = settings;
+    drop(current);
     *state.auto_source.lock().await = None;
     Ok(())
 }

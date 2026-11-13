@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, reactive, ref } from "vue";
 import { api, onGameExit, onGameLog } from "../api";
 import { useVersionsStore } from "./versions";
+import { useSettingsStore } from "./settings";
 import type { CrashAnalysis, GameExit } from "../api/types";
 
 export interface GameRun {
@@ -67,6 +68,10 @@ export const useGameStore = defineStore("game", () => {
     const versions = useVersionsStore();
     launching.value = versionId;
     error.value = null;
+    // 后端一开始启动就把它记成「上次启动的版本」，界面这份设置也要跟上：
+    // 不然回到首页选中的还是旧版本，之后保存别的设置时还会把旧值写回去
+    const settings = useSettingsStore().settings;
+    if (settings) settings.lastVersion = versionId;
     const job = versions.trackLaunch(versionId);
     try {
       const r = await api.launchGame(versionId, server);

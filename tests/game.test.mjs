@@ -19,6 +19,9 @@ const aliases = new Map([
   ["./versions", moduleUrl(`
     export const useVersionsStore = () => globalThis.__gameTestBridge.versions;
   `)],
+  ["./settings", moduleUrl(`
+    export const useSettingsStore = () => globalThis.__gameTestBridge.settingsStore;
+  `)],
 ]);
 
 // Exercise the production store with real Pinia and mocked IPC, without a browser or extra test packages.
@@ -55,6 +58,7 @@ function setup() {
   const killed = [];
   const bridge = {
     launchGame: () => pending.promise,
+    settingsStore: { settings: { lastVersion: "old-version" } },
     killGame: async (runId) => { killed.push(runId); },
     versions: {
       trackLaunch(versionId) {
@@ -89,6 +93,17 @@ test("preserves an exit and its diagnostics arriving before launch returns", asy
   assert.deepEqual(store.runs.run.lines, ["first line"]);
   assert.equal(store.running.length, 0);
   assert.deepEqual(dismissed, ["test-version"]);
+});
+
+test("launching a version makes it the remembered last version right away", async () => {
+  const { store, bridge, pending } = setup();
+  const launching = store.launch("test-version");
+  assert.equal(bridge.settingsStore.settings.lastVersion, "test-version", "不用等启动完成，首页回来就该选中它");
+  pending.resolve(result());
+  await launching;
+  bridge.settingsStore.settings = null;
+  pending.promise = Promise.resolve(result("run2"));
+  assert.equal(await store.launch("test-version"), true, "设置还没读到时也能启动");
 });
 
 test("bounds logs both before and after the launch response", async () => {
