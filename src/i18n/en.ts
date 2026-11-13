@@ -305,6 +305,7 @@ const en: typeof zhCN = {
   log: {
     killed: "Stopped manually",
     exitOk: "Game exited normally",
+    exitOkCode: "The game exited normally (exit code {code}: some mods make the exit code non-zero, but the log shows a normal shutdown, so this can be ignored)",
     exitBad: "Game exited abnormally (exit code {code})",
     unknown: "unknown",
     analyzeFile: "Analyze a log file…",
@@ -795,7 +796,33 @@ const en: typeof zhCN = {
     empty: "Nothing here yet",
   },
   instance: {
-    tab: { settings: "Launch settings", mods: "Mods", saves: "Worlds", servers: "Servers", screenshots: "Screenshots" },
+    tab: { settings: "Launch settings", mods: "Mods", resourcepacks: "Resource packs", shaders: "Shaders", saves: "Worlds", servers: "Servers", screenshots: "Screenshots" },
+    packs: {
+      search: {
+        resourcepack: "Search installed resource packs…",
+        shader: "Search installed shaders…",
+      },
+      openFolder: "Open folder",
+      download: {
+        resourcepack: "Get resource packs",
+        shader: "Get shaders",
+      },
+      hint: {
+        resourcepack: "This manages the files in the resourcepacks folder. Which pack is active, and in what order, is still chosen in the game under Options → Resource Packs. A disabled pack no longer shows up in the game.",
+        shader: "This manages the files in the shaderpacks folder. The active shader is chosen in the game's shader settings (requires a shader mod such as Iris or OptiFine). A disabled shader no longer shows up in the game.",
+      },
+      header: {
+        resourcepack: "Resource packs ({n})",
+        shader: "Shaders ({n})",
+      },
+      folder: "Folder",
+      reading: "Loading…",
+      noMatch: "No matching files",
+      empty: {
+        resourcepack: "No resource packs yet",
+        shader: "No shaders yet",
+      },
+    },
     javaAuto: "pick a suitable version automatically",
     pickJava: "Choose the java executable (javaw.exe / java)",
     savedNext: "Saved. Takes effect on next launch.",

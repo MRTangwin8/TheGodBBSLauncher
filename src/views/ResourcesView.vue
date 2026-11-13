@@ -71,6 +71,9 @@ onMounted(async () => {
   if (!versions.installed.length) await versions.loadInstalled();
   // 从首页「管理模组」进来时带着版本；否则选第一个装了加载器的版本
   const wanted = route.query.version as string | undefined;
+  // 从版本管理的「资源包 / 光影」进来时带着类型
+  const wantedKind = kinds.find((k) => k === route.query.kind);
+  if (wantedKind) kind.value = wantedKind;
   versionId.value = (versions.installed.find((v) => v.id === wanted) ?? versions.installed.find((v) => v.loader) ?? versions.installed[0])?.id ?? "";
   if (!versionId.value) await search();
 });

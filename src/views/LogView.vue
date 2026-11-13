@@ -34,10 +34,13 @@ const box = ref<HTMLElement | null>(null);
 const follow = ref(true);
 const filter = ref("");
 
+// 每行带一个固定编号当 key：日志滚动（开头丢行、结尾加行）时只增删首尾的节点，不会把几千行全部重画
 const lines = computed(() => {
-  const all = run.value?.lines ?? [];
+  const r = run.value;
   const kw = filter.value.trim().toLowerCase();
-  return kw ? all.filter((l) => l.toLowerCase().includes(kw)) : all;
+  const base = r?.dropped ?? 0;
+  const all = (r?.lines ?? []).map((text, i) => ({ n: base + i, text }));
+  return kw ? all.filter((l) => l.text.toLowerCase().includes(kw)) : all;
 });
 
 function levelClass(line: string) {
@@ -48,7 +51,8 @@ function levelClass(line: string) {
 }
 
 watch(
-  () => lines.value.length,
+  // 看最后一行的编号而不是行数：日志满 5000 行后行数不再变，但内容还在滚
+  () => lines.value[lines.value.length - 1]?.n,
   async () => {
     if (!follow.value) return;
     await nextTick();
@@ -94,7 +98,8 @@ const exitText = computed(() => {
   const r = run.value;
   if (!r || r.status === "running") return "";
   if (r.killed) return t("log.killed");
-  return r.code === 0 ? t("log.exitOk") : t("log.exitBad", { code: r.code ?? t("log.unknown") });
+  if (r.normal) return r.code === 0 ? t("log.exitOk") : t("log.exitOkCode", { code: r.code ?? t("log.unknown") });
+  return t("log.exitBad", { code: r.code ?? t("log.unknown") });
 });
 </script>
 
@@ -134,7 +139,7 @@ const exitText = computed(() => {
         <span>
           <b>{{ run.versionId }}</b> · {{ $t("log.player", { name: run.player }) }} ·
           <span v-if="run.status === 'running'" class="running">{{ $t("log.running") }}</span>
-          <span v-else :class="run.code === 0 ? 'muted' : 'error-text'">{{ exitText }}</span>
+          <span v-else :class="run.normal || run.killed ? 'muted' : 'error-text'">{{ exitText }}</span>
         </span>
         <input v-model="filter" class="input" :placeholder="$t('log.filter')" />
         <button class="btn" @click="copyAll">{{ $t("log.copyAll") }}</button>
@@ -149,7 +154,7 @@ const exitText = computed(() => {
       <div v-else-if="shareError" class="share-row error-text">{{ shareError }}</div>
       <CrashPanel v-if="run.analysis" :analysis="run.analysis" :title="$t('log.crashTitle')" />
       <div ref="box" class="log" @scroll="onScroll">
-        <div v-for="(l, i) in lines" :key="i" :class="levelClass(l)">{{ l }}</div>
+        <div v-for="l in lines" :key="l.n" :class="levelClass(l.text)">{{ l.text }}</div>
       </div>
     </template>
   </div>

@@ -34,7 +34,37 @@ pub const GAME_EXIT_EVENT: &str = "game-exit";
 #[serde(rename_all = "camelCase")]
 struct GameLog {
     run_id: String,
-    line: String,
+    /// 一批日志行。游戏疯狂刷日志时（崩溃时成千上万行堆栈）一行发一个事件会把界面卡死，所以攒一小段时间一起发
+    lines: Vec<String>,
+}
+
+/// 多久把攒下的日志推给界面一次
+const LOG_FLUSH: Duration = Duration::from_millis(100);
+/// 一批最多推这么多行（界面每个进程只留 5000 行，再多也是白推）；超出的只留最后这些
+const LOG_BATCH_MAX: usize = 5000;
+
+/// 还没推给界面的日志行
+type Pending = Arc<std::sync::Mutex<Vec<String>>>;
+
+/// 取出攒下的日志；太多时丢掉前面的，并留一行说明
+fn take_batch(pending: &Pending) -> Vec<String> {
+    let mut lines = match pending.lock() {
+        Ok(mut p) => std::mem::take(&mut *p),
+        Err(_) => return Vec::new(),
+    };
+    if lines.len() > LOG_BATCH_MAX {
+        let dropped = lines.len() - LOG_BATCH_MAX;
+        lines.drain(..dropped);
+        lines.insert(0, format!("[神权] 日志刷得太快，这里略过了 {dropped} 行（完整内容见游戏目录的 logs/latest.log）"));
+    }
+    lines
+}
+
+fn flush_log(app: &AppHandle, run_id: &str, pending: &Pending) {
+    let lines = take_batch(pending);
+    if !lines.is_empty() {
+        let _ = app.emit(GAME_LOG_EVENT, GameLog { run_id: run_id.to_string(), lines });
+    }
 }
 
 #[derive(Clone, Serialize)]
@@ -44,6 +74,8 @@ struct GameExit {
     version_id: String,
     code: Option<i32>,
     killed: bool,
+    /// 算正常退出：退出码 0，或者退出码不是 0 但日志显示游戏是自己正常关闭的、也没查出问题
+    normal: bool,
     analysis: Option<CrashAnalysis>,
 }
 
@@ -252,15 +284,26 @@ async fn prepare_and_launch(app: AppHandle, state: &AppState, version_id: String
     let shown = redactor.redact(&prepared.args.join(" "));
     let _ = app.emit(
         GAME_LOG_EVENT,
-        GameLog { run_id: run_id.clone(), line: format!("[神权] {} {}", prepared.java.display(), shown) },
+        GameLog { run_id: run_id.clone(), lines: vec![format!("[神权] {} {}", prepared.java.display(), shown)] },
     );
 
     let log: LogBuffer = Arc::new(std::sync::Mutex::new(VecDeque::new()));
+    let pending: Pending = Arc::new(std::sync::Mutex::new(Vec::new()));
     let pumps: Vec<JoinHandle<()>> = [child.stdout.take().map(boxed), child.stderr.take().map(boxed)]
         .into_iter()
         .flatten()
-        .map(|stream| tokio::spawn(pump_lines(app.clone(), run_id.clone(), stream, log.clone(), redactor.clone())))
+        .map(|stream| tokio::spawn(pump_lines(stream, log.clone(), pending.clone(), redactor.clone())))
         .collect();
+    // 定时把攒下的日志推给界面，游戏退出后由 wait_exit 停掉
+    let flusher = {
+        let (app, run_id, pending) = (app.clone(), run_id.clone(), pending.clone());
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(LOG_FLUSH).await;
+                flush_log(&app, &run_id, &pending);
+            }
+        })
+    };
 
     let (kill_tx, kill_rx) = oneshot::channel();
     state.games.lock().await.insert(run_id.clone(), RunningGame { version_id: version_id.clone(), kill: Some(kill_tx) });
@@ -271,7 +314,9 @@ async fn prepare_and_launch(app: AppHandle, state: &AppState, version_id: String
         game_dir: prepared.cwd.clone(),
         started: SystemTime::now() - Duration::from_secs(2),
         log,
+        pending,
         pumps,
+        flusher,
         redactor,
     };
     tokio::spawn(wait_exit(app.clone(), exit, child, kill_rx));
@@ -287,7 +332,7 @@ fn boxed<R: AsyncRead + Send + Unpin + 'static>(r: R) -> Box<dyn AsyncRead + Sen
 type LogBuffer = Arc<std::sync::Mutex<VecDeque<String>>>;
 const LOG_KEEP: usize = 20_000;
 
-async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + Send + Unpin>, log: LogBuffer, redactor: Arc<LogRedactor>) {
+async fn pump_lines(stream: Box<dyn AsyncRead + Send + Unpin>, log: LogBuffer, pending: Pending, redactor: Arc<LogRedactor>) {
     let mut reader = BufReader::new(stream);
     let mut parser = Log4jParser::default();
     let mut buf = Vec::new();
@@ -303,7 +348,9 @@ async fn pump_lines(app: AppHandle, run_id: String, stream: Box<dyn AsyncRead + 
                 }
                 log.push_back(line.clone());
             }
-            let _ = app.emit(GAME_LOG_EVENT, GameLog { run_id: run_id.clone(), line });
+            if let Ok(mut p) = pending.lock() {
+                p.push(line);
+            }
         }
     }
 }
@@ -316,7 +363,9 @@ struct ExitContext {
     game_dir: PathBuf,
     started: SystemTime,
     log: LogBuffer,
+    pending: Pending,
     pumps: Vec<JoinHandle<()>>,
+    flusher: JoinHandle<()>,
     redactor: Arc<LogRedactor>,
 }
 
@@ -341,6 +390,11 @@ async fn wait_exit(app: AppHandle, ctx: ExitContext, mut child: tokio::process::
         }
     }
 
+    // 剩下的日志先推完，保证界面先收到全部日志、再收到退出事件
+    ctx.flusher.abort();
+    let _ = ctx.flusher.await;
+    flush_log(&app, &ctx.run_id, &ctx.pending);
+
     use tauri::Manager;
     let state = app.try_state::<AppState>();
     if let Some(state) = &state {
@@ -349,11 +403,14 @@ async fn wait_exit(app: AppHandle, ctx: ExitContext, mut child: tokio::process::
 
     // 用户手动结束的不分析。退出码 0 也要看：Forge 的模组加载错误界面关掉后是正常退出的
     let files = crash::collect_crash_files(&ctx.game_dir, ctx.started);
-    let clean_exit = code == Some(0) && files.is_empty();
+    let text = ctx.log.lock().map(|l| l.iter().cloned().collect::<Vec<_>>().join("\n")).unwrap_or_default();
+    // 退出码不是 0 不一定是崩溃：不少模组会让正常关闭的游戏带着非 0 的退出码。
+    // 日志里有正常关闭的记录、又没有崩溃报告，就按正常退出看
+    let stopped = files.is_empty() && crash::stopped_normally(&text);
+    let clean_exit = (code == Some(0) || stopped) && files.is_empty();
     let analysis = match (&state, killed) {
         (Some(state), false) => {
             let rules = state.crash_rules.read().await.clone();
-            let text = ctx.log.lock().map(|l| l.iter().cloned().collect::<Vec<_>>().join("\n")).unwrap_or_default();
             let redactor = ctx.redactor.clone();
             tokio::task::spawn_blocking(move || crash::analyze_run_with_redactor(&rules, &text, &files, code, &redactor))
                 .await
@@ -370,7 +427,8 @@ async fn wait_exit(app: AppHandle, ctx: ExitContext, mut child: tokio::process::
         }
         _ => None,
     };
-    let _ = app.emit(GAME_EXIT_EVENT, GameExit { run_id: ctx.run_id, version_id: ctx.version_id, code, killed, analysis });
+    let normal = code == Some(0) || (!killed && stopped && analysis.is_none());
+    let _ = app.emit(GAME_EXIT_EVENT, GameExit { run_id: ctx.run_id, version_id: ctx.version_id, code, killed, normal, analysis });
 }
 
 #[tauri::command]
@@ -425,4 +483,23 @@ pub async fn create_shortcut(state: State<'_, AppState>, version_id: String) -> 
         .await
         .map_err(|e| Error::Other(e.to_string()))??;
     Ok(path.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn log_batches_are_drained_and_capped() {
+        let pending: Pending = Arc::new(std::sync::Mutex::new(vec!["a".to_string(), "b".to_string()]));
+        assert_eq!(take_batch(&pending), ["a", "b"]);
+        assert!(take_batch(&pending).is_empty(), "取走之后就空了");
+
+        *pending.lock().unwrap() = (0..LOG_BATCH_MAX + 10).map(|i| format!("line {i}")).collect();
+        let batch = take_batch(&pending);
+        assert_eq!(batch.len(), LOG_BATCH_MAX + 1, "多一行说明");
+        assert!(batch[0].contains("略过了 10 行"));
+        assert_eq!(batch[1], "line 10");
+        assert_eq!(batch.last().unwrap(), &format!("line {}", LOG_BATCH_MAX + 9));
+    }
 }

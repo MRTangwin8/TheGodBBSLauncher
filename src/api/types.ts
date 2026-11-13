@@ -282,7 +282,8 @@ export interface LaunchResult {
 
 export interface GameLog {
   runId: string;
-  line: string;
+  /** 一批日志行（后端每 100 毫秒攒一批，免得游戏刷日志时把界面卡死） */
+  lines: string[];
 }
 
 export interface GameExit {
@@ -290,6 +291,8 @@ export interface GameExit {
   versionId: string;
   code: number | null;
   killed: boolean;
+  /** 算正常退出：退出码 0，或退出码不是 0 但日志显示游戏是自己正常关闭的 */
+  normal: boolean;
   analysis: CrashAnalysis | null;
 }
 

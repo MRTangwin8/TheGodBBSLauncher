@@ -305,6 +305,7 @@ const ja: typeof zhCN = {
   log: {
     killed: "手動で終了しました",
     exitOk: "ゲームは正常に終了しました",
+    exitOkCode: "ゲームは正常に終了しました（終了コード {code}：一部の MOD は終了コードを 0 以外にしますが、ログでは正常に終了しているので問題ありません）",
     exitBad: "ゲームが異常終了しました（終了コード {code}）",
     unknown: "不明",
     analyzeFile: "ログファイルを解析…",
@@ -795,7 +796,33 @@ const ja: typeof zhCN = {
     empty: "まだ何もありません",
   },
   instance: {
-    tab: { settings: "起動設定", mods: "Mod", saves: "ワールド", servers: "サーバー", screenshots: "スクリーンショット" },
+    tab: { settings: "起動設定", mods: "Mod", resourcepacks: "リソースパック", shaders: "シェーダー", saves: "ワールド", servers: "サーバー", screenshots: "スクリーンショット" },
+    packs: {
+      search: {
+        resourcepack: "インストール済みのリソースパックを検索…",
+        shader: "インストール済みのシェーダーを検索…",
+      },
+      openFolder: "フォルダーを開く",
+      download: {
+        resourcepack: "リソースパックを入手",
+        shader: "シェーダーを入手",
+      },
+      hint: {
+        resourcepack: "resourcepacks フォルダー内のファイルを管理します。どのパックを使うか、その順番は、ゲームの「設定 → リソースパック」で選びます。無効にするとゲームに表示されなくなります。",
+        shader: "shaderpacks フォルダー内のファイルを管理します。使うシェーダーはゲームのシェーダー設定で選びます（Iris や OptiFine などのシェーダー MOD が必要）。無効にするとゲームに表示されなくなります。",
+      },
+      header: {
+        resourcepack: "リソースパック（{n} 個）",
+        shader: "シェーダー（{n} 個）",
+      },
+      folder: "フォルダー",
+      reading: "読み込み中…",
+      noMatch: "一致するファイルがありません",
+      empty: {
+        resourcepack: "リソースパックはまだありません",
+        shader: "シェーダーはまだありません",
+      },
+    },
     javaAuto: "適切なバージョンを自動選択",
     pickJava: "java 実行ファイルを選択（javaw.exe / java）",
     savedNext: "保存しました。次回の起動から反映されます。",

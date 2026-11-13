@@ -300,6 +300,15 @@ pub fn keep_for_clean_exit(analysis: &mut CrashAnalysis) {
     analysis.findings.retain(|f| f.severity == Severity::Error && !f.generic);
 }
 
+/// 日志显示游戏是自己正常关闭的：结尾附近有 Minecraft 关闭时打的 `Stopping!`，而且没有崩溃的迹象。
+/// 不少模组会让正常关闭的游戏退出码不是 0（关闭时还有线程没停、模组自己调用了 exit 等），
+/// 只看退出码会把这种情况误报成「异常退出」
+pub fn stopped_normally(log: &str) -> bool {
+    const CRASH_MARKS: &[&str] = &["Game crashed!", "---- Minecraft Crash Report ----", "A fatal error has been detected by the Java Runtime Environment"];
+    let tail: Vec<&str> = log.lines().rev().take(300).collect();
+    tail.iter().any(|l| l.trim_end().ends_with("/INFO]: Stopping!")) && !tail.iter().any(|l| CRASH_MARKS.iter().any(|m| l.contains(m)))
+}
+
 /// 把日志行和崩溃文件拼起来分析
 pub fn analyze_run(rules: &RuleSet, log: &str, files: &[PathBuf], exit_code: Option<i32>) -> CrashAnalysis {
     analyze_run_with_redactor(rules, log, files, exit_code, &LogRedactor::default())

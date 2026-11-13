@@ -304,6 +304,7 @@ export default {
   log: {
     killed: "已手动结束",
     exitOk: "游戏已正常退出",
+    exitOkCode: "游戏已正常退出（退出码 {code}：有些模组会让退出码不是 0，日志显示游戏是正常关闭的，不用管）",
     exitBad: "游戏异常退出（退出码 {code}）",
     unknown: "未知",
     analyzeFile: "分析日志文件…",
@@ -794,7 +795,33 @@ export default {
     empty: "这里还是空的",
   },
   instance: {
-    tab: { settings: "启动设置", mods: "模组", saves: "存档", servers: "服务器", screenshots: "截图" },
+    tab: { settings: "启动设置", mods: "模组", resourcepacks: "资源包", shaders: "光影", saves: "存档", servers: "服务器", screenshots: "截图" },
+    packs: {
+      search: {
+        resourcepack: "搜索已装的资源包…",
+        shader: "搜索已装的光影…",
+      },
+      openFolder: "打开文件夹",
+      download: {
+        resourcepack: "下载资源包",
+        shader: "下载光影",
+      },
+      hint: {
+        resourcepack: "这里管理 resourcepacks 文件夹里的文件；用哪个资源包、谁在上面，还是在游戏的「选项 → 资源包」里选。禁用后游戏里就看不到它了。",
+        shader: "这里管理 shaderpacks 文件夹里的文件；用哪个光影在游戏的光影设置里选（需要 Iris、OptiFine 这类光影模组）。禁用后游戏里就看不到它了。",
+      },
+      header: {
+        resourcepack: "资源包（共 {n} 个）",
+        shader: "光影（共 {n} 个）",
+      },
+      folder: "文件夹",
+      reading: "正在读取…",
+      noMatch: "没有找到匹配的文件",
+      empty: {
+        resourcepack: "还没有资源包",
+        shader: "还没有光影",
+      },
+    },
     javaAuto: "自动选择合适的版本",
     pickJava: "选择 java 可执行文件（javaw.exe / java）",
     savedNext: "已保存，下次启动时生效。",

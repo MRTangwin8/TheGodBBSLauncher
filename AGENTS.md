@@ -125,6 +125,8 @@ src/
 ### 长任务与进度
 - 用事件推送：`install-progress`、`game-log`、`game-exit`。前端用 `api/index.ts` 导出的 `onInstallProgress` / `onGameLog` / `onGameExit` 订阅；新事件照此加一个导出。
 - 下载任务带 `jobId`，进度显示在 `ProgressFloat`。
+- **游戏日志按批推送**：`game-log` 的内容是 `{ runId, lines }`，后端每 100 毫秒把攒下的行一起发（一批最多 5000 行）。不要改回一行一个事件：游戏崩溃时一秒能刷上万行，界面会被事件淹没卡死。界面每行用固定编号（`run.dropped + 下标`）当 key，滚动时只增删首尾节点。
+- **游戏退出是否正常**由后端判断（`GameExit.normal`）：退出码 0，或者退出码不是 0 但日志结尾有 `Stopping!`、没有崩溃报告、也没查出明确的错误（不少模组会让正常关闭的游戏带着非 0 的退出码）。界面不要再只看退出码。
 - **取消**：长任务命令里写 `let job = state.cancellable(&job_id); job.run(…).await`，界面的「取消」调 `cancel_job`。
   - 取消标志是 task-local（`engine/cancel.rs`）：`Downloader::download_all` 自动停下（`.part` 留着续传），其他长步骤里调 `cancel::check()?`；`spawn_blocking` 里拿不到，先 `cancel::current()` 取出来传进去。
   - `JobGuard::run` 只把**失败**换成「已取消」，已经成功的结果原样返回（比如游戏刚好启动了）。

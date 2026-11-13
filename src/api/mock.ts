@@ -278,10 +278,18 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       optional: ["Iris Shaders", "Reese's Sodium Options"],
       incompatible: [],
     }),
-    local_resources: () => [
-      { filename: "sodium-fabric-0.8.13.jar", enabled: true, size: 2048000, projectId: "AANobbMI", title: "Sodium", version: "0.8.13" },
-      { filename: "old-mod.jar.disabled", enabled: false, size: 51200, projectId: null, title: null, version: null },
-    ],
+    local_resources: () =>
+      args?.kind === "resourcepack"
+        ? [
+            { filename: "Faithful 32x.zip", enabled: true, size: 15728640, projectId: null, title: null, version: null },
+            { filename: "my-pack", enabled: true, size: 0, projectId: null, title: null, version: null },
+          ]
+        : args?.kind === "shader"
+          ? [{ filename: "ComplementaryReimagined_r5.5.zip.disabled", enabled: false, size: 1048576, projectId: null, title: null, version: null }]
+          : [
+              { filename: "sodium-fabric-0.8.13.jar", enabled: true, size: 2048000, projectId: "AANobbMI", title: "Sodium", version: "0.8.13" },
+              { filename: "old-mod.jar.disabled", enabled: false, size: 51200, projectId: null, title: null, version: null },
+            ],
     local_compat: () => [
       { filename: "sodium-fabric-0.8.13.jar", report: { status: "ok", problems: [], notes: ["已核对 75 个必需的 Mixin 注入点"] } },
       { filename: "old-mod.jar.disabled", report: { status: "problem", problems: ["需要 Minecraft [1.20,1.21)，当前是 1.21.1"], notes: [] } },

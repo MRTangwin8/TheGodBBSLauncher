@@ -83,7 +83,7 @@ test("preserves an exit and its diagnostics arriving before launch returns", asy
   const { store, bridge, pending, dismissed } = setup();
   const launching = store.launch("test-version");
   const analysis = { exitCode: 1, findings: [], files: ["crash.txt"] };
-  bridge.log({ runId: "run", line: "first line" });
+  bridge.log({ runId: "run", lines: ["first line"] });
   bridge.exit(exit("run", { code: 1, analysis }));
   pending.resolve(result());
   assert.equal(await launching, true);
@@ -109,15 +109,45 @@ test("launching a version makes it the remembered last version right away", asyn
 test("bounds logs both before and after the launch response", async () => {
   const { store, bridge, pending } = setup();
   const launching = store.launch("test-version");
-  for (let i = 0; i < 5010; i++) bridge.log({ runId: "run", line: `early-${i}` });
+  for (let i = 0; i < 5010; i++) bridge.log({ runId: "run", lines: [`early-${i}`] });
   pending.resolve(result());
   await launching;
   assert.equal(store.runs.run.lines.length, 5000);
   assert.equal(store.runs.run.lines[0], "early-10");
-  bridge.log({ runId: "run", line: "late" });
+  bridge.log({ runId: "run", lines: ["late"] });
   assert.equal(store.runs.run.lines.length, 5000);
   assert.equal(store.runs.run.lines[0], "early-11");
   assert.equal(store.runs.run.lines[4999], "late");
+});
+
+test("takes log lines in batches and keeps a stable numbering when old lines drop", async () => {
+  const { store, bridge, pending } = setup();
+  const launching = store.launch("test-version");
+  pending.resolve(result());
+  await launching;
+  bridge.log({ runId: "run", lines: ["a", "b", "c"] });
+  assert.deepEqual(store.runs.run.lines, ["a", "b", "c"]);
+  assert.equal(store.runs.run.dropped, 0);
+  bridge.log({ runId: "run", lines: Array.from({ length: 4999 }, (_, i) => `x${i}`) });
+  assert.equal(store.runs.run.lines.length, 5000);
+  assert.equal(store.runs.run.dropped, 2, "开头丢了 a、b");
+  assert.equal(store.runs.run.lines[0], "c");
+  // 一批就超过上限：只留这批的结尾
+  bridge.log({ runId: "run", lines: Array.from({ length: 6000 }, (_, i) => `y${i}`) });
+  assert.equal(store.runs.run.lines.length, 5000);
+  assert.equal(store.runs.run.lines[0], "y1000");
+  assert.equal(store.runs.run.lines[4999], "y5999");
+  assert.equal(store.runs.run.dropped, 2 + 5000 + 1000);
+});
+
+test("a non-zero exit that the backend judged normal is not shown as a crash", async () => {
+  const { store, bridge, pending } = setup();
+  const launching = store.launch("test-version");
+  pending.resolve(result());
+  await launching;
+  bridge.exit(exit("run", { code: 1, normal: true }));
+  assert.equal(store.runs.run.normal, true);
+  assert.equal(store.runs.run.code, 1);
 });
 
 test("handles normal and manually killed exits after registration", async () => {
@@ -137,7 +167,7 @@ test("handles normal and manually killed exits after registration", async () => 
 test("failed launches discard buffered events and allow another launch", async () => {
   const { store, bridge, pending, jobs } = setup();
   const launching = store.launch("test-version");
-  bridge.log({ runId: "run", line: "stale" });
+  bridge.log({ runId: "run", lines: ["stale"] });
   bridge.exit(exit("run", { code: 1 }));
   pending.reject(new Error("launch failed"));
   assert.equal(await launching, false);
@@ -167,7 +197,7 @@ test("late events from a cleared run do not contaminate subsequent launches", as
   await launching;
   bridge.exit(exit());
   store.clear("run");
-  bridge.log({ runId: "run", line: "stale" });
+  bridge.log({ runId: "run", lines: ["stale"] });
   bridge.exit(exit("run", { code: 1 }));
   bridge.launchGame = async () => result();
   await store.launch("test-version");

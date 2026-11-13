@@ -167,6 +167,18 @@ fn clean_exit_keeps_only_specific_errors() {
 }
 
 #[test]
+fn recognizes_normal_shutdown_from_log() {
+    assert!(stopped_normally(fixture!("clean.log")));
+    assert!(stopped_normally("[22:14:01] [Render thread/INFO]: Stopping!\n[22:14:02] [Render thread/WARN]: some mod noise"));
+    assert!(stopped_normally("[12:00:00] [Client thread/INFO]: Stopping!"), "1.12 及以前的线程名");
+    assert!(!stopped_normally("[22:14:01] [Render thread/INFO]: Loading world"));
+    assert!(!stopped_normally("[22:14:01] [Render thread/INFO]: Stopping!\n#@!@# Game crashed! Crash report saved to: x"));
+    assert!(!stopped_normally("[22:14:01] [Render thread/INFO]: [CHAT] <Steve> Stopping!"), "聊天里的字不算");
+    let old = format!("[1] [Render thread/INFO]: Stopping!\n{}", "[2] [main/INFO]: line\n".repeat(400));
+    assert!(!stopped_normally(&old), "只看结尾：很早以前的 Stopping! 不算");
+}
+
+#[test]
 fn clean_log_has_no_findings() {
     assert!(rules().analyze(fixture!("clean.log"), Some(0)).is_empty());
 }

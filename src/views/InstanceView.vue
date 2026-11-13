@@ -10,6 +10,7 @@ import { useSettingsStore } from "../stores/settings";
 import { useVersionsStore } from "../stores/versions";
 import { formatBytes, formatDuration, loaderLabel, timeAgo } from "../utils";
 import ScreenshotGallery from "../components/instance/ScreenshotGallery.vue";
+import PackList from "../components/instance/PackList.vue";
 import ServerList from "../components/instance/ServerList.vue";
 import { errText, locale, t } from "../i18n";
 
@@ -24,8 +25,8 @@ const id = computed(() => String(route.params.id ?? ""));
 const version = computed(() => versions.installed.find((v) => v.id === id.value));
 const running = computed(() => game.running.some((r) => r.versionId === id.value));
 
-type Tab = "settings" | "mods" | "saves" | "servers" | "screenshots";
-const tabs: Tab[] = ["settings", "mods", "saves", "servers", "screenshots"];
+type Tab = "settings" | "mods" | "resourcepacks" | "shaders" | "saves" | "servers" | "screenshots";
+const tabs: Tab[] = ["settings", "mods", "resourcepacks", "shaders", "saves", "servers", "screenshots"];
 const tab = ref<Tab>(tabs.find((k) => k === route.query.tab) ?? "settings");
 watch(tab, (k) => router.replace({ query: { tab: k } }));
 
@@ -434,6 +435,17 @@ function fullTime(unix: number) {
           </tbody>
         </table>
       </template>
+
+      <!-- 资源包 / 光影 -->
+      <PackList
+        v-else-if="tab === 'resourcepacks' || tab === 'shaders'"
+        :version-id="id"
+        :game-dir="info.gameDir"
+        :kind="tab === 'shaders' ? 'shader' : 'resourcepack'"
+        :running="running"
+        @message="(ok, text) => (message = { ok, text })"
+        @open-folder="openFolder"
+      />
 
       <!-- 服务器 -->
       <ServerList v-else-if="tab === 'servers'" :version-id="id" :game-dir="info.gameDir" :running="running" @message="(ok, text) => (message = { ok, text })" />

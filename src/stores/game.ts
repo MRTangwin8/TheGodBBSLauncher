@@ -11,9 +11,13 @@ export interface GameRun {
   player: string;
   startedAt: number;
   lines: string[];
+  /** 因为超过上限从开头丢掉的行数：界面用「丢掉的行数 + 下标」当每一行的固定编号 */
+  dropped: number;
   status: "running" | "exited";
   code: number | null;
   killed: boolean;
+  /** 正常退出（见 GameExit.normal） */
+  normal: boolean;
   analysis: CrashAnalysis | null;
 }
 
@@ -33,25 +37,31 @@ export const useGameStore = defineStore("game", () => {
   const early: Record<string, string[]> = {};
   const earlyExits: Record<string, GameExit> = {};
 
-  function appendLine(lines: string[], line: string) {
-    lines.push(line);
-    if (lines.length > MAX_LINES) lines.splice(0, lines.length - MAX_LINES);
+  /** 追加一批日志，只留最后 MAX_LINES 行；返回丢掉了多少行 */
+  function appendLines(lines: string[], batch: string[]): number {
+    // 一批就超过上限时只要它的结尾，不用先全塞进去再删
+    const tail = batch.length > MAX_LINES ? batch.slice(batch.length - MAX_LINES) : batch;
+    const over = lines.length + tail.length - MAX_LINES;
+    if (over > 0) lines.splice(0, Math.min(over, lines.length));
+    lines.push(...tail);
+    return Math.max(over, 0) + (batch.length - tail.length);
   }
 
   function applyExit(run: GameRun, event: GameExit) {
     run.status = "exited";
     run.code = event.code;
     run.killed = event.killed;
+    run.normal = event.normal ?? event.code === 0;
     run.analysis = event.analysis;
   }
 
-  onGameLog(({ runId, line }) => {
+  onGameLog(({ runId, lines }) => {
     const run = runs[runId];
     if (!run) {
-      if (launching.value) appendLine(early[runId] ??= [], line);
+      if (launching.value) appendLines(early[runId] ??= [], lines);
       return;
     }
-    appendLine(run.lines, line);
+    run.dropped += appendLines(run.lines, lines);
   });
 
   onGameExit((event) => {
@@ -79,9 +89,11 @@ export const useGameStore = defineStore("game", () => {
         ...r,
         startedAt: Date.now(),
         lines: early[r.runId] ?? [],
+        dropped: 0,
         status: "running",
         code: null,
         killed: false,
+        normal: false,
         analysis: null,
       };
       if (earlyExits[r.runId]) applyExit(runs[r.runId], earlyExits[r.runId]);
